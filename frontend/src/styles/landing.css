@@ -1,0 +1,27 @@
+/* client/src/styles/landing.css */
+.landing-page .hero-section {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  }
+  
+  .landing-page h1 {
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+  }
+  
+  .landing-page .card {
+    transition: transform 0.3s ease;
+    border: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .landing-page .card:hover {
+    transform: translateY(-5px);
+  }
+  
+  .hero-section img {
+    max-width: 100%;
+    height: auto;
+  }

@@ -1,0 +1,30 @@
+/* src/styles.css */
+body {
+  background-color: #121212;
+  color: #f1f1f1;
+}
+
+.bg-dark {
+  background-color: #212121 !important;
+}
+
+button {
+  background-color: #007bff !important;
+  border-color: #007bff;
+}
+
+button:hover {
+  background-color: #0056b3 !important;
+  border-color: #0056b3;
+}
+
+input, select {
+  background-color: #333333;
+  color: #f1f1f1;
+  border: 1px solid #444444;
+}
+
+input:focus, select:focus {
+  background-color: #444444;
+  border-color: #007bff;
+}
