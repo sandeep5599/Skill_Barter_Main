@@ -8,20 +8,28 @@ import Dashboard from './components/Dashboard';
 import Login from './components/Login';
 import Register from './components/Register';
 import MatchingInterface from './components/MatchingInterface';
+import MatchRequest from './components/MatchRequests';
 import ProfileManagement from './components/ProfileManagement';
 import 'bootstrap/dist/css/bootstrap.min.css';
+
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function App() {
   return (
     <AuthProvider>
+     
+        <ToastContainer position="top-right" autoClose={3000} />
         <Routes>
-        <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/match" element={<MatchingInterface />} />
-          <Route path="/profile" element={<ProfileManagement />} />
+          <Route path="/match/learning" element={<MatchingInterface />} />
+          <Route path="/match/teaching" element={<MatchRequest />} />
+          <Route path="/profile" element={<ProfileManagement />} />  
         </Routes>
+
     </AuthProvider>
   );
 }

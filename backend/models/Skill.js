@@ -12,7 +12,7 @@ const skillSchema = new mongoose.Schema({
   },
   proficiencyLevel: {
     type: String,
-    enum: ['Beginner', 'Intermediate', 'Advanced'],
+    enum: ['Beginner', 'Intermediate', 'Expert'],
     required: true
   },
   isTeaching: {
