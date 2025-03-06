@@ -132,7 +132,7 @@ const Dashboard = () => {
             <Button variant="primary" onClick={handleFindLearningMatches} disabled={isGeneratingMatches}>
               {isGeneratingMatches ? <Spinner animation="border" size="sm" /> : 'Find Learning Matches'}
             </Button>
-            <Button variant="success" onClick={() => navigate('/match/teaching')}>View Match Requests</Button>
+            <Button variant="success" onClick={() => navigate('/match/teaching')}>View Session Requests</Button>
           </div>
         </Card.Body>
       </Card>
