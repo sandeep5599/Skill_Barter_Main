@@ -2,10 +2,10 @@ import React from 'react';
 import { Navbar, Nav, Container } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationCenter from './NotificationCenter'; 
 
 const Navigation = () => {
   const { user, logout } = useAuth();
-
   return (
     <Navbar bg="light" expand="lg">
       <Container>
@@ -17,6 +17,7 @@ const Navigation = () => {
               <>
                 <Nav.Link as={Link} to="/match">Find Match</Nav.Link>
                 <Nav.Link as={Link} to="/profile">Profile</Nav.Link>
+                <NotificationCenter /> {/* Add this */}
                 <Nav.Link onClick={logout}>Logout</Nav.Link>
               </>
             ) : (

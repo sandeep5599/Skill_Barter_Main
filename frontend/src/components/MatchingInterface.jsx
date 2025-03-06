@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Container, Card, Button, Row, Col, Alert, Spinner } from 'react-bootstrap';
+import { Container, Card, Button, Row, Col, Alert, Spinner, Modal } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-toastify';
+import SessionScheduler from './SessionScheduler';
+import NotificationCenter from './NotificationCenter';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
@@ -9,12 +12,14 @@ const MatchingInterface = () => {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedTeacher, setSelectedTeacher] = useState(null);
 
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout();
+    logout(); 
     navigate('/');
   };
 
@@ -38,6 +43,7 @@ const MatchingInterface = () => {
       setMatches(data);
     } catch (err) {
       setError('Failed to fetch matches. Please try again.');
+      toast.error('Failed to fetch matches');
     } finally {
       setLoading(false);
     }
@@ -47,70 +53,78 @@ const MatchingInterface = () => {
     fetchMatches();
   }, [fetchMatches]);
 
-  const fetchProficiency = async (skillId) => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/skills/${skillId}`, {
-        method: 'GET',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch proficiency');
-      const data = await response.json();
-      return data.proficiency || 'Not specified';
-    } catch {
-      return 'Not specified';
-    }
+  const openScheduleModal = (match) => {
+    setSelectedTeacher({
+      ...match,
+      matchId: match.id,
+      teacherId: match.teacherId || match.id,
+      skillId: match.skillId
+    });
+    setShowScheduleModal(true);
   };
 
-  const requestMatch = async (teacherId, skillId) => {
+  const requestMatch = async (matchId, proposedTimeSlots) => {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/matches`, {
+      const response = await fetch(`${BACKEND_URL}/api/sessions`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json', 
           'Authorization': `Bearer ${localStorage.getItem('token')}` 
         },
-        body: JSON.stringify({
-          teacherId, 
-          skillId,
-          proposedTimeSlots: [{
-            startTime: new Date().toISOString(),
-            endTime: new Date(Date.now() + 3600000).toISOString()
-          }]
+        body: JSON.stringify({ 
+          matchId,
+          proposedTimeSlots
         })
       });
-
-      if (!response.ok) throw new Error('Failed to request match');
-
-      const data = await response.json();
-      alert('Match request sent successfully!');
-      setMatches([...matches, data]);
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create session');
+      }
+  
+      const sessionData = await response.json();
+      
+      toast.success('Session created successfully!');
+      navigate('/sessions');
+  
+      return sessionData;
     } catch (error) {
-      setError('Failed to request match');
+      console.error('Session request error:', error);
+      toast.error(error.message || 'Failed to create session');
+    }
+  };
+  
+  const handleScheduleSubmit = (timeSlots) => {
+    if (selectedTeacher && selectedTeacher.matchId) {
+      console.log("Selected Teacher:", selectedTeacher);
+      console.log("Scheduled Time Slots:", timeSlots);
+
+      requestMatch(selectedTeacher.matchId, timeSlots);
+    } else {
+      toast.error('No match selected to create a session');
     }
   };
 
   return (
     <Container className="py-4">
       <Card className="mb-4 bg-light shadow-sm">
-        <Card.Body className="d-flex justify-content-between align-items-center">
-          <h1 className="mb-0">Find Learning Matches</h1>
-          <div>
-            <Button variant="primary" className="me-2" onClick={() => navigate('/dashboard')}>
-              Dashboard
-            </Button>
-            <Button variant="primary" className="me-2" onClick={() => navigate('/profile')}>
-              Profile
-            </Button>
-            <Button variant="danger" onClick={handleLogout }>
-              Logout
-            </Button>
-          </div>
-        </Card.Body>
-      </Card>
+  <Card.Body className="d-flex justify-content-between align-items-center">
+    <h1 className="mb-0">Find Learning Matches</h1>
+    <div className="d-flex align-items-center gap-2">
+      <NotificationCenter />
+      <Button variant="primary" onClick={() => navigate('/dashboard')}>
+        Dashboard
+      </Button>
+      <Button variant="primary" onClick={() => navigate('/profile')}>
+        Profile
+      </Button>
+      <Button variant="danger" onClick={handleLogout}>
+        Logout
+      </Button>
+    </div>
+  </Card.Body>
+</Card>
+
 
       {error && <Alert variant="danger" onClose={() => setError('')} dismissible>{error}</Alert>}
 
@@ -121,7 +135,10 @@ const MatchingInterface = () => {
         </div>
       ) : matches.length > 0 ? (
         <>
-          <h2 className="mb-3">Available Teachers</h2>
+           <div className="d-flex justify-content-between align-items-center mb-3">
+            <h2 className="mb-0">Available Teachers</h2>
+            {/* <Button variant="primary" onClick={fetchMatches}>Refresh Matches</Button> */}
+          </div>
           {matches.map(match => (
             <Card key={match.id} className="mb-3 shadow-sm border-0">
               <Card.Body>
@@ -156,8 +173,8 @@ const MatchingInterface = () => {
                         View Session
                       </Button>
                     ) : (
-                      <Button variant="primary" className="w-100" onClick={() => requestMatch(match.teacherId, match.skillId)}>
-                        Request Match
+                      <Button variant="primary" className="w-100" onClick={() => openScheduleModal(match)}>
+                        Request Session
                       </Button>
                     )}
                   </Col>
@@ -174,6 +191,18 @@ const MatchingInterface = () => {
           </Button>
         </div>
       )}
+
+      <Modal show={showScheduleModal} onHide={() => setShowScheduleModal(false)} size="lg" centered>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            Schedule with {selectedTeacher?.name || "Teacher"} 
+            {selectedTeacher?.expertise ? ` - ${selectedTeacher.expertise}` : ""}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <SessionScheduler onSchedule={handleScheduleSubmit} />
+        </Modal.Body>
+      </Modal>
     </Container>
   );
 };

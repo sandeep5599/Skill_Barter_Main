@@ -1,40 +1,89 @@
 const mongoose = require('mongoose');
-const Match = require('./Match');
 
-const sessionSchema = new mongoose.Schema({
-  matchId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Match',
-    required: true
-  },
-  startTime: {
-    type: Date,
-    required: true
-  },
-  endTime: {
-    type: Date,
-    required: true
-  },
-  meetLink: {
-    type: String
-  },
-  status: {
-    type: String,
-    enum: ['scheduled', 'ongoing', 'completed', 'cancelled'],
-    default: 'scheduled'
-  },
-  notes: String,
-  feedback: {
-    fromStudent: {
-      rating: Number,
-      comment: String
+const SessionSchema = new mongoose.Schema(
+  {
+    matchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Match',
+      required: true,
+      index: true,
     },
-    fromTeacher: {
-      rating: Number,
-      comment: String
-    }
+    studentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
+    teacherId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
+    skillId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Skill',
+      required: true,
+    },
+    startTime: {
+      type: Date,
+      required: true,
+    },
+    endTime: {
+      type: Date,
+      required: true,
+      validate: {
+        validator: function (value) {
+          return value > this.startTime;
+        },
+        message: 'End time must be after start time.',
+      },
+    },
+    status: {
+      type: String,
+      enum: ['scheduled', 'in-progress', 'completed', 'canceled'],
+      default: 'scheduled',
+      index: true,
+    },
+    meetingLink: {
+      type: String,
+      trim: true,
+      validate: {
+        validator: function (value) {
+          return /^https?:\/\/.+$/.test(value); // Ensures it's a valid URL
+        },
+        message: 'Invalid meeting link URL.',
+      },
+    },
+    notes: {
+      type: String,
+      trim: true,
+      maxlength: 1000, // Increased length for detailed notes
+    },
+    studentRating: {
+      type: Number,
+      min: 1,
+      max: 5,
+    },
+    teacherRating: {
+      type: Number,
+      min: 1,
+      max: 5,
+    },
+    studentFeedback: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+    },
+    teacherFeedback: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+    },
+  },
+  {
+    timestamps: true, // Auto `createdAt` & `updatedAt`
   }
-});
+);
 
-const Session = mongoose.model('Session', sessionSchema);
-module.exports = Session;
+module.exports = mongoose.model('Session', SessionSchema);
