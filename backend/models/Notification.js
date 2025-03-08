@@ -9,6 +9,7 @@ const NotificationSchema = new mongoose.Schema({
   type: {
     type: String,
     enum: [
+      'welcome',
       'new_match_request',
       'match_accepted',
       'match_rejected',
@@ -18,6 +19,10 @@ const NotificationSchema = new mongoose.Schema({
       'session_canceled',
       'session_completed'
     ],
+    required: true
+  },
+  title: {
+    type: String,
     required: true
   },
   message: {
@@ -30,7 +35,7 @@ const NotificationSchema = new mongoose.Schema({
   },
   relatedModel: {
     type: String,
-    enum: ['Match', 'Session']
+    enum: ['User', 'Match', 'Session']
   },
   read: {
     type: Boolean,

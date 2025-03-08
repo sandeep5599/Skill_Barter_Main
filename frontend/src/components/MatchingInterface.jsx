@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import SessionScheduler from './SessionScheduler';
 import NotificationCenter from './NotificationCenter';
 
+
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
 const MatchingInterface = () => {
@@ -14,6 +15,7 @@ const MatchingInterface = () => {
   const [error, setError] = useState('');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -65,7 +67,8 @@ const MatchingInterface = () => {
 
   const requestMatch = async (matchId, proposedTimeSlots) => {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/sessions`, {
+      setSubmitting(true);
+      const response = await fetch(`${BACKEND_URL}/api/matches/`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json', 
@@ -79,7 +82,13 @@ const MatchingInterface = () => {
   
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create session');
+        if (response.status === 400) {
+          throw new Error(errorData.message || 'Please check your input data');
+        } else if (response.status === 401 || response.status === 403) {
+          throw new Error('You are not authorized to perform this action');
+        } else {
+          throw new Error(errorData.message || 'Failed to create session');
+        }
       }
   
       const sessionData = await response.json();
@@ -91,6 +100,8 @@ const MatchingInterface = () => {
     } catch (error) {
       console.error('Session request error:', error);
       toast.error(error.message || 'Failed to create session');
+    } finally {
+      setSubmitting(false);
     }
   };
   
@@ -98,8 +109,9 @@ const MatchingInterface = () => {
     if (selectedTeacher && selectedTeacher.matchId) {
       console.log("Selected Teacher:", selectedTeacher);
       console.log("Scheduled Time Slots:", timeSlots);
-
       requestMatch(selectedTeacher.matchId, timeSlots);
+      setShowScheduleModal(false);
+
     } else {
       toast.error('No match selected to create a session');
     }
@@ -110,22 +122,22 @@ const MatchingInterface = () => {
       <Card className="mb-4 bg-light shadow-sm">
   <Card.Body className="d-flex justify-content-between align-items-center">
     <h1 className="mb-0">Find Learning Matches</h1>
-    <div className="d-flex align-items-center gap-2">
+    <div className="d-flex align-items-center gap-3">
       <NotificationCenter />
-      <Button variant="primary" onClick={() => navigate('/dashboard')}>
-        Dashboard
-      </Button>
-      <Button variant="primary" onClick={() => navigate('/profile')}>
-        Profile
-      </Button>
-      <Button variant="danger" onClick={handleLogout}>
-        Logout
-      </Button>
+      <div className="d-flex gap-2">
+        <Button variant="primary" onClick={() => navigate('/dashboard')}>
+          Dashboard
+        </Button>
+        <Button variant="primary" onClick={() => navigate('/profile')}>
+          Profile
+        </Button>
+        <Button variant="danger" onClick={handleLogout}>
+          Logout
+        </Button>
+      </div>
     </div>
   </Card.Body>
 </Card>
-
-
       {error && <Alert variant="danger" onClose={() => setError('')} dismissible>{error}</Alert>}
 
       {loading ? (
@@ -200,7 +212,7 @@ const MatchingInterface = () => {
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <SessionScheduler onSchedule={handleScheduleSubmit} />
+          <SessionScheduler onSchedule={handleScheduleSubmit} submitting={submitting}/>
         </Modal.Body>
       </Modal>
     </Container>

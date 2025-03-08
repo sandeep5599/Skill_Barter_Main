@@ -3,6 +3,7 @@ import { Container, Row, Col, Card, Button, Badge, OverlayTrigger, Tooltip, Spin
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import NotificationCenter from './NotificationCenter';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
@@ -114,15 +115,23 @@ const Dashboard = () => {
     <Container fluid className="py-4">
       {/* Removed the Bootstrap ToastContainer since we're using react-toastify */}
       
-      <Card className="mb-4 bg-light">
-        <Card.Body className="d-flex justify-content-between align-items-center">
-          <h1 className="text-xl font-medium mb-0">Skill Barter Platform</h1>
-          <div>
-            <Button variant="primary" onClick={() => navigate('/profile')} className="me-2">Profile</Button>
-            <Button variant="danger" onClick={handleLogout}>Logout</Button>
-          </div>
-        </Card.Body>
-      </Card>
+      <Card className="mb-4 bg-light shadow-sm">
+  <Card.Body className="d-flex justify-content-between align-items-center">
+    <h1 className="text-xl font-medium mb-0">Skill Barter Platform</h1>
+    <div className="d-flex align-items-center gap-3">
+      <NotificationCenter />
+      <div className="d-flex gap-2">
+        <Button variant="primary" onClick={() => navigate('/profile')}>
+          Profile
+        </Button>
+        <Button variant="danger" onClick={handleLogout}>
+          Logout
+        </Button>
+      </div>
+    </div>
+  </Card.Body>
+</Card>
+
 
       <Card className="mb-4 bg-light">
         <Card.Body>

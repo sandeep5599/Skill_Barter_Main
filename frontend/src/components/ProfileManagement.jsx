@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Card, Button, Form, Badge } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationCenter from './NotificationCenter';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
 
@@ -153,19 +154,23 @@ const ProfileManagement = () => {
 
   return (
     <Container className="py-4">
-      <Card className="mb-4 bg-light">
-        <Card.Body className="d-flex justify-content-between align-items-center">
-          <h1 className="text-xl font-medium mb-0">Skill Barter Platform</h1>
-          <div>
-            <Button variant="primary" onClick={() => navigate('/dashboard')} className="me-2">
-              Dashboard
-            </Button>
-            <Button variant="danger" onClick={logout}>
-              Logout
-            </Button>
-          </div>
-        </Card.Body>
-      </Card>
+     <Card className="mb-4 bg-light shadow-sm">
+  <Card.Body className="d-flex justify-content-between align-items-center">
+    <h1 className="text-xl font-medium mb-0">Skill Barter Platform</h1>
+    <div className="d-flex align-items-center gap-3">
+      <NotificationCenter />
+      <div className="d-flex gap-2">
+        <Button variant="primary" onClick={() => navigate('/dashboard')}>
+          Dashboard
+        </Button>
+        <Button variant="danger" onClick={logout}>
+          Logout
+        </Button>
+      </div>
+    </div>
+  </Card.Body>
+</Card>
+
 
       <Card className="mb-4">
         <Card.Body>

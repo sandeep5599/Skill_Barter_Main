@@ -1,182 +1,92 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Badge, Offcanvas, ListGroup, Spinner } from 'react-bootstrap';
-import { Bell } from 'react-bootstrap-icons';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { io } from 'socket.io-client';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+import React, { useState, useCallback, memo } from "react";
+import { Dropdown, Badge, Button } from "react-bootstrap";
+import { Bell } from "react-bootstrap-icons";
+import { useNotifications } from "../context/NotificationContext";
+import { formatDistanceToNow } from "date-fns";
 
 const NotificationCenter = () => {
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [show, setShow] = useState(false);
-  const [socket, setSocket] = useState(null);
-  
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  
-  const fetchNotifications = useCallback(async () => {
-    if (!user?._id) return;
-    
-    setLoading(true);
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/notifications`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch notifications');
-      
-      const data = await response.json();
-      setNotifications(data);
-      setUnreadCount(data.filter(n => !n.read).length);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-    } finally {
-      setLoading(false);
+
+  const handleNotificationClick = useCallback((notification) => {
+    if (!notification.read) {
+      markAsRead(notification._id);
     }
-  }, [user]);
-  
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
-  
-  // Setup Socket.io connection
-  useEffect(() => {
-    if (!user?._id) return;
-    
-    const newSocket = io(BACKEND_URL, {
-      auth: {
-        token: localStorage.getItem('token')
-      }
-    });
-    
-    newSocket.on('connect', () => {
-      console.log('Socket connected');
-    });
-    
-    newSocket.on('notification', (notification) => {
-      // Add new notification to state
-      setNotifications(prev => [notification, ...prev]);
-      setUnreadCount(prev => prev + 1);
-    });
-    
-    newSocket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-    });
-    
-    setSocket(newSocket);
-    
-    return () => {
-      newSocket.disconnect();
-    };
-  }, [user]);
-  
-  const handleClose = () => setShow(false);
-  const handleShow = () => {
-    setShow(true);
-    // Mark all as read when opening
+    if (notification.link) {
+      window.location.href = notification.link;
+    }
+  }, [markAsRead]);
+
+  const handleMarkAllAsRead = useCallback(() => {
     markAllAsRead();
-  };
-  
-  const markAllAsRead = async () => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/notifications/mark-all-read`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      if (!response.ok) throw new Error('Failed to mark notifications as read');
-      
-      setNotifications(prev => 
-        prev.map(notification => ({ ...notification, read: true }))
-      );
-      setUnreadCount(0);
-    } catch (error) {
-      console.error('Error marking notifications as read:', error);
-    }
-  };
-  
-  const handleNotificationClick = (notification) => {
-    handleClose();
-    
-    // Navigate based on notification type
-    switch (notification.type) {
-      case 'new_match_request':
-      case 'match_accepted':
-      case 'match_rejected':
-      case 'match_rescheduled':
-        navigate('/match/teaching');
-        break;
-      case 'session_created':
-      case 'session_reminder':
-      case 'session_canceled':
-      case 'session_completed':
-        navigate('/sessions');
-        break;
-      default:
-        navigate('/dashboard');
-    }
-  };
-  
-  const formatTime = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString();
-  };
-  
+  }, [markAllAsRead]);
+
   return (
-    <>
-      <Button 
+    <Dropdown show={show} onToggle={setShow} align="end">
+      <Dropdown.Toggle 
+        as={Button} 
         variant="primary" 
-        className="position-relative" 
-        onClick={handleShow}
+        id="notification-dropdown" 
+        className="position-relative btn-icon"
+        style={{ border: "none", background: "transparent" }}
       >
-        <Bell />
+        <Bell size={20} />
         {unreadCount > 0 && (
           <Badge 
+            pill 
             bg="danger" 
-            className="position-absolute top-0 start-100 translate-middle rounded-circle"
+            className="position-absolute"
+            style={{ top: "-8px", right: "-8px", fontSize: "0.65rem" }}
           >
-            {unreadCount > 9 ? '9+' : unreadCount}
+            {unreadCount > 9 ? "9+" : unreadCount}
           </Badge>
         )}
-      </Button>
-      
-      <Offcanvas show={show} onHide={handleClose} placement="end">
-        <Offcanvas.Header closeButton>
-          <Offcanvas.Title>Notifications</Offcanvas.Title>
-        </Offcanvas.Header>
-        <Offcanvas.Body>
-          {loading ? (
-            <div className="text-center my-5">
-              <Spinner animation="border" />
-            </div>
-          ) : notifications.length > 0 ? (
-            <ListGroup>
-              {notifications.map((notification, index) => (
-                <ListGroup.Item 
-                  key={index}
-                  action
-                  onClick={() => handleNotificationClick(notification)}
-                  className={notification.read ? 'bg-light' : 'fw-bold'}
-                >
-                  <div>{notification.message}</div>
-                  <small className="text-muted">{formatTime(notification.createdAt)}</small>
-                </ListGroup.Item>
-              ))}
-            </ListGroup>
-          ) : (
-            <p className="text-center text-muted my-5">No notifications</p>
+      </Dropdown.Toggle>
+
+      <Dropdown.Menu 
+        className="shadow notification-menu" 
+        style={{ width: "500px", padding: 0 }}
+      >
+        <div className="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+          <h6 className="mb-0">Notifications</h6>
+          {unreadCount > 0 && (
+            <Button 
+              variant="primary" 
+              size="sm" 
+              className="p-0 text-decoration-none" 
+              onClick={handleMarkAllAsRead}
+            >
+              Mark all as read
+            </Button>
           )}
-        </Offcanvas.Body>
-      </Offcanvas>
-    </>
+        </div>
+
+        <div style={{ maxHeight: "350px", overflowY: "auto" }}>
+          {notifications.length === 0 ? (
+            <div className="p-3 text-center text-muted">
+              <small>No notifications</small>
+            </div>
+          ) : (
+            notifications.map((notification) => (
+              <Dropdown.Item 
+                key={notification._id} 
+                onClick={() => handleNotificationClick(notification)} 
+                className={`px-3 py-2 border-bottom ${notification.read ? "text-muted" : "fw-bold"}`}
+              >
+                <div>
+                  <div>{notification.title}</div>
+                  <small>{notification.message}</small>
+                  <small className="text-muted d-block mt-1">
+                    {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                  </small>
+                </div>
+              </Dropdown.Item>
+            ))
+          )}
+        </div>
+      </Dropdown.Menu>
+    </Dropdown>
   );
 };
 
-export default NotificationCenter;
+export default memo(NotificationCenter);
