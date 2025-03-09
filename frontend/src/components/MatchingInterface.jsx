@@ -68,15 +68,21 @@ const MatchingInterface = () => {
   const requestMatch = async (matchId, proposedTimeSlots) => {
     try {
       setSubmitting(true);
-      const response = await fetch(`${BACKEND_URL}/api/matches/`, {
-        method: 'POST',
+      // Log the data being sent to help with debugging
+      console.log("Sending data to API:", {
+        status: 'pending',
+        proposedTimeSlots
+      });
+      
+      const response = await fetch(`${BACKEND_URL}/api/matches/${matchId}`, {
+        method: 'PUT',
         headers: { 
           'Content-Type': 'application/json', 
           'Authorization': `Bearer ${localStorage.getItem('token')}` 
         },
         body: JSON.stringify({ 
-          matchId,
-          proposedTimeSlots
+          status: 'pending',
+          proposedTimeSlots  // Send all time slots as proposed slots
         })
       });
   
@@ -91,12 +97,13 @@ const MatchingInterface = () => {
         }
       }
   
-      const sessionData = await response.json();
+      const matchData = await response.json();
       
-      toast.success('Session created successfully!');
-      navigate('/sessions');
+      toast.success('Session requested successfully!');
+      fetchMatches(); // Refresh the matches list
+      setShowScheduleModal(false);
   
-      return sessionData;
+      return matchData;
     } catch (error) {
       console.error('Session request error:', error);
       toast.error(error.message || 'Failed to create session');
@@ -110,8 +117,6 @@ const MatchingInterface = () => {
       console.log("Selected Teacher:", selectedTeacher);
       console.log("Scheduled Time Slots:", timeSlots);
       requestMatch(selectedTeacher.matchId, timeSlots);
-      setShowScheduleModal(false);
-
     } else {
       toast.error('No match selected to create a session');
     }
@@ -149,7 +154,7 @@ const MatchingInterface = () => {
         <>
            <div className="d-flex justify-content-between align-items-center mb-3">
             <h2 className="mb-0">Available Teachers</h2>
-            {/* <Button variant="primary" onClick={fetchMatches}>Refresh Matches</Button> */}
+            <Button variant="primary" onClick={fetchMatches}>Refresh Matches</Button>
           </div>
           {matches.map(match => (
             <Card key={match.id} className="mb-3 shadow-sm border-0">
@@ -164,15 +169,16 @@ const MatchingInterface = () => {
                   <Col xs={7}>
                     <h5 className="mb-1">{match.name || "Unknown"}</h5>
                     <p className="mb-1 text-muted">
-                       Skill: <strong>{match.expertise || "Not specified"}</strong>
+                      <small><strong>Skill:</strong> {match.expertise || "Not specified"}</small>
                     </p>
-
                     <p className="mb-1 text-muted">
-                      Proficiency: <strong>{match.proficiency || "Fetching..."}</strong>
+                      <small><strong>Proficiency:</strong> {match.proficiency || "Fetching..."}</small>
                     </p>
                     <p className="mb-0">
-                      <small>⭐ Rating: {match.rating ? `${match.rating}/5` : "No ratings yet"}</small>
-                      <span className="ms-2 badge bg-secondary">{match.status}</span>
+                      <small><strong>Rating:</strong> ⭐ {match.rating ? `${match.rating}/5` : "No ratings yet"}</small>
+                    </p>
+                    <p className="mb-0">
+                      <small><strong>Status:</strong> <span className="ms-2 badge bg-secondary">{match.status}</span></small>
                     </p>
                   </Col>
                   <Col xs={3} className="d-flex justify-content-end">

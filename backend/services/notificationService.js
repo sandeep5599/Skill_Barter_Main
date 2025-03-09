@@ -7,6 +7,19 @@ const createNotification = async (data) => {
   try {
     const { userId, type, title, message, link = null, additionalData = {} } = data;
     
+    // Check if a notification with the same userId, type, and title already exists
+    const existingNotification = await Notification.findOne({
+      userId,
+      type,
+      title
+    });
+    
+    if (existingNotification) {
+      // Return the existing notification instead of creating a new one
+      return existingNotification;
+    }
+    
+    // Create a new notification if one doesn't exist
     const notification = new Notification({
       userId,
       type,

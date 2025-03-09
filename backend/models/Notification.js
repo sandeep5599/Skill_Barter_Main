@@ -14,6 +14,8 @@ const NotificationSchema = new mongoose.Schema({
       'match_accepted',
       'match_rejected',
       'match_rescheduled',
+      'session_proposed',
+      'session_rescheduled',
       'session_created',
       'session_reminder',
       'session_canceled',
