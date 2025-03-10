@@ -59,7 +59,7 @@ app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
@@ -69,6 +69,33 @@ process.on('SIGTERM', () => {
   console.log('SIGTERM signal received: closing HTTP server');
   server.close(() => {
     console.log('HTTP server closed');
+  });
+});
+
+// Add this to your server.js file before the error handlers
+
+// Debug route to check socket.io status
+app.get('/api/socket-test', (req, res) => {
+  const io = req.app.get('io');
+  const connectedSockets = Array.from(io.sockets.sockets).map(socket => ({
+    id: socket[0],
+    handshake: {
+      address: socket[1].handshake.address,
+      time: socket[1].handshake.time,
+      auth: socket[1].handshake.auth ? 'Present' : 'None',
+      query: socket[1].handshake.query
+    }
+  }));
+  
+  res.json({
+    status: 'Socket.IO is running',
+    connectedClients: io.engine.clientsCount,
+    socketDetails: connectedSockets,
+    serverConfig: {
+      path: io.path(),
+      corsOrigin: process.env.CLIENT_URL || 'http://localhost:3000',
+      port: process.env.PORT || 4000
+    }
   });
 });
 

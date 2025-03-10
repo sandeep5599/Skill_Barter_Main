@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Badge, OverlayTrigger, Tooltip, Spinner } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Badge, OverlayTrigger, Tooltip, Spinner, Dropdown } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -141,7 +141,18 @@ const Dashboard = () => {
             <Button variant="primary" onClick={handleFindLearningMatches} disabled={isGeneratingMatches}>
               {isGeneratingMatches ? <Spinner animation="border" size="sm" /> : 'Find Learning Matches'}
             </Button>
-            <Button variant="success" onClick={() => navigate('/match/teaching')}>View Session Requests</Button>
+            
+            {/* Replace the View Session Requests button with a dropdown */}
+            <Dropdown>
+              <Dropdown.Toggle variant="success" id="dropdown-requests">
+                View Requests
+              </Dropdown.Toggle>
+
+              <Dropdown.Menu>
+                <Dropdown.Item onClick={() => navigate('/match/teaching-requests')}>Teaching Requests</Dropdown.Item>
+                <Dropdown.Item onClick={() => navigate('/match/learning-requests')}>Learner Requests</Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
           </div>
         </Card.Body>
       </Card>

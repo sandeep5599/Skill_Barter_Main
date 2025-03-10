@@ -1,4 +1,3 @@
-// contexts/AuthContext.jsx
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from "react";
 import { initializeSocket } from '../services/socketService';
 
@@ -7,6 +6,7 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
+  const [socketInitialized, setSocketInitialized] = useState(false);
   
   // Load user & token from localStorage
   useEffect(() => {
@@ -24,15 +24,16 @@ export const AuthProvider = ({ children }) => {
         }
       }
       
-      if (storedToken) {
+      if (storedToken && !socketInitialized) {
         setToken(storedToken);
-        // Initialize socket connection with the token
+        // Initialize socket connection with the token - only once
         initializeSocket(storedToken);
+        setSocketInitialized(true);
       }
     } catch (error) {
       console.error("Error accessing localStorage:", error);
     }
-  }, []);
+  }, [socketInitialized]);
   
   // Login function with error handling
   const login = useCallback((userData, authToken) => {
@@ -47,12 +48,15 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       setToken(authToken);
       
-      // Initialize socket connection with the token
-      initializeSocket(authToken);
+      // Initialize socket connection with the token - only if not already initialized
+      if (!socketInitialized) {
+        initializeSocket(authToken);
+        setSocketInitialized(true);
+      }
     } catch (error) {
       console.error("Error storing user data:", error);
     }
-  }, []);
+  }, [socketInitialized]);
   
   // Logout function to clear user session
   const logout = useCallback(() => {
@@ -62,16 +66,25 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setToken(null);
       
-      // Disconnect socket
+      // Disconnect socket and reset initialized state
       const socketService = require('../services/socketService');
-      socketService.socket.disconnect();
+      if (socketService.socket) {
+        socketService.socket.disconnect();
+      }
+      setSocketInitialized(false);
     } catch (error) {
       console.error("Error clearing localStorage:", error);
     }
   }, []);
   
   // Memoized value to prevent unnecessary re-renders
-  const authContextValue = useMemo(() => ({ user, token, login, logout }), [user, token, login, logout]);
+  const authContextValue = useMemo(() => ({ 
+    user, 
+    token, 
+    login, 
+    logout, 
+    socketInitialized 
+  }), [user, token, login, logout, socketInitialized]);
   
   return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
 };

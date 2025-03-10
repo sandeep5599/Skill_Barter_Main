@@ -14,6 +14,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import TeachingRequests from "./components/TeachingRequests";
+import LearnerRequests from "./components/LearnerRequests";
 
 function App() {
   return (
@@ -26,7 +27,8 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="/match/learning" element={<PrivateRoute><MatchingInterface /></PrivateRoute>} />
-          <Route path="/match/teaching" element={<PrivateRoute><TeachingRequests /></PrivateRoute>} />
+          <Route path="/match/teaching-requests" element={<PrivateRoute><TeachingRequests /></PrivateRoute>} />
+          <Route path="/match/learning-requests" element={<PrivateRoute><LearnerRequests /></PrivateRoute>} />
           <Route path="/profile" element={<PrivateRoute><ProfileManagement /></PrivateRoute>} />
         </Routes>
       </NotificationProvider>

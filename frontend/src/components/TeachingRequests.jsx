@@ -68,10 +68,14 @@ const TeachingRequests = () => {
       }
 
       const data = await response.json();
-      // Filter matches to include only relevant ones
+      
+      // Filter matches to include only relevant ones where the user is ACTUALLY the teacher
+      // This ensures that requests made BY the user as a student aren't shown here
       const teachingRequests = data.filter(match => 
-        ['pending', 'rescheduled', 'accepted', 'rejected'].includes(match.status)
+        ['pending', 'rescheduled', 'accepted', 'rejected'].includes(match.status) &&
+        match.teacherId === user._id // Ensure user is the teacher, not the student
       );
+      
       setRequests(teachingRequests);
     } catch (err) {
       setError('Failed to fetch teaching requests. Please try again.');
@@ -79,7 +83,7 @@ const TeachingRequests = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   // Modal control functions
   const toggleModal = useCallback((modalName, show, request = null) => {
@@ -289,14 +293,15 @@ const TeachingRequests = () => {
 
   // Load data on component mount
   useEffect(() => {
-    fetchRequests();
-    console.log("Requests data:", requests); 
+    if (user && user._id) {
+      fetchRequests();
+    }
     
     // Set up polling to check for new requests periodically
     const intervalId = setInterval(fetchRequests, 60000); // Check every minute
     
     return () => clearInterval(intervalId);
-  }, [fetchRequests]);
+  }, [fetchRequests, user]);
 
   // Action button renderers
   const renderActionButtons = useMemo(() => {
@@ -455,33 +460,6 @@ const TeachingRequests = () => {
                         </div>
                       )}
                     </div>
-                                        
-                    {/* <div className="mb-3">
-                      <p className="mb-1">
-                        <strong>Requested Times:</strong> {getStatusBadge(request.status)}
-                      </p>
-                      <div className="bg-light p-2 rounded">
-                        {request.proposedTimeSlots && request.proposedTimeSlots.length > 0 ? (
-                          request.proposedTimeSlots.map((slot, index) => (
-                            <div key={index} className="mb-1">
-                              <small className={index === 0 ? 'fw-bold' : ''}>
-                                Option {index + 1}: {formatDateTime(slot.startTime)} - {formatDateTime(slot.endTime)}
-                              </small>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="mb-0">No time slots proposed</p>
-                        )}
-                      </div>
-                      
-                      {request.rejectionReason && (
-                        <div className="mt-2">
-                          <small className="text-danger">
-                            <strong>Rejection reason:</strong> {request.rejectionReason}
-                          </small>
-                        </div>
-                      )}
-                    </div> */}
                     
                     <p className="mb-0">
                       <small className="text-muted">
