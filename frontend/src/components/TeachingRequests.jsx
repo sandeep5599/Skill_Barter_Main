@@ -52,6 +52,8 @@ const TeachingRequests = () => {
 
   // API fetch function
   const fetchRequests = useCallback(async () => {
+    if (!user?._id) return;
+    
     setLoading(true);
     setError('');
     try {
@@ -64,13 +66,13 @@ const TeachingRequests = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch requests: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to fetch requests: ${response.statusText}`);
       }
 
       const data = await response.json();
       
       // Filter matches to include only relevant ones where the user is ACTUALLY the teacher
-      // This ensures that requests made BY the user as a student aren't shown here
       const teachingRequests = data.filter(match => 
         ['pending', 'rescheduled', 'accepted', 'rejected'].includes(match.status) &&
         match.teacherId === user._id // Ensure user is the teacher, not the student
@@ -78,8 +80,10 @@ const TeachingRequests = () => {
       
       setRequests(teachingRequests);
     } catch (err) {
-      setError('Failed to fetch teaching requests. Please try again.');
-      toast.error('Failed to fetch teaching requests');
+      const errorMessage = 'Failed to fetch teaching requests. Please try again.';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -152,7 +156,10 @@ const TeachingRequests = () => {
         })
       });
 
-      if (!acceptResponse.ok) throw new Error('Failed to accept request');
+      if (!acceptResponse.ok) {
+        const errorData = await acceptResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to accept request');
+      }
       
       // Then create the session with details
       const sessionResponse = await fetch(`${BACKEND_URL}/api/sessions`, {
@@ -173,7 +180,10 @@ const TeachingRequests = () => {
         })
       });
 
-      if (!sessionResponse.ok) throw new Error('Failed to create session');
+      if (!sessionResponse.ok) {
+        const errorData = await sessionResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to create session');
+      }
 
       toast.success('Session created successfully!');
       toggleModal('sessionCreation', false);
@@ -181,6 +191,7 @@ const TeachingRequests = () => {
     } catch (error) {
       setError('Failed to create session: ' + error.message);
       toast.error('Failed to create session');
+      console.error(error);
     } finally {
       setProcessing(false);
     }
@@ -200,7 +211,10 @@ const TeachingRequests = () => {
         })
       });
 
-      if (!response.ok) throw new Error('Failed to reject request');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to reject request');
+      }
 
       toast.info('Request rejected');
       toggleModal('reject', false);
@@ -208,6 +222,7 @@ const TeachingRequests = () => {
     } catch (error) {
       setError('Failed to reject request');
       toast.error('Failed to reject request');
+      console.error(error);
     } finally {
       setProcessing(false);
     }
@@ -243,7 +258,10 @@ const TeachingRequests = () => {
         })
       });
 
-      if (!response.ok) throw new Error('Failed to reschedule request');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to reschedule request');
+      }
 
       toast.success('Request rescheduled successfully!');
       toggleModal('reschedule', false);
@@ -251,6 +269,7 @@ const TeachingRequests = () => {
     } catch (error) {
       setError('Failed to reschedule request');
       toast.error('Failed to reschedule request');
+      console.error(error);
     } finally {
       setProcessing(false);
     }
@@ -314,6 +333,7 @@ const TeachingRequests = () => {
                 variant="success" 
                 onClick={() => toggleModal('sessionCreation', true, request)}
                 disabled={processing}
+                className="mb-2"
               >
                 {processing ? <Spinner size="sm" animation="border" /> : 'Accept & Create Session'}
               </Button>
@@ -321,6 +341,7 @@ const TeachingRequests = () => {
                 variant="warning" 
                 onClick={() => toggleModal('reschedule', true, request)}
                 disabled={processing}
+                className="mb-2"
               >
                 Propose New Time
               </Button>
@@ -346,6 +367,7 @@ const TeachingRequests = () => {
                 variant="success" 
                 onClick={() => toggleModal('sessionCreation', true, request)}
                 disabled={processing}
+                className="mb-2"
               >
                 Accept New Time
               </Button>
@@ -374,12 +396,17 @@ const TeachingRequests = () => {
     };
   }, [navigate, processing, toggleModal]);
 
+  // Handle error dismissal
+  const dismissError = useCallback(() => {
+    setError('');
+  }, []);
+
   return (
     <Container className="py-4">
       <Card className="mb-4 bg-light shadow-sm">
-        <Card.Body className="d-flex justify-content-between align-items-center">
+        <Card.Body className="d-flex justify-content-between align-items-center flex-wrap">
           <h1 className="mb-0">Teaching Requests</h1>
-          <div className="d-flex align-items-center">
+          <div className="d-flex align-items-center mt-2 mt-md-0">
             <NotificationCenter />
             <div className="ms-3">
               <Button variant="primary" className="me-2" onClick={() => navigate('/dashboard')}>
@@ -396,7 +423,7 @@ const TeachingRequests = () => {
         </Card.Body>
       </Card>
 
-      {error && <Alert variant="danger" onClose={() => setError('')} dismissible>{error}</Alert>}
+      {error && <Alert variant="danger" onClose={dismissError} dismissible>{error}</Alert>}
 
       {loading ? (
         <div className="text-center my-5">

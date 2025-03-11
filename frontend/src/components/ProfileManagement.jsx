@@ -76,19 +76,53 @@ const ProfileManagement = () => {
     }
   };
 
+  // const handleRemoveSkill = async (type, skillId) => {
+  //   const skillsKey = type === 'teach' ? 'teachingSkills' : 'learningSkills';
+
+  //   try {
+  //     const response = await fetch(`${BACKEND_URL}/api/skills/${skillId}`, {
+  //       method: 'DELETE',
+  //       headers: {
+  //         'Authorization': `Bearer ${localStorage.getItem('token')}`,
+  //       },
+  //     });
+
+  //     if (!response.ok) throw new Error('Failed to delete skill');
+
+  //     setProfile(prev => ({
+  //       ...prev,
+  //       [skillsKey]: prev[skillsKey].filter(skill => skill._id !== skillId),
+  //     }));
+  //   } catch (error) {
+  //     console.error('Error removing skill:', error);
+  //   }
+  // };
   const handleRemoveSkill = async (type, skillId) => {
     const skillsKey = type === 'teach' ? 'teachingSkills' : 'learningSkills';
-
+  
     try {
-      const response = await fetch(`${BACKEND_URL}/api/skills/${skillId}`, {
+      // First, delete the skill
+      const deleteSkillResponse = await fetch(`${BACKEND_URL}/api/skills/${skillId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
       });
-
-      if (!response.ok) throw new Error('Failed to delete skill');
-
+  
+      if (!deleteSkillResponse.ok) throw new Error('Failed to delete skill');
+  
+      // Then, delete any matches associated with this skill
+      const deleteMatchesResponse = await fetch(`${BACKEND_URL}/api/matches/by-skill/${skillId}`, {
+        
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+  
+      if (!deleteMatchesResponse.ok) throw new Error('Failed to delete associated matches');
+  
+      // Update the UI by removing the skill from the state
       setProfile(prev => ({
         ...prev,
         [skillsKey]: prev[skillsKey].filter(skill => skill._id !== skillId),
@@ -97,6 +131,7 @@ const ProfileManagement = () => {
       console.error('Error removing skill:', error);
     }
   };
+  
 
   const handleSkillInputChange = (type, field, value) => {
     const setSkill = type === 'teach' ? setNewTeachingSkill : setNewLearningSkill;

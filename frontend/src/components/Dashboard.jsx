@@ -3,6 +3,8 @@ import { Container, Row, Col, Card, Button, Badge, OverlayTrigger, Tooltip, Spin
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { Alert } from 'react-bootstrap';
+
 import NotificationCenter from './NotificationCenter';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';

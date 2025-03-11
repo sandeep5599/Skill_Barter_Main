@@ -1425,7 +1425,72 @@ updateMatchStatus: async (req, res) => {
         message: error.message
       });
     }
+  },
+
+  deleteMatchesBySkill: async (req, res) => {
+    try {
+      const { skillId } = req.params;
+      const userId = req.user.id;
+      
+      // Get the skill details first (if it still exists)
+      const skill = await Skill.findById(skillId).catch(() => null);
+      
+      let deleteQuery = {};
+      
+      if (skill) {
+        if (skill.isTeaching) {
+          // If it's a teaching skill being deleted:
+          // 1. Delete matches where this skill ID is referenced
+          // 2. AND the user is the teacher
+          deleteQuery = { 
+            skillId: skillId,
+            teacherId: userId 
+          };
+        } else if (skill.isLearning) {
+          // If it's a learning skill being deleted:
+          // Delete matches where user is the requester and skill name matches
+          deleteQuery = {
+            requesterId: userId,
+            skillName: { $regex: new RegExp(`^${skill.skillName.trim().toLowerCase()}$`, 'i') }
+          };
+        }
+      } else {
+        // If the skill was already deleted, we need to check both possibilities
+        // This happens if this function is called after the skill is already removed
+        
+        // Try to delete matches where:
+        // 1. This user is the teacher AND this skillId was referenced
+        // OR
+        // 2. This user is the requester (for learning skills)
+        deleteQuery = {
+          $or: [
+            { teacherId: userId, skillId: skillId },
+            { requesterId: userId }
+          ]
+        };
+      }
+      
+      console.log('Delete query:', deleteQuery);
+      const result = await Match.deleteMany(deleteQuery);
+      
+      return res.status(200).json({
+        success: true,
+        message: `Deleted ${result.deletedCount} matches associated with skill`,
+        data: result
+      });
+    } catch (error) {
+      console.error('Error deleting matches by skill:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to delete matches by skill',
+        error: error.message
+      });
+    }
   }
+
 };
+
+
+
 
 module.exports = matchingController;

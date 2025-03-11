@@ -9,6 +9,7 @@ router.get('/', auth, matchingController.getMatches);
 router.post('/', auth, matchingController.createMatch);
 router.put('/:matchId', auth, matchingController.updateMatchStatus);
 router.post('/generate', auth, matchingController.generateMatches);
+router.delete('/by-skill/:skillId', auth, matchingController.deleteMatchesBySkill); // New route
 
 // Session-related routes
 router.get('/sessions', auth, matchingController.getSessions);

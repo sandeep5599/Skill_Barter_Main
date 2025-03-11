@@ -48,11 +48,10 @@ const LearnerRequests = () => {
 
       const data = await response.json();
       
-      // Filter matches to include only relevant ones
-      // This ensures we're showing the correct requests for the learner
-      // NOTE: We're using a more generous filter here to make sure requests show up
+      // Filter matches to include only relevant ones where the user is the student
       const learnerRequests = data.filter(match => 
-        ['pending', 'rescheduled', 'accepted', 'rejected'].includes(match.status)
+        ['pending', 'rescheduled', 'accepted', 'rejected'].includes(match.status) &&
+        match.requesterId === user._id // Make sure user is the student
       );
       
       console.log('Fetched requests:', data);
@@ -67,7 +66,7 @@ const LearnerRequests = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   // Status badge renderer
   const getStatusBadge = useCallback((status) => {
@@ -90,13 +89,15 @@ const LearnerRequests = () => {
 
   // Load data on component mount
   useEffect(() => {
-    fetchRequests();
+    if (user && user._id) {
+      fetchRequests();
+    }
     
     // Set up polling to check for new requests periodically
     const intervalId = setInterval(fetchRequests, 60000); // Check every minute
     
     return () => clearInterval(intervalId);
-  }, [fetchRequests]);
+  }, [fetchRequests, user]);
 
   // Action button renderers
   const renderActionButtons = useMemo(() => {
@@ -262,7 +263,7 @@ const LearnerRequests = () => {
         </div>
       )}
     </Container>
-  );
+  ); 
 };
 
 export default LearnerRequests;
