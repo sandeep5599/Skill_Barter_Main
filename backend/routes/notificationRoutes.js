@@ -57,4 +57,40 @@ router.put('/mark-all-read', auth, async (req, res) => {
   }
 });
 
+
+
+router.delete('/:id/delete', auth, async (req, res) => {
+  try {
+    const notification = await Notification.findById(req.params.id);
+    
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+    
+    if (notification.userId.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    
+    await Notification.findByIdAndDelete(req.params.id);
+    
+    res.json({ message: 'Notification deleted' });
+  } catch (error) {
+    console.error('Error deleting notification:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.delete('/delete-all', auth, async (req, res) => {
+  try {
+    await Notification.deleteMany({ userId: req.user.id });
+    
+    res.json({ message: 'All notifications deleted' });
+  } catch (error) {
+    console.error('Error deleting all notifications:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
+
 module.exports = router;

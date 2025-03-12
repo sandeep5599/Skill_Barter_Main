@@ -93,68 +93,118 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  const markAsRead = async (notificationId) => {
-    try {
-      await axios.put(
-        `/api/notifications/${notificationId}/mark-read`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+  // Add these two functions to your existing NotificationProvider component
 
-      setNotifications((prev) =>
-        prev.map((n) =>
-          n._id === notificationId ? { ...n, read: true } : n
-        )
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error("Error marking notification as read:", error);
-    }
-  };
-
-  const markAllAsRead = async () => {
-    try {
-      await axios.put(
-        "/api/notifications/mark-all-read",
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-      setUnreadCount(0);
-    } catch (error) {
-      console.error("Error marking all notifications as read:", error);
-    }
-  };
-
-  const showNotificationToast = (notification) => {
-    toast.info(
-      <div onClick={() => markAsRead(notification._id)} style={{ cursor: "pointer" }}>
-        <strong>{notification.title}</strong>
-        <br />
-        <small>{notification.message}</small>
-      </div>,
+const deleteNotification = async (notificationId) => {
+  try {
+    await axios.delete(
+      `/api/notifications/${notificationId}/delete`,
       {
-        position: "top-right",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
+        headers: { Authorization: `Bearer ${token}` },
       }
     );
-  };
 
-  return (
-    <NotificationContext.Provider
-      value={{ notifications, unreadCount, markAsRead, markAllAsRead }}
-    >
-      {children}
-    </NotificationContext.Provider>
+    setNotifications((prev) => 
+      prev.filter((n) => n._id !== notificationId)
+    );
+    
+    // Update unread count if needed
+    const notificationToDelete = notifications.find(n => n._id === notificationId);
+    if (notificationToDelete && !notificationToDelete.read) {
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    }
+  } catch (error) {
+    console.error("Error deleting notification:", error);
+  }
+};
+
+const deleteAllNotifications = async () => {
+  try {
+    await axios.delete(
+      "/api/notifications/delete-all",
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    setNotifications([]);
+    setUnreadCount(0);
+  } catch (error) {
+    console.error("Error deleting all notifications:", error);
+  }
+};
+
+const markAsRead = async (notificationId) => {
+  try {
+    await axios.put(
+      `/api/notifications/${notificationId}/mark-read`,
+      {},
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n._id === notificationId ? { ...n, read: true } : n
+      )
+    );
+    setUnreadCount((prev) => Math.max(0, prev - 1));
+  } catch (error) {
+    console.error("Error marking notification as read:", error);
+  }
+};
+
+const markAllAsRead = async () => {
+  try {
+    await axios.put(
+      "/api/notifications/mark-all-read",
+      {},
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setUnreadCount(0);
+  } catch (error) {
+    console.error("Error marking all notifications as read:", error);
+  }
+};
+
+const showNotificationToast = (notification) => {
+  toast.info(
+    <div onClick={() => markAsRead(notification._id)} style={{ cursor: "pointer" }}>
+      <strong>{notification.title}</strong>
+      <br />
+      <small>{notification.message}</small>
+    </div>,
+    {
+      position: "top-right",
+      autoClose: 5000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+    }
   );
+};
+
+// Then modify your return statement to include the new functions:
+return (
+  <NotificationContext.Provider
+    value={{ 
+      notifications, 
+      unreadCount, 
+      markAsRead, 
+      markAllAsRead,
+      deleteNotification,
+      deleteAllNotifications
+    }}
+  >
+    {children}
+  </NotificationContext.Provider>
+);
+
 };

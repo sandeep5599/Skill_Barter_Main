@@ -4,7 +4,7 @@
 const Notification = require('../models/Notification');
 
 const createNotification = async (data) => {
-  try {
+  try {z
     const { userId, type, title, message, link = null, additionalData = {} } = data;
     
     // Check if a notification with the same userId, type, and title already exists
