@@ -45,6 +45,41 @@ const Dashboard = () => {
     setTimeout(() => setLocalToast({ show: false, message: '', variant: 'success' }), 3000);
   };
 
+  // const handleFindLearningMatches = async () => {
+  //   try {
+  //     setIsGeneratingMatches(true);
+  //     const response = await fetch(`${BACKEND_URL}/api/matches/generate`, {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         'Authorization': `Bearer ${localStorage.getItem('token')}`,
+  //       },
+  //       body: JSON.stringify({ userId: user._id }),
+  //     });
+  
+  //     if (!response.ok) {
+  //       throw new Error('Failed to generate matches');
+  //     }
+  
+  //     const result = await response.json();
+  //     console.log('Generated Matches:', result);
+  
+  //     if (result.matchesFound && result.matchesFound.length > 0) {
+  //       // Using the imported toast function correctly
+  //       toast.success(`🎉 Found ${result.matchesFound.length} matches for your learning needs!`);
+  //     } else {
+  //       toast.info('ℹ️ No new matches found. Try adding more skills you want to learn!');
+  //     }
+  
+  //     navigate('/match/learning');
+  //   } catch (error) {
+  //     console.error('Error generating matches:', error);
+  //     // Using the imported toast function correctly
+  //     toast.error('❌ Failed to generate matches. Please try again.');
+  //   } finally {
+  //     setIsGeneratingMatches(false);
+  //   }
+  // };
   const handleFindLearningMatches = async () => {
     try {
       setIsGeneratingMatches(true);
@@ -64,17 +99,36 @@ const Dashboard = () => {
       const result = await response.json();
       console.log('Generated Matches:', result);
   
-      if (result.matchesFound && result.matchesFound.length > 0) {
-        // Using the imported toast function correctly
-        toast.success(`🎉 Found ${result.matchesFound.length} matches for your learning needs!`);
+      // Check both learning and teaching matches
+      const learningMatches = result.matchesFound || [];
+      const teachingMatches = result.teachingMatchesCreated || [];
+      const totalMatches = learningMatches.length + teachingMatches.length;
+      
+      if (totalMatches > 0) {
+        if (learningMatches.length > 0 && teachingMatches.length > 0) {
+          // Both learning and teaching matches found
+          toast.success(`🎉 Found ${learningMatches.length} learning matches and created ${teachingMatches.length} teaching matches!`);
+        } else if (learningMatches.length > 0) {
+          // Only learning matches found
+          toast.success(`🎉 Found ${learningMatches.length} matches for your learning needs!`);
+        } else {
+          // Only teaching matches created
+          toast.success(`🎉 Created ${teachingMatches.length} teaching matches!`);
+        }
       } else {
-        toast.info('ℹ️ No new matches found. Try adding more skills you want to learn!');
+        toast.info('ℹ️ No new matches found. Try adding more skills you want to learn or teach!');
       }
   
-      navigate('/match/learning');
+      // Navigate to the appropriate matching interface tab
+      if (learningMatches.length > 0) {
+        navigate('/match/learning');
+      } else if (teachingMatches.length > 0) {
+        navigate('/match/teaching');
+      } else {
+        navigate('/match/learning');
+      }
     } catch (error) {
       console.error('Error generating matches:', error);
-      // Using the imported toast function correctly
       toast.error('❌ Failed to generate matches. Please try again.');
     } finally {
       setIsGeneratingMatches(false);

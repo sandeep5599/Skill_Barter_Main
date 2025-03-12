@@ -1,23 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Container, Card, Button, Row, Col, Alert, Spinner, Modal } from 'react-bootstrap';
+import { Container, Card, Button, Row, Col, Alert, Spinner, Modal, Badge } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import SessionScheduler from './SessionScheduler';
 import NotificationCenter from './NotificationCenter';
 
-
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
 const MatchingInterface = () => {
-  const [matches, setMatches] = useState([]);
+  const [learningMatches, setLearningMatches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -25,7 +23,7 @@ const MatchingInterface = () => {
     navigate('/');
   };
 
-  const fetchMatches = useCallback(async () => {
+  const fetchLearningMatches = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -42,24 +40,34 @@ const MatchingInterface = () => {
       }
 
       const data = await response.json();
-      setMatches(data);
+      
+      // Filter only learning matches (where user is the requester/learner)
+      const onlyLearningMatches = data.filter(match => 
+        match.requesterId === user?._id || 
+        match.requestorId === user?._id
+      );
+      
+      setLearningMatches(onlyLearningMatches);
     } catch (err) {
-      setError('Failed to fetch matches. Please try again.');
-      toast.error('Failed to fetch matches');
+      console.error("Error fetching matches:", err);
+      setError('Failed to fetch learning matches. Please try again.');
+      toast.error('Failed to fetch learning matches');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    fetchMatches();
-  }, [fetchMatches]);
+    if (user?._id) {
+      fetchLearningMatches();
+    }
+  }, [fetchLearningMatches, user]);
 
   const openScheduleModal = (match) => {
     setSelectedTeacher({
       ...match,
-      matchId: match.id,
-      teacherId: match.teacherId || match.id,
+      matchId: match.id || match._id,
+      teacherId: match.teacherId,
       skillId: match.skillId
     });
     setShowScheduleModal(true);
@@ -68,11 +76,6 @@ const MatchingInterface = () => {
   const requestMatch = async (matchId, proposedTimeSlots) => {
     try {
       setSubmitting(true);
-      // Log the data being sent to help with debugging
-      console.log("Sending data to API:", {
-        status: 'pending',
-        proposedTimeSlots
-      });
       
       const response = await fetch(`${BACKEND_URL}/api/matches/${matchId}`, {
         method: 'PUT',
@@ -82,25 +85,19 @@ const MatchingInterface = () => {
         },
         body: JSON.stringify({ 
           status: 'pending',
-          proposedTimeSlots  // Send all time slots as proposed slots
+          proposedTimeSlots
         })
       });
   
       if (!response.ok) {
         const errorData = await response.json();
-        if (response.status === 400) {
-          throw new Error(errorData.message || 'Please check your input data');
-        } else if (response.status === 401 || response.status === 403) {
-          throw new Error('You are not authorized to perform this action');
-        } else {
-          throw new Error(errorData.message || 'Failed to create session');
-        }
+        throw new Error(errorData.message || 'Failed to create session');
       }
   
       const matchData = await response.json();
       
       toast.success('Session requested successfully!');
-      fetchMatches(); // Refresh the matches list
+      fetchLearningMatches();
       setShowScheduleModal(false);
   
       return matchData;
@@ -114,112 +111,214 @@ const MatchingInterface = () => {
   
   const handleScheduleSubmit = (timeSlots) => {
     if (selectedTeacher && selectedTeacher.matchId) {
-      console.log("Selected Teacher:", selectedTeacher);
-      console.log("Scheduled Time Slots:", timeSlots);
       requestMatch(selectedTeacher.matchId, timeSlots);
     } else {
       toast.error('No match selected to create a session');
     }
   };
 
-  return (
-    <Container className="py-4">
-      <Card className="mb-4 bg-light shadow-sm">
-  <Card.Body className="d-flex justify-content-between align-items-center">
-    <h1 className="mb-0">Find Learning Matches</h1>
-    <div className="d-flex align-items-center gap-3">
-      <NotificationCenter />
-      <div className="d-flex gap-2">
-        <Button variant="primary" onClick={() => navigate('/dashboard')}>
-          Dashboard
-        </Button>
-        <Button variant="primary" onClick={() => navigate('/profile')}>
-          Profile
-        </Button>
-        <Button variant="danger" onClick={handleLogout}>
-          Logout
-        </Button>
-      </div>
-    </div>
-  </Card.Body>
-</Card>
-      {error && <Alert variant="danger" onClose={() => setError('')} dismissible>{error}</Alert>}
+  const getStatusBadgeVariant = (status) => {
+    switch(status) {
+      case 'pending': return 'warning';
+      case 'accepted': return 'success';
+      case 'rejected': return 'danger';
+      default: return 'secondary';
+    }
+  };
 
-      {loading ? (
-        <div className="text-center my-5">
-          <Spinner animation="border" role="status" />
-          <p>Loading matches...</p>
-        </div>
-      ) : matches.length > 0 ? (
-        <>
-           <div className="d-flex justify-content-between align-items-center mb-3">
-            <h2 className="mb-0">Available Teachers</h2>
-            <Button variant="primary" onClick={fetchMatches}>Refresh Matches</Button>
-          </div>
-          {matches.map(match => (
-            <Card key={match.id} className="mb-3 shadow-sm border-0">
-              <Card.Body>
-                <Row className="align-items-center">
-                  <Col xs={2} className="text-center">
-                    <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center shadow" 
-                      style={{ width: 60, height: 60, fontSize: 20, fontWeight: 'bold' }}>
-                      {match.name ? match.name.charAt(0).toUpperCase() : "?"}
-                    </div>
-                  </Col>
-                  <Col xs={7}>
-                    <h5 className="mb-1">{match.name || "Unknown"}</h5>
-                    <p className="mb-1 text-muted">
-                      <small><strong>Skill:</strong> {match.expertise || "Not specified"}</small>
-                    </p>
-                    <p className="mb-1 text-muted">
-                      <small><strong>Proficiency:</strong> {match.proficiency || "Fetching..."}</small>
-                    </p>
-                    <p className="mb-0">
-                      <small><strong>Rating:</strong> ⭐ {match.rating ? `${match.rating}/5` : "No ratings yet"}</small>
-                    </p>
-                    <p className="mb-0">
-                      <small><strong>Status:</strong> <span className="ms-2 badge bg-secondary">{match.status}</span></small>
-                    </p>
-                  </Col>
-                  <Col xs={3} className="d-flex justify-content-end">
-                    {match.status === 'pending' ? (
-                      <Button variant="success" className="w-100" disabled>
-                        Request Sent
-                      </Button>
-                    ) : match.status === 'accepted' ? (
-                      <Button variant="success" className="w-100" onClick={() => navigate('/sessions')}>
-                        View Session
-                      </Button>
-                    ) : (
-                      <Button variant="primary" className="w-100" onClick={() => openScheduleModal(match)}>
-                        Request Session
-                      </Button>
-                    )}
-                  </Col>
-                </Row>
-              </Card.Body>
-            </Card>
-          ))}
-        </>
-      ) : (
-        <div className="text-center my-5">
-          <p className="text-muted">No matches found. Try searching for more skills!</p>
-          <Button variant="primary" className="mt-2" onClick={() => navigate('/profile')}>
-            Add Learning Skills
-          </Button>
-        </div>
+  // Function to get profile background color
+  const getProfileColor = (name) => {
+    if (!name) return '#6610f2'; // Default purple
+    
+    const colors = [
+      '#0d6efd', // blue
+      '#6f42c1', // indigo
+      '#d63384', // pink
+      '#dc3545', // red
+      '#fd7e14', // orange
+      '#198754', // green
+      '#20c997', // teal
+      '#0dcaf0'  // cyan
+    ];
+    
+    // Get a consistent color based on the first letter
+    const charCode = name.charCodeAt(0);
+    return colors[charCode % colors.length];
+  };
+
+  return (
+    <Container fluid className="py-4 px-md-4">
+      {/* Header */}
+      <Card className="mb-4 shadow-sm border-0 bg-gradient">
+        <Card.Body style={{ background: 'linear-gradient(to right, #f8f9fa, #e9ecef)' }} className="py-4">
+          <Row className="align-items-center">
+            <Col xs={12} md={6}>
+              <h1 className="mb-0 fw-bold text-primary">
+                <i className="bi bi-person-lines-fill me-2"></i>
+                My Learning Matches
+              </h1>
+              <p className="text-muted mt-2 mb-0">Find and connect with teachers for your learning journey</p>
+            </Col>
+            <Col xs={12} md={6} className="d-flex justify-content-md-end mt-3 mt-md-0">
+              <div className="d-flex align-items-center gap-3">
+                <NotificationCenter />
+                <div className="d-flex gap-2">
+                  <Button variant="primary" onClick={() => navigate('/dashboard')} className="d-flex align-items-center">
+                    <i className="bi bi-speedometer2 me-md-2"></i>
+                    <span className="d-none d-md-inline">Dashboard</span>
+                  </Button>
+                  <Button variant="primary" onClick={() => navigate('/profile')} className="d-flex align-items-center">
+                    <i className="bi bi-person-circle me-md-2"></i>
+                    <span className="d-none d-md-inline">Profile</span>
+                  </Button>
+                  <Button variant="primary" onClick={handleLogout} className="d-flex align-items-center">
+                    <i className="bi bi-box-arrow-right me-md-2"></i>
+                    <span className="d-none d-md-inline">Logout</span>
+                  </Button>
+                </div>
+              </div>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+      
+      {/* Error message */}
+      {error && (
+        <Alert variant="danger" onClose={() => setError('')} dismissible className="d-flex align-items-center">
+          <i className="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
+          <div>{error}</div>
+        </Alert>
       )}
 
-      <Modal show={showScheduleModal} onHide={() => setShowScheduleModal(false)} size="lg" centered>
-        <Modal.Header closeButton>
+      {/* Refresh button */}
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h2 className="text-dark mb-0">Available Teachers</h2>
+        <Button 
+          variant="primary" 
+          onClick={fetchLearningMatches} 
+          disabled={loading}
+          className="d-flex align-items-center gap-2 rounded-pill px-3"
+        >
+          <i className="bi bi-arrow-repeat"></i> Refresh Matches
+        </Button>
+      </div>
+
+      {/* Loading state */}
+      {loading ? (
+        <Card className="text-center my-5 py-5 border-0 shadow-sm">
+          <Card.Body>
+            <Spinner animation="border" variant="primary" role="status" style={{ width: '3rem', height: '3rem' }} />
+            <h4 className="mt-4 text-primary">Loading your learning matches...</h4>
+            <p className="text-muted">Please wait while we find your perfect teachers</p>
+          </Card.Body>
+        </Card>
+      ) : learningMatches.length > 0 ? (
+        <>
+          <Row className="g-3">
+            {learningMatches.map(match => (
+              <Col key={match.id || match._id} xs={12}>
+                <Card className="h-100 shadow-sm hover-shadow border-0 mb-3" 
+                      style={{ transition: 'all 0.3s ease', cursor: 'pointer' }}
+                      onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+                      onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                >
+                  <Card.Body className="p-4">
+                    <Row className="align-items-center">
+                      <Col xs={12} md={2} className="text-center mb-3 mb-md-0">
+                        <div 
+                          className="rounded-circle d-flex align-items-center justify-content-center mx-auto shadow" 
+                          style={{ 
+                            width: 90, 
+                            height: 90, 
+                            fontSize: 36, 
+                            fontWeight: 'bold',
+                            color: 'white',
+                            background: getProfileColor(match.name || match.teacherName),
+                            border: '3px solid white'
+                          }}
+                        >
+                          {match.name ? match.name.charAt(0).toUpperCase() : 
+                           match.teacherName ? match.teacherName.charAt(0).toUpperCase() : "?"}
+                        </div>
+                      </Col>
+                      <Col xs={12} md={7}>
+                        <h3 className="mb-2 fw-bold text-primary">{match.name || match.teacherName || "Unknown"}</h3>
+                        <div className="d-flex flex-wrap gap-2 mb-3">
+                          <Badge bg="light" text="dark" className="px-3 py-2 border">
+                            <i className="bi bi-book-half text-primary me-2"></i>
+                            <strong>Skill:</strong> {match.expertise || match.skillName || "Not specified"}
+                          </Badge>
+                          <Badge bg="light" text="dark" className="px-3 py-2 border">
+                            <i className="bi bi-bar-chart-fill text-success me-2"></i>
+                            <strong>Level:</strong> {match.proficiency || match.proficiencyLevel || "Fetching..."}
+                          </Badge>
+                          <Badge bg="light" text="dark" className="px-3 py-2 border">
+                            <i className="bi bi-star-fill text-warning me-2"></i>
+                            <strong>Rating:</strong> {match.rating ? `${match.rating}/5` : "No ratings yet"}
+                          </Badge>
+                        </div>
+                        <div className="mt-3">
+                          <Badge bg={getStatusBadgeVariant(match.status)} className="px-3 py-2">
+                            <i className={`bi ${match.status === 'pending' ? 'bi-hourglass-split' : 
+                                           match.status === 'accepted' ? 'bi-check-circle-fill' : 
+                                           'bi-circle'} me-2`}></i>
+                            Status: {match.status || 'Not Requested'}
+                          </Badge>
+                        </div>
+                      </Col>
+                      <Col xs={12} md={3} className="d-flex justify-content-md-end mt-4 mt-md-0">
+                        {match.status === 'pending' ? (
+                          <Button variant="warning" className="w-100 py-2 shadow-sm" disabled>
+                            <i className="bi bi-hourglass-split me-2"></i> Request Pending
+                          </Button>
+                        ) : match.status === 'accepted' ? (
+                          <Button variant="success" className="w-100 py-2 shadow-sm" onClick={() => navigate('/sessions')}>
+                            <i className="bi bi-calendar2-check-fill me-2"></i> View Session
+                          </Button>
+                        ) : (
+                          <Button variant="primary" className="w-100 py-2 shadow-sm" onClick={() => openScheduleModal(match)}>
+                            <i className="bi bi-calendar-plus-fill me-2"></i> Request Session
+                          </Button>
+                        )}
+                      </Col>
+                    </Row>
+                  </Card.Body>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </>
+      ) : (
+        <Card className="text-center my-5 border-0 shadow-sm bg-light py-5">
+          <Card.Body className="p-5">
+            <i className="bi bi-search display-1 mb-4 text-primary opacity-75"></i>
+            <h3 className="fw-bold">No learning matches found</h3>
+            <p className="text-muted mb-4 lead">Try adding more skills you want to learn to find potential teachers!</p>
+            <Button variant="primary" size="lg" className="rounded-pill px-4 py-2 shadow" onClick={() => navigate('/profile')}>
+              <i className="bi bi-plus-circle-fill me-2"></i> Add Learning Skills
+            </Button>
+          </Card.Body>
+        </Card>
+      )}
+
+      {/* Scheduling Modal */}
+      <Modal show={showScheduleModal} onHide={() => setShowScheduleModal(false)} size="lg" centered backdrop="static">
+        <Modal.Header closeButton className="bg-primary text-white">
           <Modal.Title>
-            Schedule with {selectedTeacher?.name || "Teacher"} 
-            {selectedTeacher?.expertise ? ` - ${selectedTeacher.expertise}` : ""}
+            <i className="bi bi-calendar-date me-2"></i>
+            Schedule with {selectedTeacher?.name || selectedTeacher?.teacherName || "Teacher"} 
+            {selectedTeacher?.expertise || selectedTeacher?.skillName ? 
+              ` - ${selectedTeacher.expertise || selectedTeacher.skillName}` : ""}
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="p-4">
           <SessionScheduler onSchedule={handleScheduleSubmit} submitting={submitting}/>
         </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowScheduleModal(false)}>
+            <i className="bi bi-x-circle me-2"></i> Cancel
+          </Button>
+        </Modal.Footer>
       </Modal>
     </Container>
   );

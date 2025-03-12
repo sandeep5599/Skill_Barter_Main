@@ -46,13 +46,35 @@ const login = async (req, res) => {
     // Generate JWT Token
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-    res.json(user);
-    console.log(user);
+    // Return both user and token
+    res.json({ user, token });
+    console.log("User logged in:", user._id);
 
   } catch (err) {
     console.error("Login Error:", err);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+// const login = async (req, res) => {
+//   try {
+//     const { email, password } = req.body;
+//     const user = await User.findOne({ email });
+    
+//     if (!user || !await bcrypt.compare(password, user.password)) {
+//       return res.status(401).json({ message: 'Invalid credentials' });
+//     }
+
+//     // Generate JWT Token
+//     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+//     res.json(user);
+//     console.log(user);
+
+//   } catch (err) {
+//     console.error("Login Error:", err);
+//     res.status(500).json({ message: 'Internal server error' });
+//   }
+// };
 
 module.exports = { register, login };
