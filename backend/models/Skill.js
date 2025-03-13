@@ -26,4 +26,15 @@ const skillSchema = new mongoose.Schema({
   description: String
 }, { timestamps: true });
 
+
+// Pre-save middleware to normalize skill name
+skillSchema.pre('save', function(next) {
+  // Normalize the skill name (remove spaces, convert to lowercase)
+  if (this.skillName) {
+    this.normalizedSkillName = this.skillName.trim().toLowerCase().replace(/\s+/g, '');
+  }
+  next();
+});
+
+
 module.exports = mongoose.model('Skill', skillSchema);
