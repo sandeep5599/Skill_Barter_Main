@@ -71,7 +71,7 @@ const TeachingRequests = () => {
       }
 
       const data = await response.json();
-      
+      console.log("Raw data from API:", data);
       // Filter matches to include only relevant ones where the user is ACTUALLY the teacher
       const teachingRequests = data.filter(match => 
         ['pending', 'rescheduled', 'accepted', 'rejected'].includes(match.status) &&
@@ -124,8 +124,8 @@ const TeachingRequests = () => {
           meetingLink: '',
           prerequisites: '',
           notes: '',
-          selectedTimeSlot: request.proposedTimeSlots && request.proposedTimeSlots.length > 0 
-            ? request.proposedTimeSlots[0] 
+          selectedTimeSlot: request.timeSlots && request.timeSlots.length > 0 
+            ? request.timeSlots[0] 
             : null
         });
       } else if (modalName === 'reject') {
@@ -330,7 +330,7 @@ const TeachingRequests = () => {
           return (
             <>
               <Button 
-                variant="success" 
+                variant="primary" 
                 onClick={() => toggleModal('sessionCreation', true, request)}
                 disabled={processing}
                 className="mb-2"
@@ -338,7 +338,7 @@ const TeachingRequests = () => {
                 {processing ? <Spinner size="sm" animation="border" /> : 'Accept & Create Session'}
               </Button>
               <Button 
-                variant="warning" 
+                variant="primary" 
                 onClick={() => toggleModal('reschedule', true, request)}
                 disabled={processing}
                 className="mb-2"
@@ -346,7 +346,7 @@ const TeachingRequests = () => {
                 Propose New Time
               </Button>
               <Button 
-                variant="danger" 
+                variant="primary" 
                 onClick={() => toggleModal('reject', true, request)}
                 disabled={processing}
               >
@@ -364,7 +364,7 @@ const TeachingRequests = () => {
           return (
             <>
               <Button 
-                variant="success" 
+                variant="primary" 
                 onClick={() => toggleModal('sessionCreation', true, request)}
                 disabled={processing}
                 className="mb-2"
@@ -372,7 +372,7 @@ const TeachingRequests = () => {
                 Accept New Time
               </Button>
               <Button 
-                variant="danger" 
+                variant="primary" 
                 onClick={() => toggleModal('reject', true, request)}
                 disabled={processing}
               >
@@ -383,7 +383,7 @@ const TeachingRequests = () => {
         case 'rejected':
           return (
             <Button 
-              variant="outline-secondary" 
+              variant="primary" 
               onClick={() => navigate('/profile')}
               disabled={processing}
             >
@@ -466,8 +466,8 @@ const TeachingRequests = () => {
                         <strong>Requested Time Slots:</strong>
                       </p>
                       <div className="bg-light p-2 rounded">
-                        {request.proposedTimeSlots && request.proposedTimeSlots.length > 0 ? (
-                          request.proposedTimeSlots.map((slot, index) => (
+                      {request.timeSlots && request.timeSlots.length > 0 ? (
+                          request.timeSlots.map((slot, index) => (
                             <div key={index} className="mb-1">
                               <small className={index === 0 ? 'fw-bold' : ''}>
                                 Option {index + 1}: {formatDateTime(slot.startTime)} - {formatDateTime(slot.endTime)}
@@ -476,7 +476,7 @@ const TeachingRequests = () => {
                           ))
                         ) : (
                           <p className="mb-0">No time slots proposed</p>
-                        )}
+                        )}  
                       </div>
                       
                       {request.rejectionReason && (
@@ -585,7 +585,7 @@ const TeachingRequests = () => {
             Cancel
           </Button>
           <Button 
-            variant="danger" 
+            variant="primary" 
             onClick={handleReject}
             disabled={processing}
           >
@@ -601,84 +601,141 @@ const TeachingRequests = () => {
         centered
         size="lg"
       >
-        <Modal.Header closeButton>
+        <Modal.Header closeButton className="bg-primary text-white">
           <Modal.Title>Create Teaching Session</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Session Title</Form.Label>
-              <Form.Control
-                name="title"
-                value={sessionDetails.title}
-                onChange={handleSessionDetailsChange}
-                required
-                placeholder="E.g. Introduction to Python, Guitar Basics, etc."
-              />
-            </Form.Group>
+            <Row>
+              <Col xs={12} md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Session Title</Form.Label>
+                  <Form.Control
+                    name="title"
+                    value={sessionDetails.title}
+                    onChange={handleSessionDetailsChange}
+                    required
+                    placeholder="E.g. Introduction to Python, Guitar Basics, etc."
+                  />
+                </Form.Group>
+                
+                <Form.Group className="mb-3">
+                  <Form.Label>Description</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    name="description"
+                    value={sessionDetails.description}
+                    onChange={handleSessionDetailsChange}
+                    placeholder="What will be covered in this session?"
+                  />
+                </Form.Group>
+                
+                <Form.Group className="mb-3">
+                  <Form.Label>Meeting Link (optional)</Form.Label>
+                  <Form.Control
+                    name="meetingLink"
+                    value={sessionDetails.meetingLink}
+                    onChange={handleSessionDetailsChange}
+                    placeholder="Zoom/Google Meet link"
+                  />
+                  <Form.Text className="text-muted">
+                    You can add this now or later from the sessions page
+                  </Form.Text>
+                </Form.Group>
+              </Col>
+              
+              <Col xs={12} md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Prerequisites</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    name="prerequisites"
+                    value={sessionDetails.prerequisites}
+                    onChange={handleSessionDetailsChange}
+                    placeholder="What should the student prepare or know beforehand?"
+                  />
+                </Form.Group>
+                
+                <Form.Group className="mb-3">
+                  <Form.Label>Additional Notes</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    name="notes"
+                    value={sessionDetails.notes}
+                    onChange={handleSessionDetailsChange}
+                    placeholder="Any other information the student should know"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+            
+            <hr className="my-4" />
             
             <Form.Group className="mb-3">
-              <Form.Label>Description</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                name="description"
-                value={sessionDetails.description}
-                onChange={handleSessionDetailsChange}
-                placeholder="What will be covered in this session?"
-              />
-            </Form.Group>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>Meeting Link (optional)</Form.Label>
-              <Form.Control
-                name="meetingLink"
-                value={sessionDetails.meetingLink}
-                onChange={handleSessionDetailsChange}
-                placeholder="Zoom/Google Meet link"
-              />
-              <Form.Text className="text-muted">
-                You can add this now or later from the sessions page
-              </Form.Text>
-            </Form.Group>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>Prerequisites</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                name="prerequisites"
-                value={sessionDetails.prerequisites}
-                onChange={handleSessionDetailsChange}
-                placeholder="What should the student prepare or know beforehand?"
-              />
-            </Form.Group>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>Additional Notes</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                name="notes"
-                value={sessionDetails.notes}
-                onChange={handleSessionDetailsChange}
-                placeholder="Any other information the student should know"
-              />
-            </Form.Group>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>Select Time Slot</Form.Label>
-              {selectedRequest?.proposedTimeSlots?.map((slot, index) => (
-                <Form.Check
-                  key={index}
-                  type="radio"
-                  id={`slot-${index}`}
-                  label={`${formatDateTime(slot.startTime)} - ${formatDateTime(slot.endTime)}`}
-                  checked={sessionDetails.selectedTimeSlot === slot}
-                  onChange={() => handleTimeSlotSelect(slot)}
-                  className="mb-2"
-                />
-              ))}
+              <Form.Label className="fs-5 fw-bold">Select Time Slot</Form.Label>
+              <div className="time-slot-container mt-3">
+                {selectedRequest?.timeSlots && selectedRequest.timeSlots.length > 0 ? (
+                  <Row>
+                    {selectedRequest.timeSlots.map((slot, index) => (
+                      <Col xs={12} md={6} key={index} className="mb-3">
+                        <Card 
+                          className={`time-slot-card ${sessionDetails.selectedTimeSlot === slot ? 'border-primary' : 'border'}`}
+                          onClick={() => handleTimeSlotSelect(slot)}
+                          style={{ 
+                            cursor: 'pointer', 
+                            transition: 'all 0.2s ease-in-out',
+                            transform: sessionDetails.selectedTimeSlot === slot ? 'scale(1.02)' : 'scale(1)',
+                            backgroundColor: sessionDetails.selectedTimeSlot === slot ? '#f0f7ff' : 'white'
+                          }}
+                        >
+                          <Card.Body className="p-3">
+                            <div className="d-flex align-items-center mb-2">
+                              <div className={`rounded-circle me-2 d-flex align-items-center justify-content-center ${sessionDetails.selectedTimeSlot === slot ? 'bg-primary text-white' : 'bg-light'}`} 
+                                style={{ width: 24, height: 24 }}>
+                                <small>{index + 1}</small>
+                              </div>
+                              <h6 className="mb-0">Option {index + 1}</h6>
+                              {sessionDetails.selectedTimeSlot === slot && (
+                                <Badge bg="primary" className="ms-auto">Selected</Badge>
+                              )}
+                            </div>
+                            <div className="bg-light rounded p-2 mt-2">
+                              <div className="d-flex align-items-center mb-1">
+                                <i className="bi bi-calendar-event me-2"></i>
+                                <small>{new Date(slot.startTime).toLocaleDateString(undefined, { 
+                                  weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' 
+                                })}</small>
+                              </div>
+                              <div className="d-flex align-items-center">
+                                <i className="bi bi-clock me-2"></i>
+                                <small>
+                                  {new Date(slot.startTime).toLocaleTimeString(undefined, { 
+                                    hour: '2-digit', minute: '2-digit' 
+                                  })} - {new Date(slot.endTime).toLocaleTimeString(undefined, { 
+                                    hour: '2-digit', minute: '2-digit' 
+                                  })}
+                                </small>
+                              </div>
+                            </div>
+                            <div className="text-end mt-2">
+                              <small className="text-muted">
+                                Duration: {Math.round((new Date(slot.endTime) - new Date(slot.startTime)) / (60 * 1000))} min
+                              </small>
+                            </div>
+                          </Card.Body>
+                        </Card>
+                      </Col>
+                    ))}
+                  </Row>
+                ) : (
+                  <Alert variant="warning">
+                    No time slots have been proposed by the student.
+                  </Alert>
+                )}
+              </div>
             </Form.Group>
           </Form>
         </Modal.Body>
@@ -689,7 +746,7 @@ const TeachingRequests = () => {
           <Button
             variant="primary"
             onClick={handleCreateSession}
-            disabled={processing}
+            disabled={processing || !sessionDetails.selectedTimeSlot}
           >
             {processing ? <Spinner size="sm" animation="border" /> : 'Create Session'}
           </Button>
