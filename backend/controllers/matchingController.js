@@ -305,8 +305,8 @@ getMatches: async (req, res) => {
     }
 
     const userId = req.user.id;
-    console.log("Request data:", req);
-    console.log("Time slots:", req.proposedTimeSlots);
+    // console.log("Request data:", req);
+    // console.log("Time slots:", req.proposedTimeSlots);
 
     // Find matches where the user is the requester (student)
     const asRequesterMatches = await Match.find({ requesterId: userId })
@@ -536,6 +536,17 @@ updateMatchStatus: async (req, res) => {
       return `${type}_${matchId}_${timestamp}`;
     };
     
+    // Define valid notification types
+    const VALID_NOTIFICATION_TYPES = {
+      PROPOSED: 'session_proposed',
+      ACCEPTED: 'match_accepted',
+      REJECTED: 'match_rejected', // Changed from 'session_rejected' to match schema
+      COMPLETED: 'session_completed',
+      MESSAGE: 'session_message',
+      SCHEDULED: 'session_scheduled',
+      RESCHEDULED: 'session_rescheduled' // Added for rescheduling support
+    };
+    
     // Create notification based on status change
     let notificationType, notificationTitle, notificationMessage, notificationDetails, emailSubject, emailBody;
     let notificationKey = null;
@@ -543,11 +554,14 @@ updateMatchStatus: async (req, res) => {
     const now = new Date();
     const timestampForKey = now.toISOString().split('T')[0]; // Use date part only for duplicate prevention
     
+    // Handle rescheduling scenario - when there's a selected time slot but status isn't changing to accepted
+    const isRescheduling = selectedTimeSlot && previousStatus === 'accepted' && status === 'accepted';
+    
     if (previousStatus !== status || (proposedTimeSlots && proposedTimeSlots.length > 0) || selectedTimeSlot) {
       switch (status) {
         case 'pending':
           if (proposedTimeSlots && proposedTimeSlots.length > 0) {
-            notificationType = 'session_proposed';
+            notificationType = VALID_NOTIFICATION_TYPES.PROPOSED;
             notificationTitle = `${senderRole} ${senderName}: New Times for ${courseName}`;
             
             // More concise message with course name and time options count
@@ -581,37 +595,67 @@ updateMatchStatus: async (req, res) => {
           break;
           
         case 'accepted':
-          notificationType = 'session_accepted';
-          
-          let timeInfo = selectedTimeSlot 
-            ? formatTimeSlot(selectedTimeSlot, recipientTimezone)
-            : '';
-          
-          notificationTitle = `${senderRole} ${senderName}: Accepted ${courseName}`;
-          notificationMessage = `${senderName} accepted your ${courseName}${timeInfo ? ` for ${timeInfo}` : ''}.`;
-          
-          notificationDetails = {
-            senderRole,
-            senderName,
-            course: courseName,
-            selectedTime: selectedTimeSlot ? formatTimeSlot(selectedTimeSlot, recipientTimezone) : null,
-            message: message || null
-          };
-          
-          emailSubject = `${courseName} Accepted by ${senderName}`;
-          emailBody = `
-            <h2>${senderRole} ${senderName} has accepted your ${courseName}</h2>
-            ${selectedTimeSlot ? 
-              `<p><strong>Time:</strong> ${formatTimeSlot(selectedTimeSlot, recipientTimezone)}</p>` : 
-              ''}
-            ${message ? `<p><strong>Message:</strong> "${message}"</p>` : ''}
-          `;
-          
-          notificationKey = generateNotificationKey('accepted', matchId, timestampForKey);
+          if (isRescheduling) {
+            // Handle rescheduling
+            notificationType = VALID_NOTIFICATION_TYPES.RESCHEDULED;
+            
+            const timeInfo = selectedTimeSlot 
+              ? formatTimeSlot(selectedTimeSlot, recipientTimezone)
+              : '';
+            
+            notificationTitle = `${senderRole} ${senderName}: Rescheduled ${courseName}`;
+            notificationMessage = `${senderName} rescheduled your ${courseName} to ${timeInfo}.`;
+            
+            notificationDetails = {
+              senderRole,
+              senderName,
+              course: courseName,
+              selectedTime: formatTimeSlot(selectedTimeSlot, recipientTimezone),
+              message: message || null
+            };
+            
+            emailSubject = `${courseName} Rescheduled by ${senderName}`;
+            emailBody = `
+              <h2>${senderRole} ${senderName} has rescheduled your ${courseName}</h2>
+              <p><strong>New Time:</strong> ${formatTimeSlot(selectedTimeSlot, recipientTimezone)}</p>
+              ${message ? `<p><strong>Message:</strong> "${message}"</p>` : ''}
+            `;
+            
+            notificationKey = generateNotificationKey('rescheduled', matchId, timestampForKey);
+          } else {
+            // Normal accept flow
+            notificationType = VALID_NOTIFICATION_TYPES.ACCEPTED;
+            
+            const timeInfo = selectedTimeSlot 
+              ? formatTimeSlot(selectedTimeSlot, recipientTimezone)
+              : '';
+            
+            notificationTitle = `${senderRole} ${senderName}: Accepted ${courseName}`;
+            notificationMessage = `${senderName} accepted your ${courseName}${timeInfo ? ` for ${timeInfo}` : ''}.`;
+            
+            notificationDetails = {
+              senderRole,
+              senderName,
+              course: courseName,
+              selectedTime: selectedTimeSlot ? formatTimeSlot(selectedTimeSlot, recipientTimezone) : null,
+              message: message || null
+            };
+            
+            emailSubject = `${courseName} Accepted by ${senderName}`;
+            emailBody = `
+              <h2>${senderRole} ${senderName} has accepted your ${courseName}</h2>
+              ${selectedTimeSlot ? 
+                `<p><strong>Time:</strong> ${formatTimeSlot(selectedTimeSlot, recipientTimezone)}</p>` : 
+                ''}
+              ${message ? `<p><strong>Message:</strong> "${message}"</p>` : ''}
+            `;
+            
+            notificationKey = generateNotificationKey('accepted', matchId, timestampForKey);
+          }
           break;
           
         case 'rejected':
-          notificationType = 'session_rejected';
+          notificationType = VALID_NOTIFICATION_TYPES.REJECTED; // Using match_rejected instead of session_rejected
           notificationTitle = `${senderRole} ${senderName}: Declined ${courseName}`;
           notificationMessage = `${senderName} declined your ${courseName}${message ? `: "${message.substring(0, 30)}${message.length > 30 ? '...' : ''}"` : ''}.`;
           
@@ -632,7 +676,7 @@ updateMatchStatus: async (req, res) => {
           break;
           
         case 'completed':
-          notificationType = 'session_completed';
+          notificationType = VALID_NOTIFICATION_TYPES.COMPLETED;
           notificationTitle = `${senderRole} ${senderName}: Completed ${courseName}`;
           notificationMessage = `${senderName} marked your ${courseName} as completed${message ? ` with feedback` : ''}.`;
           
@@ -654,7 +698,7 @@ updateMatchStatus: async (req, res) => {
       }
     } else if (message) {
       // If only a message was added
-      notificationType = 'session_message';
+      notificationType = VALID_NOTIFICATION_TYPES.MESSAGE;
       notificationTitle = `${senderRole} ${senderName}: Message about ${courseName}`;
       notificationMessage = `${senderName}: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`;
       
@@ -677,56 +721,66 @@ updateMatchStatus: async (req, res) => {
     // Check if a similar notification already exists for today
     let notification = null;
     if (notificationType && notificationKey) {
-      // Try to find existing notification with the same key that was created today
-      const startOfDay = new Date(now);
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const existingNotification = await Notification.findOne({
-        userId: recipientId,
-        type: notificationType,
-        relatedId: match._id,
-        key: notificationKey,
-        createdAt: { $gte: startOfDay }
-      });
-      
-      if (existingNotification) {
-        // Update existing notification instead of creating a new one
-        existingNotification.title = notificationTitle;
-        existingNotification.message = notificationMessage;
-        existingNotification.details = notificationDetails;
-        existingNotification.read = false; // Mark as unread again
-        existingNotification.updatedAt = now;
-        existingNotification.count = (existingNotification.count || 1) + 1;
+      try {
+        // Try to find existing notification with the same key that was created today
+        const startOfDay = new Date(now);
+        startOfDay.setHours(0, 0, 0, 0);
         
-        await existingNotification.save();
-        notification = existingNotification;
-        
-        console.log(`Updated existing notification: ${notificationKey}`);
-      } else {
-        // Create new notification
-        notification = new Notification({
+        const existingNotification = await Notification.findOne({
           userId: recipientId,
           type: notificationType,
-          title: notificationTitle,
-          message: notificationMessage,
-          details: notificationDetails,
           relatedId: match._id,
-          relatedModel: 'Match',
           key: notificationKey,
-          read: false,
-          count: 1,
-          createdAt: now,
-          updatedAt: now
+          createdAt: { $gte: startOfDay }
         });
         
-        await notification.save();
-        console.log(`Created new notification: ${notificationKey}`);
+        if (existingNotification) {
+          // Update existing notification instead of creating a new one
+          existingNotification.title = notificationTitle;
+          existingNotification.message = notificationMessage;
+          existingNotification.details = notificationDetails;
+          existingNotification.read = false; // Mark as unread again
+          existingNotification.updatedAt = now;
+          existingNotification.count = (existingNotification.count || 1) + 1;
+          
+          await existingNotification.save();
+          notification = existingNotification;
+          
+          console.log(`Updated existing notification: ${notificationKey}`);
+        } else {
+          // Create new notification
+          notification = new Notification({
+            userId: recipientId,
+            type: notificationType,
+            title: notificationTitle,
+            message: notificationMessage,
+            details: notificationDetails,
+            relatedId: match._id,
+            relatedModel: 'Match',
+            key: notificationKey,
+            read: false,
+            count: 1,
+            createdAt: now,
+            updatedAt: now
+          });
+          
+          await notification.save();
+          console.log(`Created new notification: ${notificationKey}`);
+        }
+      } catch (notificationError) {
+        console.error("Error creating/updating notification:", notificationError);
+        // Continue with the match update even if notification fails
+        // This prevents the entire operation from failing due to notification issues
       }
       
       // Emit the notification through socket.io if available
-      const io = req.app.get('io');
-      if (io) {
-        io.to(recipientId.toString()).emit('notification', notification);
+      try {
+        const io = req.app.get('io');
+        if (io && notification) {
+          io.to(recipientId.toString()).emit('notification', notification);
+        }
+      } catch (socketError) {
+        console.error("Error emitting socket notification:", socketError);
       }
       
       // Send email notification if service is available
@@ -760,8 +814,8 @@ updateMatchStatus: async (req, res) => {
       }
     }
     
-    // Create session if match is accepted
-    if (status === 'accepted' && selectedTimeSlot) {
+    // Create or update session if match is accepted or rescheduled
+    if ((status === 'accepted' && selectedTimeSlot) || isRescheduling) {
       try {
         // Check if session already exists for this match to prevent duplicates
         let session = await Session.findOne({ matchId: match._id });
@@ -792,45 +846,41 @@ updateMatchStatus: async (req, res) => {
           await session.save();
         }
         
+        // Determine notification type based on whether it's a new session or rescheduling
+        const sessionNotificationType = isRescheduling ? 
+          VALID_NOTIFICATION_TYPES.RESCHEDULED : 
+          VALID_NOTIFICATION_TYPES.SCHEDULED;
+        
         // Unique key for session notification
-        const sessionNotificationKey = generateNotificationKey('scheduled', session._id, timestampForKey);
+        const sessionNotificationKey = generateNotificationKey(
+          isRescheduling ? 'rescheduled' : 'scheduled', 
+          session._id, 
+          timestampForKey
+        );
         
         // Check if session notification already exists
-        let sessionNotification = await Notification.findOne({
-          userId: recipientId,
-          type: 'session_scheduled',
-          relatedId: session._id,
-          key: sessionNotificationKey
-        });
-        
-        const sessionTitle = `${courseName} with ${senderName}`;
-        const sessionMessage = `${courseName} scheduled with ${senderName} for ${formatTimeSlot(selectedTimeSlot, recipientTimezone)}.`;
-        
-        if (sessionNotification) {
-          // Update existing notification
-          sessionNotification.title = sessionTitle;
-          sessionNotification.message = sessionMessage;
-          sessionNotification.details = {
-            senderRole,
-            senderName,
-            course: courseName,
-            sessionId: session._id,
-            time: formatTimeSlot(selectedTimeSlot, recipientTimezone),
-            meetLink: session.meetLink,
-            message: message || null
-          };
-          sessionNotification.read = false;
-          sessionNotification.updatedAt = now;
-          
-          await sessionNotification.save();
-        } else {
-          // Create new session notification
-          sessionNotification = new Notification({
+        let sessionNotification = null;
+        try {
+          sessionNotification = await Notification.findOne({
             userId: recipientId,
-            type: 'session_scheduled',
-            title: sessionTitle,
-            message: sessionMessage,
-            details: {
+            type: sessionNotificationType,
+            relatedId: session._id,
+            key: sessionNotificationKey
+          });
+          
+          const sessionTitle = isRescheduling ?
+            `${courseName} Rescheduled with ${senderName}` :
+            `${courseName} with ${senderName}`;
+            
+          const sessionMessage = isRescheduling ?
+            `${courseName} rescheduled with ${senderName} for ${formatTimeSlot(selectedTimeSlot, recipientTimezone)}.` :
+            `${courseName} scheduled with ${senderName} for ${formatTimeSlot(selectedTimeSlot, recipientTimezone)}.`;
+          
+          if (sessionNotification) {
+            // Update existing notification
+            sessionNotification.title = sessionTitle;
+            sessionNotification.message = sessionMessage;
+            sessionNotification.details = {
               senderRole,
               senderName,
               course: courseName,
@@ -838,23 +888,51 @@ updateMatchStatus: async (req, res) => {
               time: formatTimeSlot(selectedTimeSlot, recipientTimezone),
               meetLink: session.meetLink,
               message: message || null
-            },
-            relatedId: session._id,
-            relatedModel: 'Session',
-            key: sessionNotificationKey,
-            read: false,
-            count: 1,
-            createdAt: now,
-            updatedAt: now
-          });
-          
-          await sessionNotification.save();
+            };
+            sessionNotification.read = false;
+            sessionNotification.updatedAt = now;
+            
+            await sessionNotification.save();
+          } else {
+            // Create new session notification
+            sessionNotification = new Notification({
+              userId: recipientId,
+              type: sessionNotificationType,
+              title: sessionTitle,
+              message: sessionMessage,
+              details: {
+                senderRole,
+                senderName,
+                course: courseName,
+                sessionId: session._id,
+                time: formatTimeSlot(selectedTimeSlot, recipientTimezone),
+                meetLink: session.meetLink,
+                message: message || null
+              },
+              relatedId: session._id,
+              relatedModel: 'Session',
+              key: sessionNotificationKey,
+              read: false,
+              count: 1,
+              createdAt: now,
+              updatedAt: now
+            });
+            
+            await sessionNotification.save();
+          }
+        } catch (sessionNotifError) {
+          console.error("Error creating session notification:", sessionNotifError);
+          // Continue even if notification fails
         }
         
         // Emit the notification through socket.io if available
-        const io = req.app.get('io');
-        if (io) {
-          io.to(recipientId.toString()).emit('notification', sessionNotification);
+        try {
+          const io = req.app.get('io');
+          if (io && sessionNotification) {
+            io.to(recipientId.toString()).emit('notification', sessionNotification);
+          }
+        } catch (socketError) {
+          console.error("Error emitting socket notification:", socketError);
         }
         
         // Send calendar invite if service is available
@@ -1083,6 +1161,41 @@ updateMatchStatus: async (req, res) => {
         success: false,
         message: 'Failed to delete matches by skill',
         error: error.message
+      });
+    }
+  },
+
+  getUserMatches: async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const statusList = (req.query.status || '').split(',').filter(Boolean);
+      
+      const query = {
+        $or: [
+          { teacherId: userId },
+          { requesterId: userId }
+        ]
+      };
+      
+      // Add status filter if provided
+      if (statusList.length > 0) {
+        query.status = { $in: statusList };
+      }
+      
+      // Find matches where the user is either a teacher or requester
+      const matches = await Match.find(query)
+        .populate('skillId', 'name')
+        .populate('teacherId', 'name avatar')
+        .populate('requesterId', 'name avatar')
+        .sort({ updatedAt: -1 }) // Sort by most recently updated
+        .limit(5); // Limit to 5 recent matches
+      
+      return res.status(200).json({ matches });
+    } catch (error) {
+      console.error("Error fetching user matches:", error);
+      return res.status(500).json({ 
+        error: 'Failed to fetch matches',
+        message: error.message
       });
     }
   }

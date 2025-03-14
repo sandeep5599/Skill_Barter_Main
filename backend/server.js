@@ -3,6 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const http = require('http');
+const {google} = require('googleapis');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -44,6 +45,34 @@ app.use('/api', userRoutes);
 app.use('/api/skills', require('./routes/skills'));
 app.use('/api/matches', matchingRoutes);
 app.use('/api/notifications', notificationRoutes); // Added notifications endpoint
+
+
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI
+);
+
+const scopes = [
+  'https://www.googleapis.com/auth/calendar',
+  'https://www.googleapis.com/auth/calendar.events'
+];
+
+app.get('/auth', (req, res) => {
+  const url = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: scopes,
+  });
+  res.redirect(url);
+});
+
+app.get('/auth/google/callback', async (req, res) => {
+  const {tokens} = await oauth2Client.getToken(req.query.code);
+  console.log("Refresh token:", tokens.refresh_token);
+  res.send('Auth successful! Check console for refresh token.');
+});
+
+
 
 // Global error handler
 app.use((err, req, res, next) => {

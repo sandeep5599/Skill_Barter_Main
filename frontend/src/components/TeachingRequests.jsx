@@ -135,145 +135,188 @@ const TeachingRequests = () => {
   }, [formatDateTimeForInput]);
 
   // API action handlers
-  const handleCreateSession = async () => {
-    if (!sessionDetails.selectedTimeSlot) {
-      toast.error('Please select a time slot');
+ 
+// Replace handleCreateSession function
+// const handleCreateSession = async () => {
+//   if (!sessionDetails.selectedTimeSlot) {
+//     toast.error('Please select a time slot');
+//     return;
+//   }
+  
+//   try {
+//     setProcessing(true);
+    
+//     // Include all session details in the match update
+//     const response = await fetch(`${BACKEND_URL}/api/matches/${selectedRequest._id || selectedRequest.id}`, {
+//       method: 'PUT',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'Authorization': `Bearer ${localStorage.getItem('token')}`
+//       },
+//       body: JSON.stringify({
+//         status: 'accepted',
+//         selectedTimeSlot: sessionDetails.selectedTimeSlot,
+//         message: sessionDetails.notes || sessionDetails.description // Include any additional info in the message
+//       })
+//     });
+    
+//     if (!response.ok) {
+//       const errorData = await response.json().catch(() => ({}));
+//       throw new Error(errorData.message || 'Failed to create session');
+//     }
+    
+//     toast.success('Session created successfully!');
+//     toggleModal('sessionCreation', false);
+//     fetchRequests();
+//   } catch (error) {
+//     setError('Failed to create session: ' + error.message);
+//     toast.error('Failed to create session');
+//     console.error(error);
+//   } finally {
+//     setProcessing(false);
+//   }
+// };
+
+const handleCreateSession = async () => {
+  if (!sessionDetails.selectedTimeSlot) {
+    toast.error('Please select a time slot');
+    return;
+  }
+  
+  try {
+    setProcessing(true);
+    
+    // First, update the match status
+    const matchResponse = await fetch(`${BACKEND_URL}/api/matches/${selectedRequest._id || selectedRequest.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({
+        status: 'accepted',
+        selectedTimeSlot: sessionDetails.selectedTimeSlot,
+        message: sessionDetails.notes || sessionDetails.description
+      })
+    });
+    
+    if (!matchResponse.ok) {
+      const errorData = await matchResponse.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to update match status');
+    }
+    
+    // Then, create a new session (simplified)
+    const sessionResponse = await fetch(`${BACKEND_URL}/api/sessions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({
+        matchId: selectedRequest._id || selectedRequest.id,
+        selectedTimeSlot: sessionDetails.selectedTimeSlot
+      })
+    });
+    
+    if (!sessionResponse.ok) {
+      const errorData = await sessionResponse.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to create session');
+    }
+    
+    toast.success('Session created successfully!');
+    toggleModal('sessionCreation', false);
+    fetchRequests();
+  } catch (error) {
+    setError('Failed to create session: ' + error.message);
+    toast.error('Failed to create session');
+    console.error(error);
+  } finally {
+    setProcessing(false);
+  }
+};
+
+
+// Replace handleReject function
+const handleReject = async () => {
+  try {
+    setProcessing(true);
+    const response = await fetch(`${BACKEND_URL}/api/matches/${selectedRequest._id || selectedRequest.id}`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Authorization': `Bearer ${localStorage.getItem('token')}` 
+      },
+      body: JSON.stringify({
+        status: 'rejected',
+        rejectionReason: rejectionReason
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to reject request');
+    }
+
+    toast.info('Request rejected');
+    toggleModal('reject', false);
+    fetchRequests();
+  } catch (error) {
+    setError('Failed to reject request');
+    toast.error('Failed to reject request');
+    console.error(error);
+  } finally {
+    setProcessing(false);
+  }
+};
+
+// Replace handleReschedule function
+const handleReschedule = async () => {
+  if (!proposedDateTime || !proposedEndTime) {
+    toast.error('Please select both start and end times');
+    return;
+  }
+
+  try {
+    setProcessing(true);
+    const startTime = new Date(proposedDateTime);
+    const endTime = new Date(proposedEndTime);
+
+    if (startTime >= endTime) {
+      toast.error('End time must be after start time');
       return;
     }
 
-    try {
-      setProcessing(true);
-      
-      // First accept the match
-      const acceptResponse = await fetch(`${BACKEND_URL}/api/matches/${selectedRequest._id || selectedRequest.id}/accept`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': `Bearer ${localStorage.getItem('token')}` 
-        },
-        body: JSON.stringify({
-          selectedTimeSlot: sessionDetails.selectedTimeSlot
-        })
-      });
+    const response = await fetch(`${BACKEND_URL}/api/matches/${selectedRequest._id || selectedRequest.id}`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Authorization': `Bearer ${localStorage.getItem('token')}` 
+      },
+      body: JSON.stringify({
+        status: 'rescheduled',
+        proposedTimeSlot: {
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString()
+        }
+      })
+    });
 
-      if (!acceptResponse.ok) {
-        const errorData = await acceptResponse.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to accept request');
-      }
-      
-      // Then create the session with details
-      const sessionResponse = await fetch(`${BACKEND_URL}/api/sessions`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': `Bearer ${localStorage.getItem('token')}` 
-        },
-        body: JSON.stringify({
-          matchId: selectedRequest._id || selectedRequest.id,
-          title: sessionDetails.title,
-          description: sessionDetails.description,
-          meetingLink: sessionDetails.meetingLink,
-          prerequisites: sessionDetails.prerequisites,
-          notes: sessionDetails.notes,
-          startTime: sessionDetails.selectedTimeSlot.startTime,
-          endTime: sessionDetails.selectedTimeSlot.endTime
-        })
-      });
-
-      if (!sessionResponse.ok) {
-        const errorData = await sessionResponse.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to create session');
-      }
-
-      toast.success('Session created successfully!');
-      toggleModal('sessionCreation', false);
-      fetchRequests();
-    } catch (error) {
-      setError('Failed to create session: ' + error.message);
-      toast.error('Failed to create session');
-      console.error(error);
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleReject = async () => {
-    try {
-      setProcessing(true);
-      const response = await fetch(`${BACKEND_URL}/api/matches/${selectedRequest._id || selectedRequest.id}/reject`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': `Bearer ${localStorage.getItem('token')}` 
-        },
-        body: JSON.stringify({
-          rejectionReason: rejectionReason
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to reject request');
-      }
-
-      toast.info('Request rejected');
-      toggleModal('reject', false);
-      fetchRequests();
-    } catch (error) {
-      setError('Failed to reject request');
-      toast.error('Failed to reject request');
-      console.error(error);
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleReschedule = async () => {
-    if (!proposedDateTime || !proposedEndTime) {
-      toast.error('Please select both start and end times');
-      return;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to reschedule request');
     }
 
-    try {
-      setProcessing(true);
-      const startTime = new Date(proposedDateTime);
-      const endTime = new Date(proposedEndTime);
-
-      if (startTime >= endTime) {
-        toast.error('End time must be after start time');
-        return;
-      }
-
-      const response = await fetch(`${BACKEND_URL}/api/matches/${selectedRequest._id || selectedRequest.id}/reschedule`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': `Bearer ${localStorage.getItem('token')}` 
-        },
-        body: JSON.stringify({
-          proposedTimeSlot: {
-            startTime: startTime.toISOString(),
-            endTime: endTime.toISOString()
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to reschedule request');
-      }
-
-      toast.success('Request rescheduled successfully!');
-      toggleModal('reschedule', false);
-      fetchRequests();
-    } catch (error) {
-      setError('Failed to reschedule request');
-      toast.error('Failed to reschedule request');
-      console.error(error);
-    } finally {
-      setProcessing(false);
-    }
-  };
+    toast.success('Request rescheduled successfully!');
+    toggleModal('reschedule', false);
+    fetchRequests();
+  } catch (error) {
+    setError('Failed to reschedule request');
+    toast.error('Failed to reschedule request');
+    console.error(error);
+  } finally {
+    setProcessing(false);
+  }
+};
 
   // Form handlers
   const handleSessionDetailsChange = useCallback((e) => {
