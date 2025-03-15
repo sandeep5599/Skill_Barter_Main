@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Form, Button, Container, Card, Alert } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
+import { Form, Button, Container, Card, Alert, Row, Col, InputGroup } from 'react-bootstrap';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Link } from 'react-router-dom';
+import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaUserPlus } from 'react-icons/fa';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -13,6 +13,9 @@ const Register = () => {
     confirmPassword: ''
   });
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -24,6 +27,7 @@ const Register = () => {
     }
 
     setMessage({ type: '', text: '' });
+    setLoading(true);
 
     try {
       const response = await api.post('/auth/register', {
@@ -34,45 +38,190 @@ const Register = () => {
 
       login(response.data);
       setMessage({ type: 'success', text: 'User successfully created! Redirecting to login...' });
-
+      
+      // Simulate a delay to show success message
       setTimeout(() => navigate('/login'), 1500);
-
     } catch (err) {
       const errorMsg = err.response?.data?.msg || 'Registration failed. Please try again.';
       setMessage({ type: 'danger', text: errorMsg });
+    } finally {
+      setLoading(false);
     }
   };
 
+  const formFields = [
+    { 
+      id: 'name',
+      label: 'Full Name',
+      type: 'text',
+      placeholder: 'Enter your full name',
+      icon: <FaUser className="text-primary" />
+    },
+    { 
+      id: 'email',
+      label: 'Email Address',
+      type: 'email',
+      placeholder: 'Enter your email',
+      icon: <FaEnvelope className="text-primary" />
+    },
+    { 
+      id: 'password',
+      label: 'Password',
+      type: showPassword ? 'text' : 'password',
+      placeholder: 'Create a strong password',
+      icon: <FaLock className="text-primary" />,
+      toggleIcon: showPassword ? 
+        <FaEyeSlash className="text-muted" onClick={() => setShowPassword(!showPassword)} /> : 
+        <FaEye className="text-muted" onClick={() => setShowPassword(!showPassword)} />
+    },
+    { 
+      id: 'confirmPassword',
+      label: 'Confirm Password',
+      type: showConfirmPassword ? 'text' : 'password',
+      placeholder: 'Confirm your password',
+      icon: <FaLock className="text-primary" />,
+      toggleIcon: showConfirmPassword ? 
+        <FaEyeSlash className="text-muted" onClick={() => setShowConfirmPassword(!showConfirmPassword)} /> : 
+        <FaEye className="text-muted" onClick={() => setShowConfirmPassword(!showConfirmPassword)} />
+    }
+  ];
+
   return (
-    <Container className="d-flex justify-content-center align-items-center min-vh-100">
-      <Card className="shadow p-4" style={{ width: '100%', maxWidth: '400px', border: '2px solid #ced4da' }}>
-        <Card.Body>
-          <h2 className="text-center mb-4">Register</h2>
+    <div className="register-page bg-light">
+      <Container fluid>
+        <Row className="vh-100">
+          {/* Left side - Image and info */}
+          <Col md={6} lg={7} xl={8} className="d-none d-md-flex align-items-center">
+            <div className="position-relative w-100 h-100">
+              <div 
+                className="position-absolute w-100 h-100 bg-primary"
+                style={{
+                  backgroundImage: 'url(https://source.unsplash.com/random/1200x900/?skills,teaching)',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  clipPath: 'polygon(0 0, 90% 0, 100% 100%, 0 100%)',
+                }}
+              ></div>
+              <div 
+                className="position-absolute w-100 h-100"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(65, 88, 208, 0.8) 0%, rgba(200, 80, 192, 0.8) 46%, rgba(255, 204, 112, 0.8) 100%)',
+                  clipPath: 'polygon(0 0, 90% 0, 100% 100%, 0 100%)',
+                }}
+              ></div>
+              <div className="position-absolute top-50 start-50 translate-middle text-white text-center" style={{ width: '80%' }}>
+                <h2 className="display-4 fw-bold mb-4">Join Our Community</h2>
+                <p className="lead mb-4">Share your knowledge and expertise with others while gaining new skills from talented individuals.</p>
+                <div className="d-flex justify-content-center">
+                  <div className="px-4 py-3 bg-white bg-opacity-10 rounded-3 backdrop-blur-sm">
+                    <div className="d-flex align-items-center">
+                      <div className="me-3">
+                        <div className="display-6 fw-bold">500+</div>
+                        <div className="small">Skills exchanged</div>
+                      </div>
+                      <div className="vr bg-white opacity-25 mx-3 h-100"></div>
+                      <div>
+                        <div className="display-6 fw-bold">10k+</div>
+                        <div className="small">Active members</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Col>
 
-          {message.text && <Alert variant={message.type}>{message.text}</Alert>}
+          {/* Right side - Registration form */}
+          <Col md={6} lg={5} xl={4} className="d-flex align-items-center">
+            <Container className="py-5">
+              <div className="text-center mb-5">
+                <h1 className="fw-bold text-primary">SkillBarter</h1>
+                <p className="text-muted">Exchange skills, grow together</p>
+              </div>
 
-          <Form onSubmit={handleSubmit}>
-            {['name', 'email', 'password', 'confirmPassword'].map((field, index) => (
-              <Form.Group key={index} className="mb-3">
-                <Form.Label>{field === 'confirmPassword' ? 'Confirm Password' : field.charAt(0).toUpperCase() + field.slice(1)}</Form.Label>
-                <Form.Control
-                  type={field.includes('password') ? 'password' : 'text'}
-                  value={formData[field]}
-                  onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
-                  required
-                />
-              </Form.Group>
-            ))}
+              <Card className="border-0 shadow-sm rounded-3">
+                <Card.Body className="p-4 p-md-5">
+                  <h2 className="text-center mb-4 fw-bold">Create Account</h2>
+                  
+                  {message.text && (
+                    <Alert 
+                      variant={message.type} 
+                      className="text-center animate__animated animate__fadeIn"
+                    >
+                      {message.text}
+                    </Alert>
+                  )}
+                  
+                  <Form onSubmit={handleSubmit}>
+                    {formFields.map((field) => (
+                      <Form.Group className="mb-4" controlId={field.id} key={field.id}>
+                        <Form.Label>{field.label}</Form.Label>
+                        <InputGroup>
+                          <InputGroup.Text className="bg-light">
+                            {field.icon}
+                          </InputGroup.Text>
+                          <Form.Control
+                            type={field.type}
+                            placeholder={field.placeholder}
+                            value={formData[field.id]}
+                            onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                            required
+                            className="py-2"
+                          />
+                          {field.toggleIcon && (
+                            <InputGroup.Text 
+                              className="bg-light cursor-pointer"
+                              style={{ cursor: 'pointer' }}
+                            >
+                              {field.toggleIcon}
+                            </InputGroup.Text>
+                          )}
+                        </InputGroup>
+                      </Form.Group>
+                    ))}
 
-            <Button type="submit" variant="primary" className="w-100">Register</Button>
-          </Form>
+                    <div className="d-grid mb-4">
+                      <Button 
+                        type="submit" 
+                        variant="primary" 
+                        size="lg" 
+                        className="py-2"
+                        disabled={loading}
+                      >
+                        {loading ? 'Creating Account...' : 'Create Account'} <FaUserPlus className="ms-2" />
+                      </Button>
+                    </div>
 
-          <p className="text-center mt-3">
-            Already have an account? <Link to="/login">Login</Link>
-          </p>
-        </Card.Body>
-      </Card>
-    </Container>
+                    <div className="text-center">
+                      <span className="text-muted">Already have an account?</span>{' '}
+                      <Link to="/login" className="text-primary fw-bold text-decoration-none">
+                        Login
+                      </Link>
+                    </div>
+                  </Form>
+                </Card.Body>
+              </Card>
+            </Container>
+          </Col>
+        </Row>
+      </Container>
+
+      {/* Custom CSS */}
+      <style jsx>{`
+        .register-page {
+          min-height: 100vh;
+        }
+        .cursor-pointer {
+          cursor: pointer;
+        }
+        .bg-opacity-10 {
+          background-color: rgba(255, 255, 255, 0.1);
+        }
+        .backdrop-blur-sm {
+          backdrop-filter: blur(4px);
+        }
+      `}</style>
+    </div>
   );
 };
 
