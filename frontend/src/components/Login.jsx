@@ -212,11 +212,11 @@ const Login = () => {
                 <div className="d-flex justify-content-center">
                   <div className="px-4 py-3 bg-white bg-opacity-10 rounded-3 backdrop-blur-sm">
                     <div className="d-flex align-items-center">
-                      <div className="d-flex me-3">
-                        <img src="/api/placeholder/40/40" className="rounded-circle border border-2 border-white" alt="" />
-                        <img src="/api/placeholder/40/40" className="rounded-circle border border-2 border-white ms-n2" alt="" />
-                        <img src="/api/placeholder/40/40" className="rounded-circle border border-2 border-white ms-n2" alt="" />
-                      </div>
+                    <div className="d-flex me-3">
+  <div className="rounded-circle border border-2 border-white bg-primary text-white d-flex align-items-center justify-content-center" style={{ width: 40, height: 40 }}>JD</div>
+  <div className="rounded-circle border border-2 border-white bg-success text-white d-flex align-items-center justify-content-center ms-n2" style={{ width: 40, height: 40 }}>AS</div>
+  <div className="rounded-circle border border-2 border-white bg-info text-white d-flex align-items-center justify-content-center ms-n2" style={{ width: 40, height: 40 }}>TK</div>
+</div>
                       <div className="text-start">
                         <p className="mb-0 small">Join <strong>10,000+</strong> users</p>
                         <p className="mb-0 small">who are already learning</p>
@@ -231,7 +231,7 @@ const Login = () => {
       </Container>
 
       {/* Custom CSS */}
-      <style jsx>{`
+      <style jsx = "true">{`
         .login-page {
           min-height: 100vh;
         }

@@ -18,209 +18,219 @@ const matchingController = {
    * @param {Object} res - Express response object
    * @returns {Object} JSON response with match generation results
    */
-  generateMatches: async (req, res) => {
-    try {
-      if (!req.user || !req.user.id) {
-        return res.status(401).json({ error: "Unauthorized access" });
+// Update the generateMatches function
+generateMatches: async (req, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: "Unauthorized access" });
+    }
+
+    const userId = req.user.id || req.user._id;
+
+    // Find all skills the user is learning
+    const learningSkills = await Skill.find({ userId: userId, isLearning: true });
+
+    if (learningSkills.length === 0) {
+      return res.status(200).json({
+        message: "No learning skills found. Add skills to get matches.",
+        matchesFound: []
+      });
+    }
+
+    const learningMatchesFound = []; // Matches where current user is learning
+    const teachingMatchesCreated = []; // Matches where current user is teaching
+    const matchPromises = [];
+
+    // Helper function to convert proficiency level to numerical value
+    const getProficiencyValue = (level) => {
+      switch(level) {
+        case 'Beginner': return 1;
+        case 'Intermediate': return 2;
+        case 'Expert': return 3;
+        default: return 0;
       }
-  
-      const userId = req.user.id || req.user._id;
-  
-      // Find all skills the user is learning
-      const learningSkills = await Skill.find({ userId: userId, isLearning: true });
-  
-      if (learningSkills.length === 0) {
-        return res.status(200).json({
-          message: "No learning skills found. Add skills to get matches.",
-          matchesFound: []
-        });
+    };
+
+    // Get current user's information for populating match fields
+    const currentUser = await User.findById(userId).select('name');
+    const currentUserName = currentUser ? currentUser.name : '';
+
+    // For each skill the user is learning
+    for (const learningSkill of learningSkills) {
+      if (!learningSkill || !learningSkill.skillName || !learningSkill.proficiencyLevel) {
+        console.error("Skipping invalid learning skill:", learningSkill);
+        continue;
       }
-  
-      const learningMatchesFound = []; // Matches where current user is learning
-      const teachingMatchesCreated = []; // Matches where current user is teaching
-      const matchPromises = [];
-  
-      // Helper function to convert proficiency level to numerical value
-      const getProficiencyValue = (level) => {
-        switch(level) {
-          case 'Beginner': return 1;
-          case 'Intermediate': return 2;
-          case 'Expert': return 3;
-          default: return 0;
-        }
-      };
-  
-      // For each skill the user is learning
-      for (const learningSkill of learningSkills) {
-        if (!learningSkill || !learningSkill.skillName || !learningSkill.proficiencyLevel) {
-          console.error("Skipping invalid learning skill:", learningSkill);
+
+      // Normalize the skill name: trim whitespace and convert to lowercase for comparison
+      const normalizedLearningSkillName = learningSkill.skillName.trim().toLowerCase();
+      
+      // Find potential teachers with matching skills
+      const potentialTeachersAll = await Skill.find({
+        userId: { $ne: userId }, // Exclude the learner themselves
+        isTeaching: true,
+        // Case-insensitive skill name matching using regex
+        skillName: { $regex: new RegExp(`^${normalizedLearningSkillName}$`, 'i') }
+      }).populate("userId", "name email");
+      
+      // Filter teachers based on proficiency level
+      const potentialTeachers = potentialTeachersAll.filter(teacherSkill => {
+        const teacherLevel = getProficiencyValue(teacherSkill.proficiencyLevel);
+        const learnerLevel = getProficiencyValue(learningSkill.proficiencyLevel);
+        return teacherLevel > learnerLevel;
+      });
+
+      // Find skills that the current user can teach
+      const userTeachingSkills = await Skill.find({
+        userId: userId,
+        isTeaching: true
+      });
+
+      for (const teacherSkill of potentialTeachers) {
+        if (!teacherSkill.userId || !teacherSkill._id) {
+          console.error("Skipping invalid teacher skill:", teacherSkill);
           continue;
         }
-  
-        // Normalize the skill name: trim whitespace and convert to lowercase for comparison
-        const normalizedLearningSkillName = learningSkill.skillName.trim().toLowerCase();
-        
-        // Find potential teachers with matching skills
-        const potentialTeachersAll = await Skill.find({
-          userId: { $ne: userId }, // Exclude the learner themselves
-          isTeaching: true,
-          // Case-insensitive skill name matching using regex
-          skillName: { $regex: new RegExp(`^${normalizedLearningSkillName}$`, 'i') }
-        }).populate("userId", "name email");
-        
-        // Filter teachers based on proficiency level - now doing it in JavaScript 
-        // rather than MongoDB since we can't compare string enum levels directly
-        const potentialTeachers = potentialTeachersAll.filter(teacherSkill => {
-          const teacherLevel = getProficiencyValue(teacherSkill.proficiencyLevel);
-          const learnerLevel = getProficiencyValue(learningSkill.proficiencyLevel);
-          return teacherLevel > learnerLevel;
-        });
-  
-        // Find skills that the current user can teach
-        const userTeachingSkills = await Skill.find({
-          userId: userId,
-          isTeaching: true
-        });
-  
-        for (const teacherSkill of potentialTeachers) {
-          if (!teacherSkill.userId || !teacherSkill._id) {
-            console.error("Skipping invalid teacher skill:", teacherSkill);
-            continue;
-          }
-  
-          const teacherId = teacherSkill.userId._id;
-          const teacherName = teacherSkill.userId.name;
-  
-          // Process match for the current user as learner
-          matchPromises.push(
-            (async () => {
-              try {
-                // Only prevent duplicate matches for the exact same skill
-                const existingMatch = await Match.findOne({
+
+        const teacherId = teacherSkill.userId._id;
+        const teacherName = teacherSkill.userId.name;
+
+        // Process match for the current user as learner
+        matchPromises.push(
+          (async () => {
+            try {
+              // Only prevent duplicate matches for the exact same skill
+              const existingMatch = await Match.findOne({
+                requesterId: userId,
+                teacherId: teacherId,
+                skillName: { $regex: new RegExp(`^${normalizedLearningSkillName}$`, 'i') }
+              });
+
+              if (!existingMatch) {
+                const match = new Match({
                   requesterId: userId,
                   teacherId: teacherId,
-                  skillName: { $regex: new RegExp(`^${normalizedLearningSkillName}$`, 'i') }
+                  requesterName: currentUserName, // Add requester name
+                  teacherName: teacherName, // Add teacher name
+                  skillId: teacherSkill._id,
+                  skillName: teacherSkill.skillName, // Use teacher's exact skill name for consistency
+                  status: 'not_requested', // Set initial status
+                  proposedTimeSlots: []
                 });
-  
-                if (!existingMatch) {
-                  const match = new Match({
-                    requesterId: userId,
-                    teacherId: teacherId,
-                    skillId: teacherSkill._id,
-                    skillName: teacherSkill.skillName, // Use teacher's exact skill name for consistency
-                    proposedTimeSlots: []
-                  });
-  
-                  await match.save();
-  
-                  learningMatchesFound.push({
-                    teacherName: teacherName,
-                    teacherId: teacherId,
-                    skillName: teacherSkill.skillName,
-                    proficiencyLevel: teacherSkill.proficiencyLevel,
-                    matchType: "Learning Match"
-                  });
-                }
-              } catch (error) {
-                console.error(`Error processing match for skill ${learningSkill.skillName}:`, error);
+
+                await match.save();
+
+                learningMatchesFound.push({
+                  teacherName: teacherName,
+                  teacherId: teacherId,
+                  skillName: teacherSkill.skillName,
+                  proficiencyLevel: teacherSkill.proficiencyLevel,
+                  matchType: "Learning Match"
+                });
               }
-            })()
-          );
-  
-          // Now check for potential reciprocal matches for different skills
-          matchPromises.push(
-            (async () => {
-              try {
-                // Find the skills that the potential teacher is learning
-                const teacherLearningSkills = await Skill.find({
-                  userId: teacherId,
-                  isLearning: true
-                });
-  
-                // For each skill the potential teacher is learning
-                for (const teacherLearningSkill of teacherLearningSkills) {
-                  const normalizedTeacherLearningSkillName = teacherLearningSkill.skillName.trim().toLowerCase();
-                  const teacherLearnerLevel = getProficiencyValue(teacherLearningSkill.proficiencyLevel);
+            } catch (error) {
+              console.error(`Error processing match for skill ${learningSkill.skillName}:`, error);
+            }
+          })()
+        );
+
+        // Now check for potential reciprocal matches for different skills
+        matchPromises.push(
+          (async () => {
+            try {
+              // Find the skills that the potential teacher is learning
+              const teacherLearningSkills = await Skill.find({
+                userId: teacherId,
+                isLearning: true
+              });
+
+              // For each skill the potential teacher is learning
+              for (const teacherLearningSkill of teacherLearningSkills) {
+                const normalizedTeacherLearningSkillName = teacherLearningSkill.skillName.trim().toLowerCase();
+                const teacherLearnerLevel = getProficiencyValue(teacherLearningSkill.proficiencyLevel);
+                
+                // Check if the current user can teach any skill the teacher wants to learn
+                for (const userTeachingSkill of userTeachingSkills) {
+                  const normalizedUserTeachingSkillName = userTeachingSkill.skillName.trim().toLowerCase();
+                  const userTeacherLevel = getProficiencyValue(userTeachingSkill.proficiencyLevel);
                   
-                  // Check if the current user can teach any skill the teacher wants to learn
-                  for (const userTeachingSkill of userTeachingSkills) {
-                    const normalizedUserTeachingSkillName = userTeachingSkill.skillName.trim().toLowerCase();
-                    const userTeacherLevel = getProficiencyValue(userTeachingSkill.proficiencyLevel);
+                  // If the user can teach what the potential teacher wants to learn
+                  if (normalizedUserTeachingSkillName === normalizedTeacherLearningSkillName && 
+                      userTeacherLevel > teacherLearnerLevel) {
                     
-                    // If the user can teach what the potential teacher wants to learn
-                    if (normalizedUserTeachingSkillName === normalizedTeacherLearningSkillName && 
-                        userTeacherLevel > teacherLearnerLevel) {
-                      
-                      // Only check for duplicate of the exact same skill match
-                      const teacherExistingMatch = await Match.findOne({
+                    // Only check for duplicate of the exact same skill match
+                    const teacherExistingMatch = await Match.findOne({
+                      requesterId: teacherId,
+                      teacherId: userId,
+                      skillName: { $regex: new RegExp(`^${normalizedUserTeachingSkillName}$`, 'i') }
+                    });
+
+                    if (!teacherExistingMatch) {
+                      // Create a match for the teacher as requester/learner
+                      const reciprocalMatch = new Match({
                         requesterId: teacherId,
                         teacherId: userId,
-                        skillName: { $regex: new RegExp(`^${normalizedUserTeachingSkillName}$`, 'i') }
+                        requesterName: teacherName, // Add requester name
+                        teacherName: currentUserName, // Add teacher name
+                        skillId: userTeachingSkill._id,
+                        skillName: userTeachingSkill.skillName, // Use user's teaching skill name for consistency
+                        status: 'not_requested', // Set initial status
+                        proposedTimeSlots: []
                       });
-  
-                      if (!teacherExistingMatch) {
-                        // Create a match for the teacher as requester/learner
-                        const reciprocalMatch = new Match({
-                          requesterId: teacherId,
-                          teacherId: userId,
-                          skillId: userTeachingSkill._id,
-                          skillName: userTeachingSkill.skillName, // Use user's teaching skill name for consistency
-                          proposedTimeSlots: []
-                        });
-  
-                        await reciprocalMatch.save();
-  
-                        // Track these created teaching matches for the response
-                        teachingMatchesCreated.push({
-                          learnerName: teacherName,
-                          learnerId: teacherId,
-                          skillName: userTeachingSkill.skillName,
-                          proficiencyLevel: userTeachingSkill.proficiencyLevel,
-                          matchType: "Teaching Match"
-                        });
-                      }
+
+                      await reciprocalMatch.save();
+
+                      // Track these created teaching matches for the response
+                      teachingMatchesCreated.push({
+                        learnerName: teacherName,
+                        learnerId: teacherId,
+                        skillName: userTeachingSkill.skillName,
+                        proficiencyLevel: userTeachingSkill.proficiencyLevel,
+                        matchType: "Teaching Match"
+                      });
                     }
                   }
                 }
-              } catch (error) {
-                console.error(`Error processing reciprocal matches:`, error);
               }
-            })()
-          );
-        }
+            } catch (error) {
+              console.error(`Error processing reciprocal matches:`, error);
+            }
+          })()
+        );
       }
-  
-      await Promise.all(matchPromises);
-  
-      // Get all matches where the user is a teacher to ensure we have the complete list
-      const userAsTeacherMatches = await Match.find({
-        teacherId: userId
-      }).populate("requesterId", "name");
-  
-      // Calculate stats for the complete response
-      const totalMatchesCreated = learningMatchesFound.length + teachingMatchesCreated.length;
-      const totalAsTeacher = userAsTeacherMatches.length;
-  
-      return res.status(200).json({
-        message: "Match generation completed successfully",
-        matchesFound: learningMatchesFound,
-        teachingMatchesCreated: teachingMatchesCreated,
-        totalMatchesCreated: totalMatchesCreated,
-        stats: {
-          asLearner: learningMatchesFound.length,
-          asTeacher: teachingMatchesCreated.length,
-          totalTeachingMatches: totalAsTeacher
-        }
-      });
-  
-    } catch (error) {
-      console.error("Error generating matches:", error);
-      return res.status(500).json({
-        error: "Failed to generate matches",
-        message: error.message
-      });
     }
-  },
+
+    await Promise.all(matchPromises);
+
+    // Get all matches where the user is a teacher to ensure we have the complete list
+    const userAsTeacherMatches = await Match.find({
+      teacherId: userId
+    }).populate("requesterId", "name");
+
+    // Calculate stats for the complete response
+    const totalMatchesCreated = learningMatchesFound.length + teachingMatchesCreated.length;
+    const totalAsTeacher = userAsTeacherMatches.length;
+
+    return res.status(200).json({
+      message: "Match generation completed successfully",
+      matchesFound: learningMatchesFound,
+      teachingMatchesCreated: teachingMatchesCreated,
+      totalMatchesCreated: totalMatchesCreated,
+      stats: {
+        asLearner: learningMatchesFound.length,
+        asTeacher: teachingMatchesCreated.length,
+        totalTeachingMatches: totalAsTeacher
+      }
+    });
+
+  } catch (error) {
+    console.error("Error generating matches:", error);
+    return res.status(500).json({
+      error: "Failed to generate matches",
+      message: error.message
+    });
+  }
+},
 
 
   /**
@@ -298,6 +308,124 @@ const matchingController = {
    * @returns {Object} JSON response with matches
    */
   
+// Update the getMatches function to include the new fields
+
+// getMatches: async (req, res) => {
+//   try {
+//     if (!req.user || !req.user.id) {
+//       return res.status(401).json({ error: 'Unauthorized access' });
+//     }
+
+//     const userId = req.user.id;
+//     const statusFilter = req.query.status ? { status: { $in: req.query.status.split(',') } } : {};
+
+//     // Find matches where the user is the requester (student)
+//     const asRequesterMatches = await Match.find({ 
+//       requesterId: userId,
+//       ...statusFilter
+//     })
+//       .populate('requesterId', 'name email')
+//       .populate('teacherId', 'name email')
+//       .populate('lastUpdatedBy', 'name')
+//       .populate('skillId', 'skillName proficiencyLevel')
+//       .select('skillName status proposedTimeSlots rejectionReason lastAction lastUpdatedBy createdAt');
+
+//     // Find matches where the user is the teacher
+//     const asTeacherMatches = await Match.find({ 
+//       teacherId: userId,
+//       ...statusFilter
+//     })
+//       .populate('requesterId', 'name email')
+//       .populate('teacherId', 'name email')
+//       .populate('lastUpdatedBy', 'name')
+//       .populate('skillId', 'skillName proficiencyLevel')
+//       .select('skillName status proposedTimeSlots rejectionReason lastAction lastUpdatedBy createdAt');
+
+//     // Combine all matches
+//     const allMatches = [...asRequesterMatches, ...asTeacherMatches];
+
+//     if (!allMatches || allMatches.length === 0) {
+//       return res.status(200).json({ matches: [] });
+//     }
+
+//     const formattedMatches = await Promise.all(allMatches.map(async (match) => {
+//       if (!match.requesterId || !match.teacherId) {
+//         return null;
+//       }
+
+//       const isRequester = match.requesterId._id.toString() === userId;
+//       const otherParty = isRequester ? match.teacherId : match.requesterId;
+//       const teacherName = match.teacherId.name || 'Unknown Teacher';
+
+//       // Get proficiency level from the teacher's skill
+//       let proficiency = 'Not specified';
+//       let skillNameToUse = match.skillName;
+      
+//       // First try to get skill info from populated skillId
+//       if (match.skillId && match.skillId.proficiencyLevel) {
+//         proficiency = match.skillId.proficiencyLevel;
+//         // Use skillName from skillId if available (it's more reliable)
+//         if (match.skillId.skillName) {
+//           skillNameToUse = match.skillId.skillName;
+//         }
+//       } else if (!isRequester) {
+//         // If user is teacher, try to find their skill directly
+//         const teacherSkill = await Skill.findOne({
+//           userId: userId,
+//           skillName: { $regex: new RegExp(`^${match.skillName.trim().toLowerCase()}$`, 'i') },
+//           isTeaching: true
+//         });
+        
+//         if (teacherSkill) {
+//           proficiency = teacherSkill.proficiencyLevel;
+//         }
+//       } else {
+//         // If user is student, try to find teacher's skill directly
+//         const teacherSkill = await Skill.findOne({
+//           userId: match.teacherId._id,
+//           skillName: { $regex: new RegExp(`^${match.skillName.trim().toLowerCase()}$`, 'i') },
+//           isTeaching: true
+//         });
+        
+//         if (teacherSkill) {
+//           proficiency = teacherSkill.proficiencyLevel;
+//         }
+//       }
+
+//       return {
+//         id: match._id,
+//         name: otherParty.name || 'Unknown User',
+//         email: otherParty.email || 'No Email',
+//         expertise: skillNameToUse || 'Unknown Skill',
+//         proficiency: proficiency,
+//         status: match.status || 'Pending',
+//         role: isRequester ? 'student' : 'teacher',
+//         timeSlots: match.proposedTimeSlots || [],
+//         rejectionReason: match.rejectionReason || '',
+//         lastAction: match.lastAction || 'created',
+//         lastUpdatedBy: match.lastUpdatedBy ? match.lastUpdatedBy.name : '',
+//         teacherName: teacherName,
+//         createdAt: match.createdAt,
+//         teacherId: match.teacherId._id,
+//         requesterId: match.requesterId._id,
+//         // Flag for UI to show rescheduling message
+//         isRescheduled: match.lastAction === 'rescheduled' && match.lastUpdatedBy && 
+//                        match.lastUpdatedBy._id.toString() !== userId
+//       };
+//     }));
+
+//     // Filter out null values
+//     const validMatches = formattedMatches.filter(Boolean);
+    
+//     return res.status(200).json({ matches: validMatches });
+//   } catch (error) {
+//     console.error("Error fetching matches:", error);
+//     return res.status(500).json({ error: 'Failed to fetch matches', message: error.message });
+//   }
+// },
+
+
+
 getMatches: async (req, res) => {
   try {
     if (!req.user || !req.user.id) {
@@ -305,31 +433,29 @@ getMatches: async (req, res) => {
     }
 
     const userId = req.user.id;
-    // console.log("Request data:", req);
-    // console.log("Time slots:", req.proposedTimeSlots);
+    const statusFilter = req.query.status ? req.query.status.split(',') : null;
 
-    // Find matches where the user is the requester (student)
-    const asRequesterMatches = await Match.find({ requesterId: userId })
+    // Build query based on optional status filter
+    const matchQuery = { 
+      $or: [{ requesterId: userId }, { teacherId: userId }]
+    };
+    
+    if (statusFilter) {
+      matchQuery.status = { $in: statusFilter };
+    }
+
+    // Find matches where the user is involved
+    const matches = await Match.find(matchQuery)
       .populate('requesterId', 'name email')
       .populate('teacherId', 'name email')
       .populate('skillId', 'skillName proficiencyLevel')
-      .select('skillName status proposedTimeSlots createdAt');
+      .select('skillName status proposedTimeSlots createdAt rejectionReason selectedTimeSlot requesterName teacherName statusMessages timeSlotHistory');
 
-    // Find matches where the user is the teacher
-    const asTeacherMatches = await Match.find({ teacherId: userId })
-      .populate('requesterId', 'name email')
-      .populate('teacherId', 'name email')
-      .populate('skillId', 'skillName proficiencyLevel')
-      .select('skillName status proposedTimeSlots createdAt');
-
-    // Combine all matches
-    const allMatches = [...asRequesterMatches, ...asTeacherMatches];
-
-    if (!allMatches || allMatches.length === 0) {
+    if (!matches || matches.length === 0) {
       return res.status(200).json([]);
     }
 
-    const formattedMatches = await Promise.all(allMatches.map(async (match) => {
+    const formattedMatches = await Promise.all(matches.map(async (match) => {
       if (!match.requesterId || !match.teacherId) {
         return null;
       }
@@ -372,18 +498,42 @@ getMatches: async (req, res) => {
         }
       }
 
+      // Format the latest status message if exists
+      let latestMessage = null;
+      if (match.statusMessages && match.statusMessages.length > 0) {
+        const lastMessage = match.statusMessages[match.statusMessages.length - 1];
+        latestMessage = {
+          message: lastMessage.message,
+          timestamp: lastMessage.timestamp,
+          isFromOtherParty: lastMessage.userId.toString() !== userId
+        };
+      }
+
+      // Check if there's a rescheduling proposal
+      const hasReschedulingProposal = match.status === 'pending' && 
+                                      match.proposedTimeSlots && 
+                                      match.proposedTimeSlots.length > 0 &&
+                                      match.proposedTimeSlots[0].proposedBy && 
+                                      match.proposedTimeSlots[0].proposedBy.toString() !== userId;
+
       return {
         id: match._id,
-        name: otherParty.name || 'Unknown User',
+        name: otherParty.name || (isRequester ? match.teacherName : match.requesterName) || 'Unknown User',
         email: otherParty.email || 'No Email',
         expertise: skillNameToUse || 'Unknown Skill',
         proficiency: proficiency,
         status: match.status || 'Pending',
+        rejectionReason: match.rejectionReason || null,
         role: isRequester ? 'student' : 'teacher',
         timeSlots: match.proposedTimeSlots || [],
+        selectedTimeSlot: match.selectedTimeSlot || null,
         createdAt: match.createdAt,
         teacherId: match.teacherId._id,
-        requesterId: match.requesterId._id
+        requesterId: match.requesterId._id,
+        teacherName: match.teacherName || match.teacherId.name || 'Unknown Teacher',
+        requesterName: match.requesterName || match.requesterId.name || 'Unknown Student',
+        latestMessage: latestMessage,
+        hasReschedulingProposal: hasReschedulingProposal
       };
     }));
 
@@ -412,7 +562,7 @@ updateMatchStatus: async (req, res) => {
       return res.status(400).json({ error: 'Invalid match ID' });
     }
     
-    if (!status || !['pending', 'accepted', 'rejected', 'completed'].includes(status)) {
+    if (!status || !['pending', 'accepted', 'rejected', 'completed', 'rescheduled'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status value' });
     }
     
@@ -450,6 +600,11 @@ updateMatchStatus: async (req, res) => {
     
     // Update match status
     match.status = status;
+    
+    // Add rejection reason if status is rejected
+    if (status === 'rejected' && message) {
+      match.rejectionReason = message;
+    }
     
     // Add custom message if provided
     if (message) {
@@ -492,6 +647,15 @@ updateMatchStatus: async (req, res) => {
       };
     }
     
+    // Update requesterName and teacherName if they don't exist (will be handled by pre-save middleware)
+    if (!match.requesterName && match.requesterId.name) {
+      match.requesterName = match.requesterId.name;
+    }
+    
+    if (!match.teacherName && match.teacherId.name) {
+      match.teacherName = match.teacherId.name;
+    }
+    
     await match.save();
     
     // Format time slots for notification - more compact format
@@ -529,7 +693,7 @@ updateMatchStatus: async (req, res) => {
     };
     
     // Get class/course name (fallback to "session" if not available)
-    const courseName = match.subject?.name || match.courseName || match.className || "session";
+    const courseName = match.subject?.name || match.courseName || match.className || match.skillName || "session";
     
     // Generate unique identifier for notification to prevent duplicates
     const generateNotificationKey = (type, matchId, timestamp) => {
@@ -540,11 +704,11 @@ updateMatchStatus: async (req, res) => {
     const VALID_NOTIFICATION_TYPES = {
       PROPOSED: 'session_proposed',
       ACCEPTED: 'match_accepted',
-      REJECTED: 'match_rejected', // Changed from 'session_rejected' to match schema
+      REJECTED: 'match_rejected',
       COMPLETED: 'session_completed',
       MESSAGE: 'session_message',
       SCHEDULED: 'session_scheduled',
-      RESCHEDULED: 'session_rescheduled' // Added for rescheduling support
+      RESCHEDULED: 'session_rescheduled'
     };
     
     // Create notification based on status change
@@ -554,8 +718,8 @@ updateMatchStatus: async (req, res) => {
     const now = new Date();
     const timestampForKey = now.toISOString().split('T')[0]; // Use date part only for duplicate prevention
     
-    // Handle rescheduling scenario - when there's a selected time slot but status isn't changing to accepted
-    const isRescheduling = selectedTimeSlot && previousStatus === 'accepted' && status === 'accepted';
+    // Handle rescheduling scenario explicitly with the new status value
+    const isRescheduling = (status === 'rescheduled' || (selectedTimeSlot && previousStatus === 'accepted' && status === 'accepted'));
     
     if (previousStatus !== status || (proposedTimeSlots && proposedTimeSlots.length > 0) || selectedTimeSlot) {
       switch (status) {
@@ -654,8 +818,37 @@ updateMatchStatus: async (req, res) => {
           }
           break;
           
+        case 'rescheduled':
+          // Handle explicit rescheduled status
+          notificationType = VALID_NOTIFICATION_TYPES.RESCHEDULED;
+          
+          const rescheduledTimeInfo = selectedTimeSlot 
+            ? formatTimeSlot(selectedTimeSlot, recipientTimezone)
+            : '';
+          
+          notificationTitle = `${senderRole} ${senderName}: Rescheduled ${courseName}`;
+          notificationMessage = `${senderName} rescheduled your ${courseName} to ${rescheduledTimeInfo}.`;
+          
+          notificationDetails = {
+            senderRole,
+            senderName,
+            course: courseName,
+            selectedTime: formatTimeSlot(selectedTimeSlot, recipientTimezone),
+            message: message || null
+          };
+          
+          emailSubject = `${courseName} Rescheduled by ${senderName}`;
+          emailBody = `
+            <h2>${senderRole} ${senderName} has rescheduled your ${courseName}</h2>
+            <p><strong>New Time:</strong> ${formatTimeSlot(selectedTimeSlot, recipientTimezone)}</p>
+            ${message ? `<p><strong>Message:</strong> "${message}"</p>` : ''}
+          `;
+          
+          notificationKey = generateNotificationKey('rescheduled', matchId, timestampForKey);
+          break;
+          
         case 'rejected':
-          notificationType = VALID_NOTIFICATION_TYPES.REJECTED; // Using match_rejected instead of session_rejected
+          notificationType = VALID_NOTIFICATION_TYPES.REJECTED;
           notificationTitle = `${senderRole} ${senderName}: Declined ${courseName}`;
           notificationMessage = `${senderName} declined your ${courseName}${message ? `: "${message.substring(0, 30)}${message.length > 30 ? '...' : ''}"` : ''}.`;
           
@@ -815,7 +1008,7 @@ updateMatchStatus: async (req, res) => {
     }
     
     // Create or update session if match is accepted or rescheduled
-    if ((status === 'accepted' && selectedTimeSlot) || isRescheduling) {
+    if ((status === 'accepted' && selectedTimeSlot) || status === 'rescheduled' || isRescheduling) {
       try {
         // Check if session already exists for this match to prevent duplicates
         let session = await Session.findOne({ matchId: match._id });
@@ -847,13 +1040,13 @@ updateMatchStatus: async (req, res) => {
         }
         
         // Determine notification type based on whether it's a new session or rescheduling
-        const sessionNotificationType = isRescheduling ? 
+        const sessionNotificationType = (status === 'rescheduled' || isRescheduling) ? 
           VALID_NOTIFICATION_TYPES.RESCHEDULED : 
           VALID_NOTIFICATION_TYPES.SCHEDULED;
         
         // Unique key for session notification
         const sessionNotificationKey = generateNotificationKey(
-          isRescheduling ? 'rescheduled' : 'scheduled', 
+          (status === 'rescheduled' || isRescheduling) ? 'rescheduled' : 'scheduled', 
           session._id, 
           timestampForKey
         );
@@ -868,11 +1061,11 @@ updateMatchStatus: async (req, res) => {
             key: sessionNotificationKey
           });
           
-          const sessionTitle = isRescheduling ?
+          const sessionTitle = (status === 'rescheduled' || isRescheduling) ?
             `${courseName} Rescheduled with ${senderName}` :
             `${courseName} with ${senderName}`;
             
-          const sessionMessage = isRescheduling ?
+          const sessionMessage = (status === 'rescheduled' || isRescheduling) ?
             `${courseName} rescheduled with ${senderName} for ${formatTimeSlot(selectedTimeSlot, recipientTimezone)}.` :
             `${courseName} scheduled with ${senderName} for ${formatTimeSlot(selectedTimeSlot, recipientTimezone)}.`;
           
@@ -939,13 +1132,13 @@ updateMatchStatus: async (req, res) => {
         try {
           if (calendarService) {
             await calendarService.createCalendarEvent({
-              title: `${courseName}: ${match.requesterId.name} and ${match.teacherId.name}`,
+              title: `${courseName}: ${match.requesterName || match.requesterId.name} and ${match.teacherName || match.teacherId.name}`,
               description: `${courseName} session${message ? '\n\nNote: ' + message : ''}`,
               startTime: new Date(selectedTimeSlot.startTime),
               endTime: new Date(selectedTimeSlot.endTime),
               attendees: [
-                { email: match.requesterId.email, name: match.requesterId.name },
-                { email: match.teacherId.email, name: match.teacherId.name }
+                { email: match.requesterId.email, name: match.requesterName || match.requesterId.name },
+                { email: match.teacherId.email, name: match.teacherName || match.teacherId.name }
               ],
               sessionId: session._id
             });

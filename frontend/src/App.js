@@ -2,7 +2,6 @@ import React from "react";
 import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { NotificationProvider } from "./context/NotificationContext";
-import Navigation from "./components/Navigation";
 import LandingPage from "./components/LandingPage";
 import PrivateRoute from "./components/PrivateRoute";
 import Dashboard from "./components/Dashboard";
@@ -15,6 +14,7 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import TeachingRequests from "./components/TeachingRequests";
 import LearnerRequests from "./components/LearnerRequests";
+import SessionDetails from "./components/SessionDetails";
 
 function App() {
   return (
@@ -29,6 +29,7 @@ function App() {
           <Route path="/match/learning" element={<PrivateRoute><MatchingInterface /></PrivateRoute>} />
           <Route path="/match/teaching-requests" element={<PrivateRoute><TeachingRequests /></PrivateRoute>} />
           <Route path="/match/learning-requests" element={<PrivateRoute><LearnerRequests /></PrivateRoute>} />
+          <Route path="/sessions" element={<PrivateRoute><SessionDetails /></PrivateRoute>} />
           <Route path="/profile" element={<PrivateRoute><ProfileManagement /></PrivateRoute>} />
         </Routes>
       </NotificationProvider>

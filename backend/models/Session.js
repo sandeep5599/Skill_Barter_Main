@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 
 const SessionSchema = new mongoose.Schema(
   {
+    title: {
+      type: String,
+      trim: true,
+      required: true,
+    },
     matchId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Match',
@@ -14,11 +19,21 @@ const SessionSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    studentName: {
+      type: String,
+      trim: true,
+      required: true,
+    },
     teacherId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
       index: true,
+    },
+    teacherName: {
+      type: String,
+      trim: true,
+      required: true,
     },
     skillId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -50,10 +65,20 @@ const SessionSchema = new mongoose.Schema(
       trim: true,
       validate: {
         validator: function (value) {
-          return /^https?:\/\/.+$/.test(value); // Ensures it's a valid URL
+          return !value || /^https?:\/\/.+$/.test(value); // Ensures it's a valid URL if provided
         },
         message: 'Invalid meeting link URL.',
       },
+    },
+    description: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+    },
+    prerequisites: {
+      type: String,
+      trim: true,
+      maxlength: 500,
     },
     notes: {
       type: String,

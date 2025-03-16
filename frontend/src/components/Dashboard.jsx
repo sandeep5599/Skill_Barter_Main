@@ -8,6 +8,9 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Alert } from 'react-bootstrap';
+import axios from 'axios';
+import DashboardMatchesDisplay from './DashboardMatchesDisplay';
+
 import { 
   BellFill, PersonFill, BoxArrowRight, 
   CalendarCheck, PeopleFill, Award, 
@@ -16,6 +19,78 @@ import {
 } from 'react-bootstrap-icons';
 
 import NotificationCenter from './NotificationCenter';
+
+const statusColors = {
+  'pending': 'bg-yellow-100 text-yellow-800',
+  'accepted': 'bg-green-100 text-green-800',
+  'completed': 'bg-purple-100 text-purple-800',
+  'not_requested': 'bg-gray-100 text-gray-800'
+};
+
+
+
+
+const MatchStatusDisplay = ({ match }) => {
+  // Helper to format date and time
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'Not specified';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', { 
+      dateStyle: 'medium', 
+      timeStyle: 'short' 
+    });
+  };
+
+  // Get the latest time slot if available
+  const getLatestTimeSlot = () => {
+    if (!match.timeSlots || match.timeSlots.length === 0) return null;
+    return match.timeSlots[match.timeSlots.length - 1];
+  };
+
+  const latestTimeSlot = getLatestTimeSlot();
+
+  if (match.status === 'rejected') {
+    return (
+      <div className="match-status-container">
+        <div className="status-badge rejected">Rejected</div>
+        {match.rejectionReason && (
+          <div className="rejection-reason">
+            <p>Reason: {match.rejectionReason}</p>
+          </div>
+        )}
+      </div>
+    );
+  } 
+
+  const statusColor = statusColors[match.status] || 'bg-gray-100 text-gray-800';
+  
+  
+  if (match.status === 'pending' && match.isRescheduled) {
+    return (
+      <div className="match-status-container">
+        <div className="status-badge rescheduled">Rescheduled</div>
+        <div className="reschedule-message">
+          <p>{match.teacherName} proposed a new time slot. Go to requests page to check out.</p>
+          {latestTimeSlot && (
+            <p className="time-slot-info">
+              <span>Proposed time: </span>
+              {formatDateTime(latestTimeSlot.startTime)} - {formatDateTime(latestTimeSlot.endTime)}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  
+return (
+  <div className="match-status-container">
+    <div className={`status-badge ${match.status.toLowerCase()}`}>
+      {match.status.charAt(0).toUpperCase() + match.status.slice(1)}
+    </div>
+  </div>
+);
+};
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
@@ -29,6 +104,7 @@ const Dashboard = () => {
     learningSkills: [],
   });
   
+
   const [isGeneratingMatches, setIsGeneratingMatches] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   
@@ -38,9 +114,11 @@ const Dashboard = () => {
     message: '', 
     variant: 'success' 
   });
+ 
 
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
 
   useEffect(() => {
     if (user?._id) fetchUserProfile();
@@ -162,7 +240,7 @@ const Dashboard = () => {
       
       // Try to fetch matches separately
       try {
-        const matchesResponse = await fetch(`${BACKEND_URL}/api/matches/user/${user._id}?status=accepted,pending`, { 
+        const matchesResponse = await fetch(`${BACKEND_URL}/api/matches/user/${user._id}?status=accepted,pending,rejected`, { 
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } 
         });
         
@@ -446,7 +524,7 @@ const Dashboard = () => {
                                         <PersonFill className="text-primary" />
                                       </div>
                                       <div>
-                                        <small>Skill Sharer: {session.teacherName || 'Satwika'}</small>
+                                        <small>Skill Sharer: {session.teacherName}</small>
                                       </div>
                                     </div>
                                   </div>
@@ -466,9 +544,11 @@ const Dashboard = () => {
                                         <Button 
                                           variant="primary" 
                                           size="sm" 
-                                          href={session.meetLink || '#'} 
-                                          target="_blank" 
-                                          rel="noopener noreferrer"
+                                          onClick={() => {
+                                            if (session.meetingLink) {
+                                              window.open(session.meetingLink, '_blank', 'noopener,noreferrer');
+                                            }
+                                          }}
                                           disabled={!isJoinable}
                                         >
                                           Join Now
@@ -484,7 +564,7 @@ const Dashboard = () => {
                       ) : (
                         <div className="text-center p-4">
                           <div className="text-muted mb-3">No upcoming sessions found.</div>
-                          <Button variant="outline-primary" size="sm" onClick={() => navigate('/match/learning')}>
+                          <Button variant="primary" size="sm" onClick={() => navigate('/match/learning')}>
                             Find Sessions
                           </Button>
                         </div>
@@ -501,39 +581,49 @@ const Dashboard = () => {
                       </Badge>
                     </Card.Header>
                     <Card.Body className="p-0">
-                      {stats.recentMatches && stats.recentMatches.length > 0 ? (
-                        <div className="list-group list-group-flush">
-                          {stats.recentMatches.map((match, i) => (
-                            <div key={i} className="list-group-item p-3">
-                              <div className="d-flex justify-content-between align-items-center">
-                                <div>
-                                  <h6 className="mb-0 fw-bold">{match.skillName}</h6>
-                                  <div className="d-flex align-items-center mt-2">
-                                    <div className="bg-light rounded-circle p-1 me-2" style={{ width: '30px', height: '30px' }}>
-                                      <PersonFill className="text-primary" />
-                                    </div>
-                                    <div>
-                                      <small>Skill Sharer: {match.teacherName || 'Satwika'}</small>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div>
-                                  <Badge 
-                                    bg={match.status === 'accepted' ? 'success' : 'warning'}
-                                    text={match.status === 'accepted' ? 'white' : 'dark'}
-                                    className="text-uppercase"
-                                  >
-                                    {match.status}
-                                  </Badge>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
+                    {stats.recentMatches && stats.recentMatches.length > 0 ? (
+  <div className="list-group list-group-flush">
+    {stats.recentMatches.map((match, i) => {
+      // Find the teacher in the database using teacherId
+
+      console.log('Match teacherId:', match.teacherId);
+      console.log('User ID:', user._id);
+      const isTeacher = match.teacherId._id === user._id;
+      const displayName = isTeacher ? match.requesterName : match.teacherName;
+      const roleLabel = isTeacher ? "Learner" : "Skill Sharer";
+      
+      return (
+        <div key={i} className="list-group-item p-3">
+          <div className="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 className="mb-0 fw-bold">{match.skillName}</h6>
+              <div className="d-flex align-items-center mt-2">
+                <div className="bg-light rounded-circle p-1 me-2" style={{ width: '30px', height: '30px' }}>
+                  <PersonFill className="text-primary" />
+                </div>
+                <div>
+                  <small>{roleLabel}: {displayName}</small>
+                </div>
+              </div>
+            </div>
+            <div>
+              <Badge 
+                bg={match.status === 'accepted' ? 'success' : 'warning'}
+                text={match.status === 'accepted' ? 'white' : 'dark'}
+                className="text-uppercase"
+              >
+                {match.status}
+              </Badge>
+            </div>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+) : (
                         <div className="text-center p-4">
                           <div className="text-muted mb-3">No recent matches found.</div>
-                          <Button variant="outline-success" size="sm" onClick={handleFindLearningMatches}>
+                          <Button variant="primary" size="sm" onClick={handleFindLearningMatches}>
                             Find Matches
                           </Button>
                         </div>
@@ -664,13 +754,13 @@ const Dashboard = () => {
         )}
 
         {/* Matches Tab */}
-        {activeTab === 'matches' && (
-          <Card className="mb-4 shadow-sm border-0">
-            <Card.Header className="bg-success text-white">
-              <h5 className="mb-0">Recent Matches</h5>
-            </Card.Header>
-            <Card.Body>
-              {stats.recentMatches && stats.recentMatches.length > 0 ? (
+{activeTab === 'matches' && (
+  <Card className="mb-4 shadow-sm border-0">
+    <Card.Header className="bg-success text-white">
+      <h5 className="mb-0">Recent Matches</h5>
+    </Card.Header>
+    <Card.Body>
+      {stats.recentMatches && stats.recentMatches.length > 0 ? (
                 <div className="table-responsive">
                   <table className="table table-hover">
                     <thead>
@@ -719,9 +809,9 @@ const Dashboard = () => {
                   </Button>
                 </div>
               )}
-            </Card.Body>
-          </Card>
-        )}
+    </Card.Body>
+  </Card>
+)}
 
         {/* Skills Tab */}
         {activeTab === 'skills' && (

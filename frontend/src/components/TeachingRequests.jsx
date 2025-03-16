@@ -135,47 +135,8 @@ const TeachingRequests = () => {
   }, [formatDateTimeForInput]);
 
   // API action handlers
- 
-// Replace handleCreateSession function
-// const handleCreateSession = async () => {
-//   if (!sessionDetails.selectedTimeSlot) {
-//     toast.error('Please select a time slot');
-//     return;
-//   }
-  
-//   try {
-//     setProcessing(true);
-    
-//     // Include all session details in the match update
-//     const response = await fetch(`${BACKEND_URL}/api/matches/${selectedRequest._id || selectedRequest.id}`, {
-//       method: 'PUT',
-//       headers: {
-//         'Content-Type': 'application/json',
-//         'Authorization': `Bearer ${localStorage.getItem('token')}`
-//       },
-//       body: JSON.stringify({
-//         status: 'accepted',
-//         selectedTimeSlot: sessionDetails.selectedTimeSlot,
-//         message: sessionDetails.notes || sessionDetails.description // Include any additional info in the message
-//       })
-//     });
-    
-//     if (!response.ok) {
-//       const errorData = await response.json().catch(() => ({}));
-//       throw new Error(errorData.message || 'Failed to create session');
-//     }
-    
-//     toast.success('Session created successfully!');
-//     toggleModal('sessionCreation', false);
-//     fetchRequests();
-//   } catch (error) {
-//     setError('Failed to create session: ' + error.message);
-//     toast.error('Failed to create session');
-//     console.error(error);
-//   } finally {
-//     setProcessing(false);
-//   }
-// };
+
+
 
 const handleCreateSession = async () => {
   if (!sessionDetails.selectedTimeSlot) {
@@ -214,7 +175,13 @@ const handleCreateSession = async () => {
       },
       body: JSON.stringify({
         matchId: selectedRequest._id || selectedRequest.id,
-        selectedTimeSlot: sessionDetails.selectedTimeSlot
+        selectedTimeSlot: sessionDetails.selectedTimeSlot,
+        title: sessionDetails.title,
+        description: sessionDetails.description,
+        meetingLink: sessionDetails.meetingLink,
+        prerequisites: sessionDetails.prerequisites,
+        notes: sessionDetails.notes,
+        notificationType:'session_created'
       })
     });
     
@@ -236,7 +203,6 @@ const handleCreateSession = async () => {
 };
 
 
-// Replace handleReject function
 const handleReject = async () => {
   try {
     setProcessing(true);
@@ -248,7 +214,8 @@ const handleReject = async () => {
       },
       body: JSON.stringify({
         status: 'rejected',
-        rejectionReason: rejectionReason
+        rejectionReason: rejectionReason,
+        message: rejectionReason // Also send as message for notifications
       })
     });
 
@@ -269,7 +236,7 @@ const handleReject = async () => {
   }
 };
 
-// Replace handleReschedule function
+// Handle reschedule function
 const handleReschedule = async () => {
   if (!proposedDateTime || !proposedEndTime) {
     toast.error('Please select both start and end times');
@@ -293,11 +260,12 @@ const handleReschedule = async () => {
         'Authorization': `Bearer ${localStorage.getItem('token')}` 
       },
       body: JSON.stringify({
-        status: 'rescheduled',
-        proposedTimeSlot: {
+        status: 'rescheduled', // Keep as accepted but with new time slot
+        selectedTimeSlot: {
           startTime: startTime.toISOString(),
           endTime: endTime.toISOString()
-        }
+        },
+        message: "I've proposed a new time for our session." // Optional message
       })
     });
 
