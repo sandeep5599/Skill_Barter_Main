@@ -272,7 +272,7 @@ const MatchingInterface = () => {
                             <i className="bi bi-hourglass-split me-2"></i> Request Pending
                           </Button>
                         ) : match.status === 'accepted' ? (
-                          <Button variant="success" className="w-100 py-2 shadow-sm" onClick={() => navigate('/sessions')}>
+                          <Button variant="success" className="w-100 py-2 shadow-sm" onClick={() => navigate('/sessions/${sessionId}')}>
                             <i className="bi bi-calendar2-check-fill me-2"></i> View Session
                           </Button>
                         ) : (

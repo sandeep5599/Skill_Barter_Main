@@ -106,7 +106,7 @@ const sessionController = {
   getSessionById: async (req, res) => {
     try {
       const { sessionId } = req.params;
-      
+      console.log(sessionId)
       // Find session by ID
       const session = await Session.findById(sessionId)
         .populate('skillId', 'name')

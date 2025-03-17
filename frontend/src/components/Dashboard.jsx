@@ -644,11 +644,11 @@ const Dashboard = () => {
                       <span>Add New Skills</span>
                       <ArrowRepeat />
                     </Button>
-                    <Button variant="primary" className="d-flex justify-content-between align-items-center" onClick={() => navigate('/schedule')}>
+                    <Button variant="primary" className="d-flex justify-content-between align-items-center" onClick={() => navigate('/match/teaching-requests')}>
                       <span>Schedule a Session</span>
                       <CalendarCheck />
                     </Button>
-                    <Button variant="primary" className="d-flex justify-content-between align-items-center" onClick={() => navigate('/history')}>
+                    <Button variant="primary" className="d-flex justify-content-between align-items-center" onClick={() => navigate('/sessions')}>
                       <span>View Session History</span>
                       <Award />
                     </Button>
@@ -823,7 +823,7 @@ const Dashboard = () => {
                   <Button 
                     variant="light" 
                     size="sm" 
-                    onClick={() => navigate('/profile/skills')}
+                    onClick={() => navigate('/profile')}
                   >
                     <small>Add New</small>
                   </Button>
@@ -851,7 +851,7 @@ const Dashboard = () => {
                   ) : (
                     <div className="text-center p-4">
                       <div className="text-muted mb-3">No teaching skills added yet.</div>
-                      <Button variant="outline-primary" size="sm" onClick={() => navigate('/profile/skills')}>
+                      <Button variant="outline-primary" size="sm" onClick={() => navigate('/profile')}>
                         Add Skills to Teach
                       </Button>
                     </div>
@@ -866,7 +866,7 @@ const Dashboard = () => {
                   <Button 
                     variant="light" 
                     size="sm" 
-                    onClick={() => navigate('/profile/skills')}
+                    onClick={() => navigate('/profile')}
                   >
                     <small>Add New</small>
                   </Button>
@@ -894,7 +894,7 @@ const Dashboard = () => {
                   ) : (
                     <div className="text-center p-4">
                       <div className="text-muted mb-3">No learning skills added yet.</div>
-                      <Button variant="primary" size="sm" onClick={() => navigate('/profile/skills')}>
+                      <Button variant="primary" size="sm" onClick={() => navigate('/profile')}>
                         Add Skills to Learn
                       </Button>
                     </div>

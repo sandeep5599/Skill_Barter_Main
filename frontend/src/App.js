@@ -15,7 +15,7 @@ import "react-toastify/dist/ReactToastify.css";
 import TeachingRequests from "./components/TeachingRequests";
 import LearnerRequests from "./components/LearnerRequests";
 import SessionDetails from "./components/SessionDetails";
-
+import SessionsList from "./components/SessionsList";
 function App() {
   return (
     <AuthProvider>
@@ -29,7 +29,8 @@ function App() {
           <Route path="/match/learning" element={<PrivateRoute><MatchingInterface /></PrivateRoute>} />
           <Route path="/match/teaching-requests" element={<PrivateRoute><TeachingRequests /></PrivateRoute>} />
           <Route path="/match/learning-requests" element={<PrivateRoute><LearnerRequests /></PrivateRoute>} />
-          <Route path="/sessions" element={<PrivateRoute><SessionDetails /></PrivateRoute>} />
+          <Route path="/sessions" element={<PrivateRoute><SessionsList /></PrivateRoute>} />
+          <Route path="/sessions/:sessionId" element={<PrivateRoute><SessionDetails /></PrivateRoute>} />
           <Route path="/profile" element={<PrivateRoute><ProfileManagement /></PrivateRoute>} />
         </Routes>
       </NotificationProvider>
