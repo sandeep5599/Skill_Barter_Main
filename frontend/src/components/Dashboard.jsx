@@ -188,81 +188,102 @@ const Dashboard = () => {
     }
   };
   
-  const fetchUserProfile = async () => {
+const fetchCompletedSessionsCount = async (userId) => {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/sessions/user/${userId}?status=completed`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+
+    if (!response.ok) {
+      console.warn('Unable to fetch completed sessions count');
+      return 0;
+    }
+
+    const data = await response.json();
+    return data.sessions?.length || 0;
+  } catch (error) {
+    console.error('Error fetching completed sessions:', error);
+    return 0;
+  }
+};
+
+const fetchUserProfile = async () => {
+  try {
+    // Start with the endpoints we know are working
+    const [userResponse, skillsResponse, completedSessionsCount] = await Promise.all([
+      fetch(`${BACKEND_URL}/api/users/${user._id}`, { 
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } 
+      }),
+      fetch(`${BACKEND_URL}/api/skills/${user._id}`, { 
+        headers: { 
+          'Authorization': `Bearer ${localStorage.getItem('token')}`, 
+          'Content-Type': 'application/json' 
+        } 
+      }),
+      fetchCompletedSessionsCount(user._id)
+    ]);
+
+    if (!userResponse.ok || !skillsResponse.ok) throw new Error('Failed to fetch user data');
+
+    const [userData, skillsData] = await Promise.all([
+      userResponse.json(), 
+      skillsResponse.json()
+    ]);
+    
+    // Set initial data with completed sessions count
+    setStats(prevStats => ({ 
+      ...prevStats, 
+      learningSkills: skillsData.learningSkills || [], 
+      teachingSkills: skillsData.teachingSkills || [],
+      sessionsCompleted: completedSessionsCount
+    }));
+
+    // Now try to fetch sessions and matches separately
     try {
-      // Start with the endpoints we know are working
-      const [userResponse, skillsResponse] = await Promise.all([
-        fetch(`${BACKEND_URL}/api/users/${user._id}`, { 
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } 
-        }),
-        fetch(`${BACKEND_URL}/api/skills/${user._id}`, { 
-          headers: { 
-            'Authorization': `Bearer ${localStorage.getItem('token')}`, 
-            'Content-Type': 'application/json' 
-          } 
-        })
-      ]);
-  
-      if (!userResponse.ok || !skillsResponse.ok) throw new Error('Failed to fetch user data');
-  
-      const [userData, skillsData] = await Promise.all([
-        userResponse.json(), 
-        skillsResponse.json()
-      ]);
+      const sessionsResponse = await fetch(`${BACKEND_URL}/api/sessions/user/${user._id}?status=scheduled`, { 
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } 
+      });
       
-      // Set initial data
-      setStats(prevStats => ({ 
-        ...prevStats, 
-        learningSkills: skillsData.learningSkills || [], 
-        teachingSkills: skillsData.teachingSkills || [] 
-      }));
-      
-      // Now try to fetch sessions and matches separately
-      try {
-        const sessionsResponse = await fetch(`${BACKEND_URL}/api/sessions/user/${user._id}?status=scheduled`, { 
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } 
-        });
-        
-        if (sessionsResponse.ok) {
-          const sessionsData = await sessionsResponse.json();
-          setStats(prevStats => ({ 
-            ...prevStats, 
-            upcomingSessions: sessionsData.sessions || [] 
-          }));
-        } else {
-          console.warn('Unable to fetch sessions:', await sessionsResponse.text());
-          setStats(prevStats => ({ ...prevStats, upcomingSessions: [] }));
-        }
-      } catch (sessionError) {
-        console.warn('Session fetch error:', sessionError);
+      if (sessionsResponse.ok) {
+        const sessionsData = await sessionsResponse.json();
+        setStats(prevStats => ({ 
+          ...prevStats, 
+          upcomingSessions: sessionsData.sessions || [] 
+        }));
+      } else {
+        console.warn('Unable to fetch sessions:', await sessionsResponse.text());
         setStats(prevStats => ({ ...prevStats, upcomingSessions: [] }));
       }
+    } catch (sessionError) {
+      console.warn('Session fetch error:', sessionError);
+      setStats(prevStats => ({ ...prevStats, upcomingSessions: [] }));
+    }
+    
+    // Try to fetch matches separately
+    try {
+      const matchesResponse = await fetch(`${BACKEND_URL}/api/matches/user/${user._id}?status=accepted,pending,rejected`, { 
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } 
+      });
       
-      // Try to fetch matches separately
-      try {
-        const matchesResponse = await fetch(`${BACKEND_URL}/api/matches/user/${user._id}?status=accepted,pending,rejected`, { 
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } 
-        });
-        
-        if (matchesResponse.ok) {
-          const matchesData = await matchesResponse.json();
-          setStats(prevStats => ({ 
-            ...prevStats, 
-            recentMatches: matchesData.matches || [] 
-          }));
-        } else {
-          console.warn('Unable to fetch matches:', await matchesResponse.text());
-          setStats(prevStats => ({ ...prevStats, recentMatches: [] }));
-        }
-      } catch (matchError) {
-        console.warn('Match fetch error:', matchError);
+      if (matchesResponse.ok) {
+        const matchesData = await matchesResponse.json();
+        setStats(prevStats => ({ 
+          ...prevStats, 
+          recentMatches: matchesData.matches || [] 
+        }));
+      } else {
+        console.warn('Unable to fetch matches:', await matchesResponse.text());
         setStats(prevStats => ({ ...prevStats, recentMatches: [] }));
       }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      toast.error('Error fetching user profile');
+    } catch (matchError) {
+      console.warn('Match fetch error:', matchError);
+      setStats(prevStats => ({ ...prevStats, recentMatches: [] }));
     }
-  };
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    toast.error('Error fetching user profile');
+  }
+};
 
   // Helper function to get readable time until session
   const getTimeUntilSession = (sessionTime) => {

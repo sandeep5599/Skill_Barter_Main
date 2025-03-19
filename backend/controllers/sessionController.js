@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Match = require('../models/Match');
 const Notification = require('../models/Notification');
 
+
 const sessionController = {
   createSession: async (req, res) => {
     try {
@@ -80,7 +81,7 @@ const sessionController = {
       await session.save();
       
       // Create notification for student
-      await Notification.create({
+      const notification = await Notification.create({
         userId: student._id,
         title: 'New Session Scheduled',
         message: `${teacher.name} has scheduled a session for ${match.skillId.name}`,
@@ -88,7 +89,9 @@ const sessionController = {
         relatedId: session._id,
         isRead: false
       });
-  
+
+      
+
       return res.status(201).json({ 
         session,
         match,
@@ -192,10 +195,12 @@ const sessionController = {
         userId: session.studentId,
         title: 'Session Link Updated',
         message: `${session.teacherName} has added/updated the meeting link for your upcoming session`,
-        type: 'session',
+        type: 'session_updated',
         relatedId: session._id,
         isRead: false
       });
+
+      
 
       return res.status(200).json({ 
         session,
@@ -245,11 +250,12 @@ const sessionController = {
         userId: session.studentId,
         title: 'Session Completed',
         message: `Your session with ${session.teacherName} has been marked as completed. Please provide your feedback.`,
-        type: 'session',
+        type: 'session_completed',
         relatedId: session._id,
         isRead: false
       });
 
+      
       return res.status(200).json({
         session,
         message: 'Session completed successfully'
@@ -301,7 +307,7 @@ const sessionController = {
         session.teacherFeedback = feedback || '';
         
         // Notify student about teacher feedback
-        await Notification.create({
+       await Notification.create({
           userId: session.studentId,
           title: 'Teacher Feedback Received',
           message: `${session.teacherName} has provided feedback for your session`,
@@ -309,6 +315,8 @@ const sessionController = {
           relatedId: session._id,
           isRead: false
         });
+
+     
       } else if (!isTeacher && session.studentId.toString() === userId) {
         session.studentRating = rating;
         session.studentFeedback = feedback || '';
@@ -321,7 +329,7 @@ const sessionController = {
         );
         
         // Notify teacher about student feedback and points awarded
-        await Notification.create({
+       await Notification.create({
           userId: session.teacherId,
           title: 'Student Feedback Received',
           message: `${session.studentName} has rated your session and you've earned ${POINTS_PER_SESSION} points!`,
@@ -329,6 +337,8 @@ const sessionController = {
           relatedId: session._id,
           isRead: false
         });
+
+       
       } else {
         return res.status(400).json({ error: 'Invalid feedback submission' });
       }

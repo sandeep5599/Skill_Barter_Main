@@ -7,7 +7,7 @@ const {google} = require('googleapis');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
-const sessionRoutes = require('./routes/sessions');
+const sessionRoutes = require('./routes/sessionRoutes');
 const userRoutes = require('./routes/userRoutes');
 const matchingRoutes = require('./routes/matchRoutes');
 const notificationRoutes = require('./routes/notificationRoutes'); // Added notification routes
@@ -42,7 +42,7 @@ app.set('io', io);
 app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api', userRoutes);
-app.use('/api/skills', require('./routes/skills'));
+app.use('/api/skills', require('./routes/skillRoutes'));
 app.use('/api/matches', matchingRoutes);
 app.use('/api/notifications', notificationRoutes); // Added notifications endpoint
 

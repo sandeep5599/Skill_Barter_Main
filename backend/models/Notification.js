@@ -16,10 +16,12 @@ const NotificationSchema = new mongoose.Schema({
       'match_rescheduled',
       'session_proposed',
       'session_rescheduled',
+      'session_updated',
       'session_created',
       'session_reminder',
       'session_canceled',
-      'session_completed'
+      'session_completed',
+      'session_status'
     ],
     required: true
   },

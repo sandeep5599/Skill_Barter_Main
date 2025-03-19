@@ -15,11 +15,11 @@ const sessionController = require('../controllers/sessionController');
 // Session-related routes (expanded)
 router.get('/', auth, matchingController.getSessions);
 router.get('/user/:userId', auth, sessionController.getUserSessions);
-router.post('/sessions', auth, sessionController.createSession);
+router.post('/', auth, sessionController.createSession);
 router.put('/:sessionId/complete', auth, sessionController.completeSession);
 
 router.get('/:sessionId', auth, sessionController.getSessionById);
-router.put('/sessions/:sessionId/update-link', auth, sessionController.updateSessionLink);
+router.put('/:sessionId/meeting-link', auth, sessionController.updateSessionLink);
 router.post('/sessions/:sessionId/feedback', auth, sessionController.submitFeedback);
 
 module.exports = router;
