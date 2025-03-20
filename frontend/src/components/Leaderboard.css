@@ -1,0 +1,61 @@
+.leaderboard {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.leaderboard-list {
+  margin-top: 20px;
+}
+
+.leaderboard-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.rank {
+  width: 30px;
+  font-weight: bold;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  margin: 0 10px;
+}
+
+.name {
+  flex: 1;
+}
+
+.points {
+  margin: 0 10px;
+  font-weight: bold;
+}
+
+.badge {
+  width: 24px;
+  height: 24px;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.badge.gold {
+  background-image: url('../assets/badges/Gold.png');
+}
+
+.badge.silver {
+  background-image: url('../assets/badges/Silver.png');
+}
+
+.badge.bronze {
+  background-image: url('../assets/badges/Bronze.png');
+}
+
+.badge.beginner {
+  background-image: url('../assets/badges/Beginner.png');
+}

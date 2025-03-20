@@ -1,67 +1,68 @@
 import React from 'react';
 
+const statusColors = {
+  'pending': 'bg-yellow-100 text-yellow-800',
+  'accepted': 'bg-green-100 text-green-800',
+  'completed': 'bg-purple-100 text-purple-800',
+  'not_requested': 'bg-gray-100 text-gray-800'
+};
+
 const MatchStatusDisplay = ({ match }) => {
-  // Display rejection reason if match is rejected
+  // Helper to format date and time
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'Not specified';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', { 
+      dateStyle: 'medium', 
+      timeStyle: 'short' 
+    });
+  };
+
+  // Get the latest time slot if available
+  const getLatestTimeSlot = () => {
+    if (!match.timeSlots || match.timeSlots.length === 0) return null;
+    return match.timeSlots[match.timeSlots.length - 1];
+  };
+
+  const latestTimeSlot = getLatestTimeSlot();
+
   if (match.status === 'rejected') {
     return (
-      <div className="match-status rejected">
-        <span className="status-label bg-red-100 text-red-800 px-2 py-1 rounded-md">Rejected</span>
+      <div className="match-status-container">
+        <div className="status-badge rejected">Rejected</div>
         {match.rejectionReason && (
-          <p className="rejection-reason mt-2 text-sm text-gray-700">
-            <span className="font-medium">Reason:</span> {match.rejectionReason}
-          </p>
+          <div className="rejection-reason">
+            <p>Reason: {match.rejectionReason}</p>
+          </div>
         )}
       </div>
     );
-  }
-  
-  // Display rescheduling info if there's a new proposal
-  if (match.hasReschedulingProposal) {
-    const teacherProposed = match.role === 'student';
-    const proposerName = teacherProposed ? match.teacherName : match.requesterName;
-    
-    return (
-      <div className="match-status rescheduled">
-        <span className="status-label bg-blue-100 text-blue-800 px-2 py-1 rounded-md">Rescheduled</span>
-        <p className="reschedule-message mt-2 text-sm text-gray-700">
-          {proposerName} proposed a new time slot. Go to requests page to check out.
-        </p>
-        {match.latestMessage && (
-          <p className="latest-message mt-1 text-xs text-gray-600 italic">
-            "{match.latestMessage.message}"
-          </p>
-        )}
-      </div>
-    );
-  }
-  
-  // Handle other statuses
-  const statusColors = {
-    'pending': 'bg-yellow-100 text-yellow-800',
-    'accepted': 'bg-green-100 text-green-800',
-    'completed': 'bg-purple-100 text-purple-800',
-    'not_requested': 'bg-gray-100 text-gray-800'
-  };
-  
+  } 
+
   const statusColor = statusColors[match.status] || 'bg-gray-100 text-gray-800';
   
+  if (match.status === 'pending' && match.isRescheduled) {
+    return (
+      <div className="match-status-container">
+        <div className="status-badge rescheduled">Rescheduled</div>
+        <div className="reschedule-message">
+          <p>{match.teacherName} proposed a new time slot. Go to requests page to check out.</p>
+          {latestTimeSlot && (
+            <p className="time-slot-info">
+              <span>Proposed time: </span>
+              {formatDateTime(latestTimeSlot.startTime)} - {formatDateTime(latestTimeSlot.endTime)}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="match-status">
-      <span className={`status-label ${statusColor} px-2 py-1 rounded-md`}>
+    <div className="match-status-container">
+      <div className={`status-badge ${match.status.toLowerCase()}`}>
         {match.status.charAt(0).toUpperCase() + match.status.slice(1)}
-      </span>
-      
-      {match.selectedTimeSlot && (
-        <p className="scheduled-time mt-2 text-sm text-gray-700">
-          <span className="font-medium">Scheduled:</span> {new Date(match.selectedTimeSlot.startTime).toLocaleString()}
-        </p>
-      )}
-      
-      {match.latestMessage && (
-        <p className="latest-message mt-1 text-xs text-gray-600 italic">
-          "{match.latestMessage.message}"
-        </p>
-      )}
+      </div>
     </div>
   );
 };
