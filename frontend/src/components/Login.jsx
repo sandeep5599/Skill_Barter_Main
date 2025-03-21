@@ -23,11 +23,14 @@ const Login = () => {
     }
   }, []);
 
+ 
+  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage({ type: '', text: '' });
     setLoading(true);
-
+  
     try {
       const { token, user } = await login(credentials);
       
@@ -39,7 +42,33 @@ const Login = () => {
       }
       
       authLogin(user, token);
-      setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
+      
+      // Attempt to perform daily check-in automatically after login
+      try {
+        const checkInResponse = await fetch('/api/points/checkin', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        const checkInData = await checkInResponse.json();
+        
+        if (checkInData.success) {
+          setMessage({ 
+            type: 'success', 
+            text: `Login successful! You earned a daily check-in point. Current streak: ${checkInData.streak}` 
+          });
+        } else {
+          // Still login successfully, but inform user about check-in status
+          setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
+        }
+      } catch (checkInErr) {
+        // If check-in fails, still continue with successful login
+        console.error('Check-in error:', checkInErr);
+        setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
+      }
       
       // Simulate a delay to show success message
       setTimeout(() => navigate('/dashboard'), 1500);
@@ -52,7 +81,7 @@ const Login = () => {
       setLoading(false);
     }
   };
-
+  
   return (
     <div className="login-page bg-light">
       <Container fluid>

@@ -1,6 +1,7 @@
+// Points Schema (MongoDB model)
 const mongoose = require('mongoose');
 
-const pointsSchema = new mongoose.Schema({
+const PointsSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -18,7 +19,17 @@ const pointsSchema = new mongoose.Schema({
   lastCheckIn: {
     type: Date,
     default: null
-  }
-});
+  },
+  // Optional: Track check-in history
+  checkInHistory: [{
+    date: {
+      type: Date,
+      default: Date.now
+    }
+  }]
+}, { timestamps: true });
 
-module.exports = mongoose.model('Points', pointsSchema);
+// Add index for leaderboard queries
+PointsSchema.index({ points: -1 });
+
+module.exports = mongoose.model('Points', PointsSchema);

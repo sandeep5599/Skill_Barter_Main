@@ -10,7 +10,8 @@ const authRoutes = require('./routes/authRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
 const userRoutes = require('./routes/userRoutes');
 const matchingRoutes = require('./routes/matchRoutes');
-const notificationRoutes = require('./routes/notificationRoutes'); // Added notification routes
+const notificationRoutes = require('./routes/notificationRoutes');
+const pointsRoutes = require('./routes/pointRoutes'); // Added notification routes
 
 // Configure environment
 dotenv.config();
@@ -43,6 +44,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api', userRoutes);
 app.use('/api/skills', require('./routes/skillRoutes'));
+app.use('/api/points' , pointsRoutes)
 app.use('/api/matches', matchingRoutes);
 app.use('/api/notifications', notificationRoutes); // Added notifications endpoint
 

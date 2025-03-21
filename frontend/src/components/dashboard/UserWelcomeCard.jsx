@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Card, Row, Col, Button, Badge, Spinner, ProgressBar, Dropdown } from 'react-bootstrap';
+import { Card, Row, Col, Button, Badge, Spinner, Dropdown } from 'react-bootstrap';
 import { PeopleFill, Award, Clock, CheckCircleFill, MortarboardFill, BookFill, ChevronRight, ChevronDown } from 'react-bootstrap-icons';
 
 const UserWelcomeCard = ({ 
@@ -53,14 +53,14 @@ const UserWelcomeCard = ({
 
   return (
     <Card className="mb-4 shadow-lg bg-white border-0 rounded-4 overflow-hidden">
-      {/* Hero Section with Light Gradient Background */}
+      {/* Hero Section with Enhanced Gradient Background */}
       <div className="p-4 position-relative" style={{
         background: 'linear-gradient(135deg, #e8f4ff 0%, #c9e8ff 50%, #a3d8f4 100%)',
         borderBottom: '1px solid rgba(0, 0, 0, 0.05)'
       }}>
         {/* Floating Date Display */}
         <div className="position-absolute top-0 end-0 mt-3 me-3">
-          <div className="d-flex align-items-center backdrop-blur-md bg-white bg-opacity-50 rounded-pill px-3 py-2" 
+          <div className="d-flex align-items-center bg-white bg-opacity-50 rounded-pill px-3 py-2" 
                style={{ backdropFilter: 'blur(10px)' }}>
             <Clock className="text-primary me-2" />
             <span className="text-dark fw-semibold">{formattedDate}</span>
@@ -84,12 +84,12 @@ const UserWelcomeCard = ({
         </Row>
         
         <div className="d-flex flex-wrap gap-3 mt-3">
-          <div className="backdrop-blur-md bg-white bg-opacity-50 rounded-pill px-3 py-2" 
+          <div className="bg-white bg-opacity-50 rounded-pill px-3 py-2" 
                style={{ backdropFilter: 'blur(10px)' }}>
             <CheckCircleFill className="me-2 text-success" /> 
             <span className="fw-semibold text-dark">{stats.sessionsCompleted} Sessions</span>
           </div>
-          <div className="backdrop-blur-md bg-white bg-opacity-50 rounded-pill px-3 py-2" 
+          <div className="bg-white bg-opacity-50 rounded-pill px-3 py-2" 
                style={{ backdropFilter: 'blur(10px)' }}>
             <Clock className="me-2 text-primary" /> 
             <span className="fw-semibold text-dark">{stats.upcomingSessions.length} Upcoming</span>
@@ -105,23 +105,24 @@ const UserWelcomeCard = ({
             <div className="p-4 h-100 d-flex flex-column">
               <div className="text-center mb-4">
                 <div className="position-relative d-inline-block">
-                  {/* Points Circle */}
+                  {/* Points Circle with Animated Gradient */}
                   <div className="p-1 mb-2 mx-auto" style={{
                     border: '3px solid transparent',
                     borderRadius: '50%',
                     background: 'linear-gradient(135deg, #0077b6, #00b4d8, #90e0ef) border-box',
                     WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
                     WebkitMaskComposite: 'xor',
-                    maskComposite: 'exclude'
+                    maskComposite: 'exclude',
                   }}>
                     <div className="rounded-circle d-flex align-items-center justify-content-center" 
-                         style={{ 
-                           width: '90px', 
-                           height: '90px', 
-                           background: 'radial-gradient(circle, #00b4d8, #0077b6)',
-                           boxShadow: '0 0 15px rgba(0, 180, 216, 0.3)' 
-                         }}>
-                      <h2 className="mb-0 fw-bold text-white">{stats.points}</h2>
+                        style={{ 
+                          width: '90px', 
+                          height: '90px', 
+                          background: 'radial-gradient(circle, #00b4d8, #0077b6)',
+                          boxShadow: '0 0 15px rgba(0, 180, 216, 0.3)',
+                          position: 'relative',
+                        }}>
+                      <h2 className="mb-0 fw-bold text-white" style={{ position: 'relative', zIndex: 5 }}>{stats.points}</h2>
                     </div>
                   </div>
                   {/* Status Badge */}
@@ -143,7 +144,7 @@ const UserWelcomeCard = ({
               <div className="mb-4">
                 <h6 className="text-uppercase text-muted fw-semibold small mb-3">Quick Actions</h6>
                 <div className="d-grid gap-3">
-                  {/* Find Learning Matches Button */}
+                  {/* Find Learning Matches Button with Hover Effect */}
                   <Button 
                     variant="primary" 
                     className="rounded-pill py-2 d-flex align-items-center justify-content-center position-relative overflow-hidden" 
@@ -169,7 +170,7 @@ const UserWelcomeCard = ({
                     </div>
                   </Button>
                   
-                  {/* View Requests Dropdown */}
+                  {/* View Requests Dropdown with Enhanced UI */}
                   <Dropdown>
                     <Dropdown.Toggle 
                       variant="success" 
@@ -225,7 +226,7 @@ const UserWelcomeCard = ({
             </div>
           </Col>
           
-          {/* Column 2: Skill Distribution */}
+          {/* Column 2: Skill Distribution with Animated Progress Bars */}
           <Col md={4} className="border-end border-light">
             <div className="p-4 h-100 d-flex flex-column">
               <div className="d-flex align-items-center justify-content-between mb-3">
@@ -259,7 +260,7 @@ const UserWelcomeCard = ({
                       <span className="fw-semibold">Teaching Skills</span>
                       <span className="fw-bold" style={{ color: '#0077b6' }}>{teachingPercentage}%</span>
                     </div>
-                    {/* Custom Progress Bar */}
+                    {/* Custom Progress Bar with Animation */}
                     <div className="position-relative mb-1" style={{ height: '10px', backgroundColor: 'rgba(0, 119, 182, 0.1)', borderRadius: '5px', overflow: 'hidden' }}>
                       <div 
                         style={{ 
@@ -297,7 +298,7 @@ const UserWelcomeCard = ({
                       <span className="fw-semibold">Learning Skills</span>
                       <span className="fw-bold" style={{ color: '#00b4d8' }}>{learningPercentage}%</span>
                     </div>
-                    {/* Custom Progress Bar */}
+                    {/* Custom Progress Bar with Animation */}
                     <div className="position-relative mb-1" style={{ height: '10px', backgroundColor: 'rgba(0, 180, 216, 0.1)', borderRadius: '5px', overflow: 'hidden' }}>
                       <div 
                         style={{ 
@@ -318,7 +319,7 @@ const UserWelcomeCard = ({
                 </div>
               </div>
               
-              {/* Suggested Next Step Card */}
+              {/* Suggested Next Step Card with Enhanced Visual Design */}
               <div className="mt-auto">
                 <Card className="border-0 rounded-4 overflow-hidden" style={{ 
                   background: 'linear-gradient(45deg, rgba(0, 119, 182, 0.05), rgba(0, 180, 216, 0.05))',
@@ -357,7 +358,7 @@ const UserWelcomeCard = ({
             </div>
           </Col>
           
-          {/* Column 3: Leaderboard */}
+          {/* Column 3: Leaderboard with Enhanced Visual Hierarchy */}
           <Col md={4}>
             <div className="h-100 d-flex flex-column">
               {/* Leaderboard Header */}
@@ -372,7 +373,7 @@ const UserWelcomeCard = ({
                 <Badge bg="warning" text="dark" className="ms-auto rounded-pill">Weekly</Badge>
               </div>
               
-              {/* Leaderboard Content */}
+              {/* Leaderboard Content with Improved Styling */}
               <div className="flex-grow-1 overflow-auto" style={{ 
                 maxHeight: '300px',
                 scrollbarWidth: 'thin',
@@ -411,7 +412,7 @@ const UserWelcomeCard = ({
                 </div>
               </div>
               
-              {/* Footer Section */}
+              {/* Footer Section with Enhanced Visual Design */}
               <div className="p-3 border-top border-light" style={{ 
                 background: 'linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(0, 119, 182, 0.05))'
               }}>

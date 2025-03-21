@@ -103,16 +103,54 @@ const Dashboard = () => {
       setIsGeneratingMatches(false);
     }
   };
+  const fetchUserPoints = async (userId) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/points/user-points`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+  
+      if (!response.ok) {
+        throw new Error('Failed to fetch user points');
+      }
+  
+      const pointsData = await response.json();
+      
+      if (pointsData.success) {
+        setStats(prevStats => ({
+          ...prevStats,
+          points: pointsData.points || 0,
+          streak: pointsData.streak || 0
+        }));
+        
+        return pointsData;
+      } else {
+        console.warn('Points data fetch returned unsuccessful status');
+        return { points: 0, streak: 0 };
+      }
+    } catch (error) {
+      console.error('Error fetching user points:', error);
+      toast.error('Failed to load your points information');
+      return { points: 0, streak: 0 };
+    }
+  };
+
 
   const loadUserProfile = async () => {
     try {
       const userData = await fetchUserProfile(user._id, BACKEND_URL);
       const completedSessionsCount = await fetchCompletedSessionsCount(user._id, BACKEND_URL);
+      const pointsData = await fetchUserPoints(user._id);
       
       setStats(prevStats => ({
         ...prevStats,
         ...userData,
-        sessionsCompleted: completedSessionsCount
+        sessionsCompleted: completedSessionsCount,
+        points: pointsData.points || 0,
+        streak: pointsData.streak || 0
       }));
     } catch (error) {
       console.error('Error loading user profile:', error);
