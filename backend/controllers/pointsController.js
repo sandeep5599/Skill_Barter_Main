@@ -108,3 +108,48 @@ exports.getUserPoints = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// Get user's rank in the leaderboard
+exports.getUserRank = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Get the user's points entry
+    const userPoints = await Points.findOne({ userId });
+    
+    if (!userPoints) {
+      return res.json({
+        success: true,
+        rank: null,
+        totalUsers: await Points.countDocuments(),
+        message: "User has not earned any points yet"
+      });
+    }
+    
+    // Count how many users have more points than this user
+    const higherRankedUsers = await Points.countDocuments({
+      points: { $gt: userPoints.points }
+    });
+    
+    // User's rank is the number of users with more points + 1
+    const rank = higherRankedUsers + 1;
+    
+    // Get total number of users with points for percentile calculation
+    const totalUsers = await Points.countDocuments();
+    
+    // Calculate percentile (lower is better)
+    const percentile = totalUsers > 0 ? Math.round((rank / totalUsers) * 100) : null;
+    
+    res.json({
+      success: true,
+      rank,
+      totalUsers,
+      percentile,
+      points: userPoints.points,
+      streak: userPoints.streak
+    });
+  } catch (error) {
+    console.error('User rank error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

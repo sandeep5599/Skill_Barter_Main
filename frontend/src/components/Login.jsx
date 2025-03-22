@@ -23,9 +23,6 @@ const Login = () => {
     }
   }, []);
 
- 
-  
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage({ type: '', text: '' });
@@ -41,36 +38,16 @@ const Login = () => {
         localStorage.removeItem('rememberedEmail');
       }
       
+      // Just handle login and state update
       authLogin(user, token);
       
-      // Attempt to perform daily check-in automatically after login
-      try {
-        const checkInResponse = await fetch('/api/points/checkin', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        const checkInData = await checkInResponse.json();
-        
-        if (checkInData.success) {
-          setMessage({ 
-            type: 'success', 
-            text: `Login successful! You earned a daily check-in point. Current streak: ${checkInData.streak}` 
-          });
-        } else {
-          // Still login successfully, but inform user about check-in status
-          setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
-        }
-      } catch (checkInErr) {
-        // If check-in fails, still continue with successful login
-        console.error('Check-in error:', checkInErr);
-        setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
-      }
+      // Set the flag for automatic check-in
+      sessionStorage.setItem('justLoggedIn', 'true');
+
+      // Simple success message
+      setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
       
-      // Simulate a delay to show success message
+      // Navigate to dashboard - the dashboard will handle check-in notifications
       setTimeout(() => navigate('/dashboard'), 1500);
     } catch (err) {
       let errorMsg = 'Something went wrong. Please try again later.';
@@ -259,24 +236,7 @@ const Login = () => {
         </Row>
       </Container>
 
-      {/* Custom CSS */}
-      <style jsx = "true">{`
-        .login-page {
-          min-height: 100vh;
-        }
-        .cursor-pointer {
-          cursor: pointer;
-        }
-        .bg-opacity-10 {
-          background-color: rgba(255, 255, 255, 0.1);
-        }
-        .backdrop-blur-sm {
-          backdrop-filter: blur(4px);
-        }
-        .ms-n2 {
-          margin-left: -0.5rem;
-        }
-      `}</style>
+     
     </div>
   );
 };

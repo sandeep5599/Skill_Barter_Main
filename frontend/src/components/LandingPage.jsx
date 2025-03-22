@@ -458,7 +458,7 @@ const LandingPage = () => {
         </button>
 
         {/* Custom CSS */}
-        <style jsx>{`
+        <style jsx="true">{`
           .hover-effect {
             transition: transform 0.3s ease, box-shadow 0.3s ease;
           }
