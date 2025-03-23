@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Session = require('../models/Session');
 const User = require('../models/User');
 const Match = require('../models/Match');
@@ -109,12 +110,31 @@ const sessionController = {
   getSessionById: async (req, res) => {
     try {
       const { sessionId } = req.params;
-      console.log(sessionId)
-      // Find session by ID
-      const session = await Session.findById(sessionId)
+      console.log("ID parameter:", sessionId);
+      
+      // Add validation to check if ID is valid
+      if (!sessionId || sessionId === "undefined") {
+        return res.status(400).json({ error: 'Invalid ID provided' });
+      }
+      
+      // Validate that ID is a valid ObjectId
+      if (!mongoose.Types.ObjectId.isValid(sessionId)) {
+        return res.status(400).json({ error: 'Invalid ID format' });
+      }
+      
+      // Try to find session by ID first
+      let session = await Session.findById(sessionId)
         .populate('skillId', 'name')
         .populate('teacherId', 'name avatar')
         .populate('studentId', 'name avatar');
+      
+      // If not found by ID, try by matchId
+      if (!session) {
+        session = await Session.findOne({ matchId: sessionId })
+          .populate('skillId', 'name')
+          .populate('teacherId', 'name avatar')
+          .populate('studentId', 'name avatar');
+      }
       
       if (!session) {
         return res.status(404).json({ error: 'Session not found' });
@@ -123,13 +143,13 @@ const sessionController = {
       return res.status(200).json(session);
     } catch (error) {
       console.error("Error fetching session:", error);
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Failed to fetch session',
         message: error.message
       });
     }
   },
-  
+
   getUserSessions: async (req, res) => {
     try {
       const userId = req.params.userId;
@@ -269,6 +289,159 @@ const sessionController = {
     }
   },
 
+    // Add this to your sessionController.js file
+  confirmSession: async (req, res) => {
+    try {
+      // Check authentication
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Unauthorized access' });
+      }
+
+      const { sessionId } = req.params;
+      const { status, message } = req.body;
+      const userId = req.user.id;
+
+      // Find session
+      const session = await Session.findById(sessionId);
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      // Find the associated match
+      const match = await Match.findById(session.matchId);
+      if (!match) {
+        return res.status(404).json({ error: 'Match not found' });
+      }
+
+      // Verify that the user is either the student or teacher for this session
+      const isTeacher = session.teacherId.toString() === userId;
+      const isStudent = session.studentId.toString() === userId;
+      
+      if (!isTeacher && !isStudent) {
+        return res.status(403).json({ error: 'You are not authorized to confirm this session' });
+      }
+
+      // Update match status
+      match.status = status || 'accepted';
+      if (message) {
+        match.message = message;
+      }
+      await match.save();
+
+      // Update session fields if needed
+      if (req.body.meetingLink) {
+        session.meetingLink = req.body.meetingLink;
+      }
+
+      // If there's a new time slot being confirmed
+      if (req.body.selectedTimeSlot) {
+        session.selectedTimeSlot = req.body.selectedTimeSlot;
+      }
+
+      await session.save();
+
+      // Determine recipient for notification (the other party)
+      const recipientId = isTeacher ? session.studentId : session.teacherId;
+      
+      // Create a notification for the other party
+      const notificationType = status === 'accepted' ? 'session_confirmed' : 'session_rejected';
+      
+      await Notification.create({
+        userId: recipientId,
+        senderId: userId,
+        title: status === 'accepted' ? 'Session Confirmed' : 'Session Update',
+        message: message || 'Your session has been updated',
+        type: notificationType,
+        relatedId: session._id,
+        isRead: false
+      });
+
+      return res.status(200).json({
+        session,
+        match,
+        message: 'Session updated successfully'
+      });
+    } catch (error) {
+      console.error("Error confirming session:", error);
+      return res.status(500).json({ 
+        error: 'Failed to confirm session',
+        message: error.message
+      });
+    }
+  },
+  // Add this method to your existing sessionController.js file
+// Make sure to include mongoose at the top of your file if it's not already there
+// const mongoose = require('mongoose');
+
+// @desc    Submit teacher feedback for a session
+// @route   POST /api/sessions/:id/teacher-feedback
+// @access  Private (Teacher only)
+submitTeacherFeedback: async (req, res) => {
+  try {
+    const sessionId = req.params.id;
+    const { feedback } = req.body;
+    
+    // Validate session ID
+    if (!mongoose.Types.ObjectId.isValid(sessionId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid session ID format'
+      });
+    }
+    
+    // Check if feedback is provided
+    if (!feedback || feedback.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Feedback is required'
+      });
+    }
+    
+    // Find the session
+    const session = await Session.findById(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found'
+      });
+    }
+    
+    // Check if user is the teacher for this session
+    if (session.teacherId.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the teacher can provide feedback for this session'
+      });
+    }
+    
+    // Check if session is completed
+    if (session.status !== 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Teacher feedback can only be provided for completed sessions'
+      });
+    }
+    
+    // Update the session with teacher feedback
+    session.teacherFeedback = feedback;
+    session.updatedAt = Date.now();
+    
+    await session.save();
+    
+    return res.status(200).json({
+      success: true,
+      data: session
+    });
+  } catch (err) {
+    console.error('Error submitting teacher feedback:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: err.message
+    });
+  }
+},
+
   submitFeedback: async (req, res) => {
     try {
       // Check authentication
@@ -307,7 +480,7 @@ const sessionController = {
         session.teacherFeedback = feedback || '';
         
         // Notify student about teacher feedback
-       await Notification.create({
+      await Notification.create({
           userId: session.studentId,
           title: 'Teacher Feedback Received',
           message: `${session.teacherName} has provided feedback for your session`,
@@ -316,7 +489,7 @@ const sessionController = {
           isRead: false
         });
 
-     
+    
       } else if (!isTeacher && session.studentId.toString() === userId) {
         session.studentRating = rating;
         session.studentFeedback = feedback || '';
@@ -329,7 +502,7 @@ const sessionController = {
         );
         
         // Notify teacher about student feedback and points awarded
-       await Notification.create({
+      await Notification.create({
           userId: session.teacherId,
           title: 'Student Feedback Received',
           message: `${session.studentName} has rated your session and you've earned ${POINTS_PER_SESSION} points!`,
@@ -338,7 +511,7 @@ const sessionController = {
           isRead: false
         });
 
-       
+      
       } else {
         return res.status(400).json({ error: 'Invalid feedback submission' });
       }
@@ -358,5 +531,10 @@ const sessionController = {
     }
   }
 };
+
+
+
+
+
 
 module.exports = sessionController;

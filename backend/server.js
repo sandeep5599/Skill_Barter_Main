@@ -12,7 +12,7 @@ const userRoutes = require('./routes/userRoutes');
 const matchingRoutes = require('./routes/matchRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const pointsRoutes = require('./routes/pointRoutes'); // Added notification routes
-
+const reviewRoutes = require('./routes/reviewRoutes');
 // Configure environment
 dotenv.config();
 
@@ -47,7 +47,7 @@ app.use('/api/skills', require('./routes/skillRoutes'));
 app.use('/api/points' , pointsRoutes)
 app.use('/api/matches', matchingRoutes);
 app.use('/api/notifications', notificationRoutes); // Added notifications endpoint
-
+app.use('/api/reviews', reviewRoutes);
 
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,

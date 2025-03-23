@@ -193,7 +193,7 @@ const UserWelcomeCard = ({
                         <PeopleFill />
                       )}
                     </div>
-                    <span>{isGeneratingMatches ? 'Finding Matches...' : 'Find Learning Matches'}</span>
+                    <span>{isGeneratingMatches ? 'Finding Matches...' : 'Discover Study Partners'}</span>
                     <div className="position-absolute top-0 end-0 bottom-0 p-2 d-flex align-items-center">
                       <ChevronRight />
                     </div>
@@ -209,7 +209,7 @@ const UserWelcomeCard = ({
                       <div className="me-2">
                         <Award />
                       </div>
-                      <span>View Requests</span>
+                      <span>Manage Sessions</span>
                       <div className="ms-auto">
                       </div>
                     </Dropdown.Toggle>
@@ -221,7 +221,7 @@ const UserWelcomeCard = ({
                       >
                         <span className="me-2 fs-5">👨‍🏫</span> 
                         <div>
-                          <div className="fw-semibold">Teaching Requests</div>
+                          <div className="fw-semibold">Teaching Sessions</div>
                           <div className="text-muted small">Share your knowledge</div>
                         </div>
                       </Dropdown.Item>
@@ -232,7 +232,7 @@ const UserWelcomeCard = ({
                       >
                         <span className="me-2 fs-5">👨‍🎓</span> 
                         <div>
-                          <div className="fw-semibold">Learner Requests</div>
+                          <div className="fw-semibold">Learning Sessions</div>
                           <div className="text-muted small">Improve your skills</div>
                         </div>
                       </Dropdown.Item>

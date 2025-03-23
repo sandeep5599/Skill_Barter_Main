@@ -4,8 +4,215 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import NotificationCenter from './NotificationCenter';
+import { TeacherFeedbackModal } from './FeedbackModals';
+import { 
+  fetchTeachingRequests, 
+  updateMatchStatus, 
+  createSession,
+  completeSession,
+  updateSession,
+  confirmSession
+} from '../services/api.services';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+// Helper functions for date formatting
+const formatHelpers = {
+  formatDateTime: (dateString) => {
+    const options = { 
+      weekday: 'short',
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit', 
+      minute: '2-digit'
+    };
+    return new Date(dateString).toLocaleString(undefined, options);
+  },
+  
+  formatDateTimeForInput: (date) => {
+    return date.toISOString().slice(0, 16);
+  }
+};
+
+// Status Badge Component
+const StatusBadge = ({ status }) => {
+  const variants = {
+    pending: 'warning',
+    accepted: 'success',
+    completed: 'info',
+    rejected: 'danger',
+    rescheduled: 'primary',
+    'awaiting_response': 'secondary',
+    'reschedule_rejected': 'danger',
+    'reschedule_accepted': 'success',
+    default: 'secondary'
+  };
+  
+  const displayText = {
+    pending: 'Pending',
+    accepted: 'Accepted',
+    completed: 'Completed',
+    rejected: 'Rejected',
+    rescheduled: 'Rescheduled',
+    'awaiting_response': 'Awaiting Response',
+    'reschedule_rejected': 'Reschedule Rejected',
+    'reschedule_accepted': 'Reschedule Accepted',
+  };
+
+  const variant = variants[status] || variants.default;
+  const text = displayText[status] || status.charAt(0).toUpperCase() + status.slice(1);
+  
+  return (
+    <Badge bg={variant}>
+      {text}
+    </Badge>
+  );
+};
+
+// Action Buttons Component
+const ActionButtons = ({ 
+  request, 
+  processing, 
+  toggleModal, 
+  navigate, 
+  getEffectiveStatus 
+}) => {
+  const effectiveStatus = getEffectiveStatus(request);
+
+  const handleViewSession = (session) => {
+    if (!request.id) {
+      console.error('No session ID for request:', request);
+
+      toast.error('Session ID not available. Please refresh and try again.');
+      return;
+    }
+    navigate(`/sessions/${request.id}`);
+  };
+
+
+  switch(effectiveStatus) {
+    case 'pending':
+      return (
+        <>
+          <Button 
+            variant="primary" 
+            onClick={() => toggleModal('sessionCreation', true, request)}
+            disabled={processing}
+            className="mb-2"
+          >
+            {processing ? <Spinner size="sm" animation="border" /> : 'Accept & Create Session'}
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={() => toggleModal('reschedule', true, request)}
+            disabled={processing}
+            className="mb-2"
+          >
+            Propose New Time
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={() => toggleModal('reject', true, request)}
+            disabled={processing}
+          >
+            Reject Request
+          </Button>
+        </>
+      );
+    case 'accepted':
+      return (
+        <>
+          <Button 
+            variant="primary" 
+            onClick={handleViewSession}
+            className="mb-2"
+          >
+            View Session
+          </Button>
+        </>
+      );
+    case 'completed':
+      return (
+        <>
+          <Button 
+            variant="primary"
+            onClick={handleViewSession}
+            className="mb-2"
+          >
+            View Session
+          </Button>
+          {!request.teacherFeedbackSubmitted && (
+            <Button
+              variant="primary"
+              onClick={() => toggleModal('feedback', true, request)}
+            >
+              Provide Feedback
+            </Button>
+          )}
+        </>
+      );
+    case 'awaiting_response':
+      return (
+        <Button 
+          variant="secondary"
+          disabled={true}
+          className="mb-2"
+        >
+          Waiting for Response
+        </Button>
+      );
+    case 'reschedule_accepted':
+      return (
+        <Button 
+          variant="primary"
+          onClick={() => toggleModal('sessionCreation', true, request)}
+          disabled={processing}
+          className="mb-2"
+        >
+          Create Session
+        </Button>
+      );
+    case 'reschedule_rejected':
+      return (
+        <Alert variant="warning" className="mb-0 text-center">
+          New Time Rejected - Session Closed
+        </Alert>
+      );
+    case 'rescheduled':
+      return (
+        <>
+          <Button 
+            variant="success"
+            onClick={() => toggleModal('sessionCreation', true, request)}
+            disabled={processing}
+            className="mb-2"
+          >
+            Accept New Time
+          </Button>
+          <Button 
+            variant="danger"
+            onClick={() => toggleModal('reject', true, request)}
+            disabled={processing}
+          >
+            Reject Request
+          </Button>
+        </>
+      );
+    case 'rejected':
+      return (
+        <Button 
+          variant="primary" 
+          onClick={() => navigate('/profile')}
+          disabled={processing}
+        >
+          View Profile
+        </Button>
+      );
+    default:
+      return null;
+  }
+};
+
+
 
 const TeachingRequests = () => {
   const [requests, setRequests] = useState([]);
@@ -14,13 +221,17 @@ const TeachingRequests = () => {
   const [modalState, setModalState] = useState({
     reschedule: false,
     sessionCreation: false,
-    reject: false
+    reject: false,
+    feedback: false,
+    completeSession: false
   });
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [proposedDateTime, setProposedDateTime] = useState('');
   const [proposedEndTime, setProposedEndTime] = useState('');
   const [processing, setProcessing] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+
+
   const [sessionDetails, setSessionDetails] = useState({
     title: '',
     description: '',
@@ -33,51 +244,38 @@ const TeachingRequests = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  // Format helpers
-  const formatDateTime = useCallback((dateString) => {
-    const options = { 
-      weekday: 'short',
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit', 
-      minute: '2-digit'
-    };
-    return new Date(dateString).toLocaleString(undefined, options);
-  }, []);
-
-  const formatDateTimeForInput = useCallback((date) => {
-    return date.toISOString().slice(0, 16);
-  }, []);
+  // Function to determine the effective status for UI display
+// Function to determine the effective status for UI display
+const getEffectiveStatus = useCallback((request) => {
+  // Check if request is null or undefined
+  if (!request) {
+    return 'pending'; // or any default status you prefer
+  }
+  
+  // If the request has a special flag for reschedule response
+  if (request.rescheduleResponse) {
+    return request.rescheduleResponse === 'accepted' 
+      ? 'reschedule_accepted' 
+      : 'reschedule_rejected';
+  }
+  
+  // If the request is rescheduled and was initiated by the teacher
+  if (request.status === 'rescheduled' && request.rescheduleInitiator === 'teacher') {
+    return 'awaiting_response';
+  }
+  
+  // Default to the request's status
+  return request.status || 'pending';
+}, []);
 
   // API fetch function
-  const fetchRequests = useCallback(async () => {
+  const loadTeachingRequests = useCallback(async () => {
     if (!user?._id) return;
     
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`${BACKEND_URL}/api/matches?role=teacher`, {
-        method: 'GET',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': `Bearer ${localStorage.getItem('token')}` 
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to fetch requests: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log("Raw data from API:", data);
-      // Filter matches to include only relevant ones where the user is ACTUALLY the teacher
-      const teachingRequests = data.filter(match => 
-        ['pending', 'rescheduled', 'accepted', 'rejected'].includes(match.status) &&
-        match.teacherId === user._id // Ensure user is the teacher, not the student
-      );
-      
+      const teachingRequests = await fetchTeachingRequests(user._id);
       setRequests(teachingRequests);
     } catch (err) {
       const errorMessage = 'Failed to fetch teaching requests. Please try again.';
@@ -102,8 +300,8 @@ const TeachingRequests = () => {
           const startTime = new Date(request.proposedTimeSlots[0].startTime);
           const endTime = new Date(request.proposedTimeSlots[0].endTime);
           
-          setProposedDateTime(formatDateTimeForInput(startTime));
-          setProposedEndTime(formatDateTimeForInput(endTime));
+          setProposedDateTime(formatHelpers.formatDateTimeForInput(startTime));
+          setProposedEndTime(formatHelpers.formatDateTimeForInput(endTime));
         } else {
           // Default to current time + 1 day
           const startTime = new Date();
@@ -113,8 +311,8 @@ const TeachingRequests = () => {
           const endTime = new Date(startTime);
           endTime.setHours(endTime.getHours() + 1);
           
-          setProposedDateTime(formatDateTimeForInput(startTime));
-          setProposedEndTime(formatDateTimeForInput(endTime));
+          setProposedDateTime(formatHelpers.formatDateTimeForInput(startTime));
+          setProposedEndTime(formatHelpers.formatDateTimeForInput(endTime));
         }
       } else if (modalName === 'sessionCreation') {
         // Set default values for session creation
@@ -132,160 +330,188 @@ const TeachingRequests = () => {
         setRejectionReason('');
       }
     }
-  }, [formatDateTimeForInput]);
+  }, []);
 
-  // API action handlers
-
-
-
-const handleCreateSession = async () => {
-  if (!sessionDetails.selectedTimeSlot) {
-    toast.error('Please select a time slot');
-    return;
-  }
-  
-  try {
-    setProcessing(true);
+  // Handle API actions
+  const handleCreateSession = async () => {
+    if (!sessionDetails.selectedTimeSlot) {
+      toast.error('Please select a time slot');
+      return;
+    }
     
-    // First, update the match status
-    const matchResponse = await fetch(`${BACKEND_URL}/api/matches/${selectedRequest._id || selectedRequest.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify({
+    try {
+      setProcessing(true);
+      
+      // Determine the type of session action
+      const effectiveStatus = getEffectiveStatus(selectedRequest);
+      const isRescheduledSessionAccepted = effectiveStatus === 'reschedule_accepted';
+      const isRegularReschedule = selectedRequest.status === 'rescheduled' && !isRescheduledSessionAccepted;
+              
+      // First, update the match status
+      await updateMatchStatus(selectedRequest._id || selectedRequest.id, {
         status: 'accepted',
         selectedTimeSlot: sessionDetails.selectedTimeSlot,
-        message: sessionDetails.notes || sessionDetails.description
-      })
-    });
-    
-    if (!matchResponse.ok) {
-      const errorData = await matchResponse.json().catch(() => ({}));
-      throw new Error(errorData.message || 'Failed to update match status');
+        message: isRescheduledSessionAccepted || isRegularReschedule ? 
+          "The rescheduled time has been accepted" : 
+          (sessionDetails.notes || sessionDetails.description),
+        notificationType: isRescheduledSessionAccepted || isRegularReschedule ? 
+          'rescheduled_session_accepted' : 
+          'session_created'
+      });
+      
+      let updatedSessionId;
+      
+      // Then, create a new session or update existing session
+      if ((isRescheduledSessionAccepted || isRegularReschedule) && selectedRequest.sessionId) {
+        // Update existing session with new time
+        const updateResponse = await updateSession(selectedRequest.sessionId, {
+          selectedTimeSlot: sessionDetails.selectedTimeSlot,
+          title: sessionDetails.title,
+          description: sessionDetails.description,
+          meetingLink: sessionDetails.meetingLink,
+          prerequisites: sessionDetails.prerequisites,
+          notes: sessionDetails.notes,
+          notificationType: 'reschedule_accepted'
+        });
+        
+        console.log('Session updated:', updateResponse);
+        updatedSessionId = selectedRequest.sessionId;
+        toast.success('Rescheduled session accepted!');
+      } else {
+        // Create a new session
+        const sessionResponse = await createSession({
+          matchId: selectedRequest._id || selectedRequest.id,
+          selectedTimeSlot: sessionDetails.selectedTimeSlot,
+          title: sessionDetails.title,
+          description: sessionDetails.description,
+          meetingLink: sessionDetails.meetingLink,
+          prerequisites: sessionDetails.prerequisites,
+          notes: sessionDetails.notes,
+          notificationType: 'session_created'
+        });
+        
+        console.log('New session created:', sessionResponse);
+        
+        // Extract the session ID from the response
+        updatedSessionId = sessionResponse.session && (sessionResponse.session._id || sessionResponse.session.id);
+        
+        if (!updatedSessionId) {
+          console.error('No session ID returned from API:', sessionResponse);
+          toast.warning('Session created but ID not returned. Refreshing data...');
+        } else {
+          console.log('New session ID:', updatedSessionId);
+          toast.success('Session created successfully!');
+        }
+      }
+      
+      // Update the requests array with the new session ID if we have one
+      if (updatedSessionId) {
+        setRequests(prevRequests => {
+          const newRequests = prevRequests.map(req => 
+            (req._id === selectedRequest._id || req.id === selectedRequest.id) 
+              ? { ...req, sessionId: updatedSessionId } 
+              : req
+          );
+          console.log('Updated requests with session ID:', newRequests);
+          return newRequests;
+        });
+      }
+      
+      toggleModal('sessionCreation', false);
+      // Reload all teaching requests to ensure we have the latest data
+      await loadTeachingRequests();
+    } catch (error) {
+      setError('Failed to create session: ' + (error.message || 'Unknown error'));
+      toast.error('Failed to create session');
+      console.error('Session creation error:', error);
+    } finally {
+      setProcessing(false);
     }
-    
-    // Then, create a new session (simplified)
-    const sessionResponse = await fetch(`${BACKEND_URL}/api/sessions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify({
-        matchId: selectedRequest._id || selectedRequest.id,
-        selectedTimeSlot: sessionDetails.selectedTimeSlot,
-        title: sessionDetails.title,
-        description: sessionDetails.description,
-        meetingLink: sessionDetails.meetingLink,
-        prerequisites: sessionDetails.prerequisites,
-        notes: sessionDetails.notes,
-        notificationType:'session_created'
-      })
-    });
-    
-    if (!sessionResponse.ok) {
-      const errorData = await sessionResponse.json().catch(() => ({}));
-      throw new Error(errorData.message || 'Failed to create session');
-    }
-    
-    toast.success('Session created successfully!');
-    toggleModal('sessionCreation', false);
-    fetchRequests();
-  } catch (error) {
-    setError('Failed to create session: ' + error.message);
-    toast.error('Failed to create session');
-    console.error(error);
-  } finally {
-    setProcessing(false);
-  }
-};
+  };
 
-
-const handleReject = async () => {
-  try {
-    setProcessing(true);
-    const response = await fetch(`${BACKEND_URL}/api/matches/${selectedRequest._id || selectedRequest.id}`, {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Authorization': `Bearer ${localStorage.getItem('token')}` 
-      },
-      body: JSON.stringify({
+  const handleReject = async () => {
+    try {
+      setProcessing(true);
+      await updateMatchStatus(selectedRequest._id || selectedRequest.id, {
         status: 'rejected',
         rejectionReason: rejectionReason,
-        message: rejectionReason // Also send as message for notifications
-      })
-    });
+        message: rejectionReason, // Also send as message for notifications
+        notificationType: 'match_rejected', // Add this to trigger a notification
+        recipientId: selectedRequest.studentId // Add this to specify who gets the notification
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || 'Failed to reject request');
+      toast.info('Request rejected');
+      toggleModal('reject', false);
+      loadTeachingRequests();
+    } catch (error) {
+      setError('Failed to reject request');
+      toast.error('Failed to reject request');
+      console.error(error);
+    } finally {
+      setProcessing(false);
     }
+  };
 
-    toast.info('Request rejected');
-    toggleModal('reject', false);
-    fetchRequests();
-  } catch (error) {
-    setError('Failed to reject request');
-    toast.error('Failed to reject request');
-    console.error(error);
-  } finally {
-    setProcessing(false);
-  }
-};
-
-// Handle reschedule function
-const handleReschedule = async () => {
-  if (!proposedDateTime || !proposedEndTime) {
-    toast.error('Please select both start and end times');
-    return;
-  }
-
-  try {
-    setProcessing(true);
-    const startTime = new Date(proposedDateTime);
-    const endTime = new Date(proposedEndTime);
-
-    if (startTime >= endTime) {
-      toast.error('End time must be after start time');
+  const handleReschedule = async () => {
+    if (!proposedDateTime || !proposedEndTime) {
+      toast.error('Please select both start and end times');
       return;
     }
 
-    const response = await fetch(`${BACKEND_URL}/api/matches/${selectedRequest._id || selectedRequest.id}`, {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Authorization': `Bearer ${localStorage.getItem('token')}` 
-      },
-      body: JSON.stringify({
-        status: 'rescheduled', // Keep as accepted but with new time slot
+    try {
+      setProcessing(true);
+      const startTime = new Date(proposedDateTime);
+      const endTime = new Date(proposedEndTime);
+
+      if (startTime >= endTime) {
+        toast.error('End time must be after start time');
+        return;
+      }
+
+      await updateMatchStatus(selectedRequest._id || selectedRequest.id, {
+        status: 'rescheduled',
         selectedTimeSlot: {
           startTime: startTime.toISOString(),
           endTime: endTime.toISOString()
         },
-        message: "I've proposed a new time for our session." // Optional message
-      })
-    });
+        message: "I've proposed a new time for our session.",
+        notificationType: 'match_rescheduled', // Add this to trigger a notification
+        recipientId: selectedRequest.studentId, // Add this to specify who gets the notification
+        rescheduleInitiator: 'teacher' // Mark that teacher initiated this reschedule
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || 'Failed to reschedule request');
+      toast.success('Request rescheduled successfully!');
+      toggleModal('reschedule', false);
+      loadTeachingRequests();
+    } catch (error) {
+      setError('Failed to reschedule request');
+      toast.error('Failed to reschedule request');
+      console.error(error);
+    } finally {
+      setProcessing(false);
     }
+  };
 
-    toast.success('Request rescheduled successfully!');
-    toggleModal('reschedule', false);
-    fetchRequests();
-  } catch (error) {
-    setError('Failed to reschedule request');
-    toast.error('Failed to reschedule request');
-    console.error(error);
-  } finally {
-    setProcessing(false);
-  }
-};
-
+  // New function to handle session completion
+  const handleCompleteSession = async () => {
+    try {
+      setProcessing(true);
+      
+      await completeSession(selectedRequest.sessionId);
+      
+      toast.success('Session marked as completed.');
+      toggleModal('completeSession', false);
+      toggleModal('feedback', true, selectedRequest);
+      loadTeachingRequests();
+    } catch (error) {
+      setError('Failed to complete session: ' + error.message);
+      toast.error('Failed to mark session as completed');
+      console.error(error);
+    } finally {
+      setProcessing(false);
+    }
+  };
+  
   // Form handlers
   const handleSessionDetailsChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -302,115 +528,51 @@ const handleReschedule = async () => {
     }));
   }, []);
 
-  // Status badge renderer
-  const getStatusBadge = useCallback((status) => {
-    const variants = {
-      pending: 'warning',
-      accepted: 'success',
-      rejected: 'danger',
-      rescheduled: 'info',
-      default: 'secondary'
-    };
-    
-    const variant = variants[status] || variants.default;
-    
-    return (
-      <Badge bg={variant}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    );
-  }, []);
+  const handleConfirmRescheduled = async () => {
+    try {
+      setProcessing(true);
+      
+      await confirmSession(selectedRequest.sessionId, {
+        status: 'accepted',
+        message: "I've accepted the rescheduled time",
+        selectedTimeSlot: sessionDetails.selectedTimeSlot,
+      });
+      
+      toast.success('Rescheduled session confirmed!');
+      toggleModal('sessionCreation', false);
+      loadTeachingRequests();
+    } catch (error) {
+      setError('Failed to confirm session: ' + error.message);
+      toast.error('Failed to confirm session');
+      console.error(error);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+
 
   // Load data on component mount
   useEffect(() => {
     if (user && user._id) {
-      fetchRequests();
+      loadTeachingRequests();
     }
     
     // Set up polling to check for new requests periodically
-    const intervalId = setInterval(fetchRequests, 60000); // Check every minute
+    const intervalId = setInterval(loadTeachingRequests, 60000); // Check every minute
     
     return () => clearInterval(intervalId);
-  }, [fetchRequests, user]);
-
-  // Action button renderers
-  const renderActionButtons = useMemo(() => {
-    return (request) => {
-      switch(request.status) {
-        case 'pending':
-          return (
-            <>
-              <Button 
-                variant="primary" 
-                onClick={() => toggleModal('sessionCreation', true, request)}
-                disabled={processing}
-                className="mb-2"
-              >
-                {processing ? <Spinner size="sm" animation="border" /> : 'Accept & Create Session'}
-              </Button>
-              <Button 
-                variant="primary" 
-                onClick={() => toggleModal('reschedule', true, request)}
-                disabled={processing}
-                className="mb-2"
-              >
-                Propose New Time
-              </Button>
-              <Button 
-                variant="primary" 
-                onClick={() => toggleModal('reject', true, request)}
-                disabled={processing}
-              >
-                Reject Request
-              </Button>
-            </>
-          );
-        case 'accepted':
-          return (
-            <Button variant="primary" onClick={() => navigate('/sessions')}>
-              View Session
-            </Button>
-          );
-        case 'rescheduled':
-          return (
-            <>
-              <Button 
-                variant="primary" 
-                onClick={() => toggleModal('sessionCreation', true, request)}
-                disabled={processing}
-                className="mb-2"
-              >
-                Accept New Time
-              </Button>
-              <Button 
-                variant="primary" 
-                onClick={() => toggleModal('reject', true, request)}
-                disabled={processing}
-              >
-                Reject Request
-              </Button>
-            </>
-          );
-        case 'rejected':
-          return (
-            <Button 
-              variant="primary" 
-              onClick={() => navigate('/profile')}
-              disabled={processing}
-            >
-              View Profile
-            </Button>
-          );
-        default:
-          return null;
-      }
-    };
-  }, [navigate, processing, toggleModal]);
+  }, [loadTeachingRequests, user]);
 
   // Handle error dismissal
   const dismissError = useCallback(() => {
     setError('');
   }, []);
+
+  // Handle feedback submission
+  const handleFeedbackSubmitted = useCallback(() => {
+    loadTeachingRequests();
+  }, [loadTeachingRequests]);
 
   return (
     <Container className="py-4">
@@ -445,7 +607,7 @@ const handleReschedule = async () => {
         <>
           <div className="d-flex justify-content-between align-items-center mb-3">
             <h2 className="mb-0">Session Requests</h2>
-            <Button variant="primary" onClick={fetchRequests}>
+            <Button variant="primary" onClick={loadTeachingRequests}>
               Refresh Requests
             </Button>
           </div>
@@ -470,7 +632,8 @@ const handleReschedule = async () => {
                     </div>
                     <div className="mb-3">
                       <p className="mb-1">
-                        <strong>Request Status:</strong> {getStatusBadge(request.status)}
+                        <strong>Request Status:</strong>{' '}
+                        <StatusBadge status={getEffectiveStatus(request)} />
                       </p>
                       
                       <p className="mb-1">
@@ -481,7 +644,7 @@ const handleReschedule = async () => {
                           request.timeSlots.map((slot, index) => (
                             <div key={index} className="mb-1">
                               <small className={index === 0 ? 'fw-bold' : ''}>
-                                Option {index + 1}: {formatDateTime(slot.startTime)} - {formatDateTime(slot.endTime)}
+                                Option {index + 1}: {formatHelpers.formatDateTime(slot.startTime)} - {formatHelpers.formatDateTime(slot.endTime)}
                               </small>
                             </div>
                           ))
@@ -506,7 +669,13 @@ const handleReschedule = async () => {
                     </p>
                   </Col>
                   <Col xs={12} md={4} className="d-flex flex-column gap-2 mt-3 mt-md-0">
-                    {renderActionButtons(request)}
+                    <ActionButtons 
+                      request={request}
+                      processing={processing}
+                      toggleModal={toggleModal}
+                      navigate={navigate}
+                      getEffectiveStatus={getEffectiveStatus}
+                    />
                   </Col>
                 </Row>
               </Card.Body>
@@ -596,157 +765,104 @@ const handleReschedule = async () => {
             Cancel
           </Button>
           <Button 
-            variant="primary" 
+            variant="danger" 
             onClick={handleReject}
             disabled={processing}
           >
-            {processing ? <Spinner size="sm" animation="border" /> : 'Reject Request'}
+            {processing ? <Spinner size="sm" animation="border" /> : 'Confirm Rejection'}
           </Button>
         </Modal.Footer>
       </Modal>
 
       {/* Session Creation Modal */}
-      <Modal
-        show={modalState.sessionCreation}
+      <Modal 
+        show={modalState.sessionCreation} 
         onHide={() => toggleModal('sessionCreation', false)}
-        centered
         size="lg"
+        centered
       >
-        <Modal.Header closeButton className="bg-primary text-white">
+        <Modal.Header closeButton>
           <Modal.Title>Create Teaching Session</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
-            <Row>
-              <Col xs={12} md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Session Title</Form.Label>
-                  <Form.Control
-                    name="title"
-                    value={sessionDetails.title}
-                    onChange={handleSessionDetailsChange}
-                    required
-                    placeholder="E.g. Introduction to Python, Guitar Basics, etc."
-                  />
-                </Form.Group>
-                
-                <Form.Group className="mb-3">
-                  <Form.Label>Description</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    name="description"
-                    value={sessionDetails.description}
-                    onChange={handleSessionDetailsChange}
-                    placeholder="What will be covered in this session?"
-                  />
-                </Form.Group>
-                
-                <Form.Group className="mb-3">
-                  <Form.Label>Meeting Link (optional)</Form.Label>
-                  <Form.Control
-                    name="meetingLink"
-                    value={sessionDetails.meetingLink}
-                    onChange={handleSessionDetailsChange}
-                    placeholder="Zoom/Google Meet link"
-                  />
-                  <Form.Text className="text-muted">
-                    You can add this now or later from the sessions page
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-              
-              <Col xs={12} md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Prerequisites</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    name="prerequisites"
-                    value={sessionDetails.prerequisites}
-                    onChange={handleSessionDetailsChange}
-                    placeholder="What should the student prepare or know beforehand?"
-                  />
-                </Form.Group>
-                
-                <Form.Group className="mb-3">
-                  <Form.Label>Additional Notes</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    name="notes"
-                    value={sessionDetails.notes}
-                    onChange={handleSessionDetailsChange}
-                    placeholder="Any other information the student should know"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <hr className="my-4" />
+            <Form.Group className="mb-3">
+              <Form.Label>Session Title</Form.Label>
+              <Form.Control 
+                type="text" 
+                name="title"
+                value={sessionDetails.title}
+                onChange={handleSessionDetailsChange}
+                placeholder="Enter a title for this session"
+              />
+            </Form.Group>
             
             <Form.Group className="mb-3">
-              <Form.Label className="fs-5 fw-bold">Select Time Slot</Form.Label>
-              <div className="time-slot-container mt-3">
-                {selectedRequest?.timeSlots && selectedRequest.timeSlots.length > 0 ? (
-                  <Row>
-                    {selectedRequest.timeSlots.map((slot, index) => (
-                      <Col xs={12} md={6} key={index} className="mb-3">
-                        <Card 
-                          className={`time-slot-card ${sessionDetails.selectedTimeSlot === slot ? 'border-primary' : 'border'}`}
-                          onClick={() => handleTimeSlotSelect(slot)}
-                          style={{ 
-                            cursor: 'pointer', 
-                            transition: 'all 0.2s ease-in-out',
-                            transform: sessionDetails.selectedTimeSlot === slot ? 'scale(1.02)' : 'scale(1)',
-                            backgroundColor: sessionDetails.selectedTimeSlot === slot ? '#f0f7ff' : 'white'
-                          }}
-                        >
-                          <Card.Body className="p-3">
-                            <div className="d-flex align-items-center mb-2">
-                              <div className={`rounded-circle me-2 d-flex align-items-center justify-content-center ${sessionDetails.selectedTimeSlot === slot ? 'bg-primary text-white' : 'bg-light'}`} 
-                                style={{ width: 24, height: 24 }}>
-                                <small>{index + 1}</small>
-                              </div>
-                              <h6 className="mb-0">Option {index + 1}</h6>
-                              {sessionDetails.selectedTimeSlot === slot && (
-                                <Badge bg="primary" className="ms-auto">Selected</Badge>
-                              )}
-                            </div>
-                            <div className="bg-light rounded p-2 mt-2">
-                              <div className="d-flex align-items-center mb-1">
-                                <i className="bi bi-calendar-event me-2"></i>
-                                <small>{new Date(slot.startTime).toLocaleDateString(undefined, { 
-                                  weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' 
-                                })}</small>
-                              </div>
-                              <div className="d-flex align-items-center">
-                                <i className="bi bi-clock me-2"></i>
-                                <small>
-                                  {new Date(slot.startTime).toLocaleTimeString(undefined, { 
-                                    hour: '2-digit', minute: '2-digit' 
-                                  })} - {new Date(slot.endTime).toLocaleTimeString(undefined, { 
-                                    hour: '2-digit', minute: '2-digit' 
-                                  })}
-                                </small>
-                              </div>
-                            </div>
-                            <div className="text-end mt-2">
-                              <small className="text-muted">
-                                Duration: {Math.round((new Date(slot.endTime) - new Date(slot.startTime)) / (60 * 1000))} min
-                              </small>
-                            </div>
-                          </Card.Body>
-                        </Card>
-                      </Col>
-                    ))}
-                  </Row>
-                ) : (
-                  <Alert variant="warning">
-                    No time slots have been proposed by the student.
-                  </Alert>
-                )}
-              </div>
+              <Form.Label>Description</Form.Label>
+              <Form.Control 
+                as="textarea" 
+                rows={3}
+                name="description"
+                value={sessionDetails.description}
+                onChange={handleSessionDetailsChange}
+                placeholder="Describe what will be covered in this session"
+              />
+            </Form.Group>
+            
+            <Form.Group className="mb-3">
+              <Form.Label>Meeting Link</Form.Label>
+              <Form.Control 
+                type="text" 
+                name="meetingLink"
+                value={sessionDetails.meetingLink}
+                onChange={handleSessionDetailsChange}
+                placeholder="Zoom, Google Meet, or other video conferencing link"
+              />
+            </Form.Group>
+            
+            <Form.Group className="mb-3">
+              <Form.Label>Prerequisites</Form.Label>
+              <Form.Control 
+                as="textarea" 
+                rows={2}
+                name="prerequisites"
+                value={sessionDetails.prerequisites}
+                onChange={handleSessionDetailsChange}
+                placeholder="Any prerequisites the student should prepare before the session"
+              />
+            </Form.Group>
+            
+            <Form.Group className="mb-3">
+              <Form.Label>Additional Notes</Form.Label>
+              <Form.Control 
+                as="textarea" 
+                rows={2}
+                name="notes"
+                value={sessionDetails.notes}
+                onChange={handleSessionDetailsChange}
+                placeholder="Any additional notes or information for the student"
+              />
+            </Form.Group>
+            
+            <Form.Group className="mb-3">
+              <Form.Label>Select Time Slot</Form.Label>
+              {selectedRequest?.timeSlots && selectedRequest.timeSlots.length > 0 ? (
+                selectedRequest.timeSlots.map((slot, index) => (
+                  <div key={index} className="mb-2">
+                    <Form.Check
+                      type="radio"
+                      id={`timeslot-${index}`}
+                      label={`${formatHelpers.formatDateTime(slot.startTime)} - ${formatHelpers.formatDateTime(slot.endTime)}`}
+                      name="timeSlot"
+                      checked={sessionDetails.selectedTimeSlot && 
+                              sessionDetails.selectedTimeSlot.startTime === slot.startTime}
+                      onChange={() => handleTimeSlotSelect(slot)}
+                    />
+                  </div>
+                ))
+              ) : (
+                <p className="text-muted">No time slots available</p>
+              )}
             </Form.Group>
           </Form>
         </Modal.Body>
@@ -754,15 +870,56 @@ const handleReschedule = async () => {
           <Button variant="secondary" onClick={() => toggleModal('sessionCreation', false)}>
             Cancel
           </Button>
-          <Button
-            variant="primary"
-            onClick={handleCreateSession}
+          <Button 
+            variant="primary" 
+            onClick={getEffectiveStatus(selectedRequest) === 'reschedule_accepted' 
+              ? handleConfirmRescheduled 
+              : handleCreateSession}
             disabled={processing || !sessionDetails.selectedTimeSlot}
           >
             {processing ? <Spinner size="sm" animation="border" /> : 'Create Session'}
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Complete Session Modal */}
+      <Modal
+        show={modalState.completeSession}
+        onHide={() => toggleModal('completeSession', false)}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Complete Session</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Are you sure you want to mark this session as completed?</p>
+          <p>After completion, both you and the student will be prompted to provide feedback.</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => toggleModal('completeSession', false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="success"
+            onClick={handleCompleteSession}
+            disabled={processing}
+          >
+            {processing ? <Spinner size="sm" animation="border" /> : 'Confirm Completion'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Feedback Modal */}
+      {selectedRequest && (
+        <TeacherFeedbackModal
+          show={modalState.feedback}
+          onHide={() => toggleModal('feedback', false)}
+          sessionId={selectedRequest.sessionId}
+          studentId={selectedRequest.studentId}
+          studentName={selectedRequest.studentName || selectedRequest.name || "Student"}
+          onFeedbackSubmitted={handleFeedbackSubmitted}
+        />
+      )}
     </Container>
   );
 };

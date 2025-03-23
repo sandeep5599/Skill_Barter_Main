@@ -57,6 +57,15 @@ const sendNotification = async (eventType, sessionData, extraData = {}) => {
         type: "feedback",
         priority: "medium"
       },
+
+      TEACHER_FEEDBACK_SUBMITTED: {
+        title: "Feedback Received",
+        message: `You received feedback for your ${sessionData.session.skillName} session from your teacher.`,
+        recipientId: sessionData.session.studentId,
+        type: "feedback",
+        priority: "medium"
+      },
+
       SESSION_JOINABLE: {
         title: "Session Ready to Join",
         message: `Your ${sessionData.session.skillName} session is starting soon. You can join now!`,
@@ -128,10 +137,11 @@ const SessionDetails = () => {
   // Modal states consolidated
   const [modals, setModals] = useState({
     showMeetingLinkModal: false,
-    showFeedbackModal: false,
-    showCompletionModal: false,
-    showCancelModal: false,
-    showResourcesModal: false,
+  showFeedbackModal: false,
+  showCompletionModal: false,
+  showCancelModal: false,
+  showResourcesModal: false,
+  showTeacherFeedbackModal: false, // Add this for teacher feedback modal
   });
   
   // Form states consolidated
@@ -142,6 +152,7 @@ const SessionDetails = () => {
     teacherNotes: '',
     cancellationReason: '',
     inlineEditingMeetingLink: false,
+    teacherFeedback: '', // Add this for teacher feedback
   });
   
   // Submission state
@@ -183,6 +194,8 @@ const SessionDetails = () => {
       }
       
       const data = await response.json();
+
+      console.log("session data: " , data.status);
      
       // Update session data and related state
       setSessionData(prev => ({
@@ -193,6 +206,9 @@ const SessionDetails = () => {
         isLearner: user._id === data.studentId,
       }));
       
+
+      // console.log(sessionData.isLearner , sessionData.isTeacher ,sessionData.session.studentId._id,sessionData.session.teacherId._id, currentUserId);
+
       // Update meeting link in form data
       setFormData(prev => ({
         ...prev,
@@ -212,7 +228,7 @@ const SessionDetails = () => {
   
   // Initial fetch
   useEffect(() => {
-    fetchSessionDetails();
+    fetchSessionDetails(); 
   }, [fetchSessionDetails]);
   
   // Update session status (timing, joinability)
@@ -272,223 +288,344 @@ const SessionDetails = () => {
     updateSessionStatus();
     const interval = setInterval(updateSessionStatus, 30000); // Update every 30 seconds
     
+    // Show feedback modal for students when session is completed
+  if (
+    sessionData.session && 
+    !sessionData.loading && 
+    sessionData.isLearner && 
+    sessionData.session.status === 'completed' && 
+    !sessionData.session.studentFeedback
+  ) {
+    toggleModal('showFeedbackModal', true);
+  }
+
     return () => clearInterval(interval);
   }, [sessionData.session, sessionData.isJoinable]);
   
-  // API actions
-  const apiActions = useMemo(() => ({
-    // Update meeting link
-    updateMeetingLink: async (inline = false) => {
-      if (!formData.meetingLink.trim()) {
-        toast.warning('Please enter a valid meeting link');
-        return;
-      }
-      
-      setIsSubmitting(true);
-      
-      try {
-        const response = await axios.put(
-          `${BACKEND_URL}/api/sessions/${sessionId}/meeting-link`,
-          { meetingLink: formData.meetingLink },
-          {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-        
-        if (response.status === 200) {
-          setSessionData(prev => ({
-            ...prev,
-            session: { ...prev.session, meetingLink: formData.meetingLink }
-          }));
-          
-          // Send notification for meeting link update
-          await sendNotification('SESSION_LINK_UPDATED', {
-            ...sessionData,
-            session: { ...sessionData.session, meetingLink: formData.meetingLink }
-          });
-          
-          if (inline) {
-            toggleInlineEditing('inlineEditingMeetingLink', false);
-            toast.success('Meeting link saved');
-          } else {
-            toggleModal('showMeetingLinkModal', false);
-            toast.success('Meeting link updated successfully');
-          }
-        }
-      } catch (err) {
-        console.error('Error updating meeting link:', err);
-        toast.error(err.response?.data?.message || 'Failed to update meeting link');
-      } finally {
-        setIsSubmitting(false);
-      }
-    },
-    
-    // Complete session
-    completeSession: async () => {
-      setIsSubmitting(true);
-      
-      try {
-        const response = await axios.put(
-          `${BACKEND_URL}/api/sessions/${sessionId}/complete`,
-          { notes: formData.teacherNotes },
-          {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-        
-        if (response.status === 200) {
-          const updatedSession = { 
-            ...sessionData.session, 
-            status: 'completed', 
-            notes: formData.teacherNotes,
-            updatedAt: new Date().toISOString()
-          };
-          
-          setSessionData(prev => ({
-            ...prev,
-            session: updatedSession
-          }));
-          
-          // Send notification for session completion
-          await sendNotification('SESSION_COMPLETED', {
-            ...sessionData,
-            session: updatedSession
-          }, {
-            notes: formData.teacherNotes || "No notes provided."
-          });
-          
-          toast.success('Session marked as completed');
-          toggleModal('showCompletionModal', false);
-          
-          // Reset feedback form data
-          setFormData(prev => ({
-            ...prev,
-            rating: 5,
-            reviewText: ''
-          }));
-
-          // If user is learner, show feedback modal after a short delay
-          if (sessionData.isLearner) {
-            setTimeout(() => {
-              toggleModal('showFeedbackModal', true);
-            }, 1000);
-          }
-        }
-      } catch (err) {
-        console.error('Error completing session:', err);
-        toast.error(err.response?.data?.message || 'Failed to mark session as completed');
-      } finally {
-        setIsSubmitting(false);
-      }
-    },
-    
-    
-    // Submit feedback
-    submitFeedback: async () => {
-      if (formData.rating < 1) {
-        toast.warning('Please select a rating');
-        return;
-      }
-      
-      setIsSubmitting(true);
-      
-      try {
-        const response = await axios.post(
-          `${BACKEND_URL}/api/reviews`,
-          {
-            sessionId,
-            teacherId: sessionData.session.teacherId,
-            teacherName: sessionData.session.teacherName,
-            skillId: sessionData.session.skillId,
-            rating: formData.rating,
-            reviewText: formData.reviewText
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-        
-        if (response.status === 201) {
-          // Send notification for feedback submission
-          await sendNotification('FEEDBACK_SUBMITTED', sessionData, {
-            rating: formData.rating,
-            reviewText: formData.reviewText || "No text review provided."
-          });
-          
-          toast.success('Thank you for your feedback!');
-          toggleModal('showFeedbackModal', false);
-        }
-      } catch (err) {
-        console.error('Error submitting feedback:', err);
-        toast.error(err.response?.data?.message || 'Failed to submit feedback');
-      } finally {
-        setIsSubmitting(false);
-      }
-    },
-    
-    // Cancel session
-    cancelSession: async () => {
-      if (!formData.cancellationReason.trim()) {
-        toast.warning('Please provide a reason for cancellation');
-        return;
-      }
-      
-      setIsSubmitting(true);
-      
-      try {
-        const response = await axios.put(
-          `${BACKEND_URL}/api/sessions/${sessionId}/cancel`,
-          { reason: formData.cancellationReason },
-          {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-        
-        if (response.status === 200) {
-          const updatedSession = { 
-            ...sessionData.session, 
-            status: 'cancelled', 
-            cancellationReason: formData.cancellationReason,
-            updatedAt: new Date().toISOString()
-          };
-          
-          setSessionData(prev => ({
-            ...prev,
-            session: updatedSession
-          }));
-          
-          // Send notification for session cancellation
-          await sendNotification('SESSION_CANCELLED', {
-            ...sessionData,
-            session: updatedSession
-          }, {
-            reason: formData.cancellationReason
-          });
-          
-          toast.info('Session has been cancelled');
-          toggleModal('showCancelModal', false);
-        }
-      } catch (err) {
-        console.error('Error cancelling session:', err);
-        toast.error(err.response?.data?.message || 'Failed to cancel session');
-      } finally {
-        setIsSubmitting(false);
-      }
+  // Add this effect to detect session status changes and show feedback modals accordingly
+useEffect(() => {
+  if (
+    sessionData.session && 
+    !sessionData.loading && 
+    sessionData.session.status === 'completed'
+  ) {
+    // Show feedback modal for students when session is completed
+    if (
+      sessionData.isLearner && 
+      !sessionData.session.studentFeedback &&
+      !modals.showFeedbackModal
+    ) {
+      toggleModal('showFeedbackModal', true);
     }
-  }), [sessionId, formData, toggleModal, toggleInlineEditing, sessionData]);
+    
+    // Show feedback modal for teachers when session is completed
+    if (
+      sessionData.isTeacher && 
+      !sessionData.session.teacherFeedback &&
+      !modals.showTeacherFeedbackModal
+    ) {
+      toggleModal('showTeacherFeedbackModal', true);
+    }
+  }
+}, [sessionData.session?.status, sessionData.loading, sessionData.isLearner, sessionData.isTeacher]);
+
+  // API actions
+
+const apiActions = useMemo(() => ({
+  // Update meeting link
+  updateMeetingLink: async (inline = false) => {
+    if (!formData.meetingLink.trim()) {
+      toast.warning('Please enter a valid meeting link');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      const response = await axios.put(
+        `${BACKEND_URL}/api/sessions/${sessionId}/meeting-link`,
+        { meetingLink: formData.meetingLink },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (response.status === 200) {
+        setSessionData(prev => ({
+          ...prev,
+          session: { ...prev.session, meetingLink: formData.meetingLink }
+        }));
+        
+        // Send notification for meeting link update
+        await sendNotification('SESSION_LINK_UPDATED', {
+          ...sessionData,
+          session: { ...sessionData.session, meetingLink: formData.meetingLink }
+        });
+        
+        if (inline) {
+          toggleInlineEditing('inlineEditingMeetingLink', false);
+          toast.success('Meeting link saved');
+        } else {
+          toggleModal('showMeetingLinkModal', false);
+          toast.success('Meeting link updated successfully');
+        }
+      }
+    } catch (err) {
+      console.error('Error updating meeting link:', err);
+      toast.error(err.response?.data?.message || 'Failed to update meeting link');
+    } finally {
+      setIsSubmitting(false);
+    }
+  },
   
+  // Complete session
+  completeSession: async () => {
+    setIsSubmitting(true);
+    
+    try {
+      const response = await axios.put(
+        `${BACKEND_URL}/api/sessions/${sessionId}/complete`,
+        { notes: formData.teacherNotes },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (response.status === 200) {
+        const updatedSession = { 
+          ...sessionData.session, 
+          status: 'completed', 
+          notes: formData.teacherNotes,
+          updatedAt: new Date().toISOString()
+        };
+        
+        setSessionData(prev => ({
+          ...prev,
+          session: updatedSession
+        }));
+        
+        // Send notification for session completion
+        await sendNotification('SESSION_COMPLETED', {
+          ...sessionData,
+          session: updatedSession
+        }, {
+          notes: formData.teacherNotes || "No notes provided."
+        });
+        
+        toast.success('Session marked as completed');
+        toggleModal('showCompletionModal', false);
+        
+        // Reset feedback form data
+        setFormData(prev => ({
+          ...prev,
+          rating: 5,
+          reviewText: ''
+        }));
+
+        // Show appropriate feedback modal after session completion
+  // For teachers, show the teacher feedback modal
+  if (sessionData.isTeacher) {
+    setTimeout(() => {
+      toggleModal('showTeacherFeedbackModal', true);
+    }, 1000);
+  } 
+  // For learners, show the feedback modal
+  else if (sessionData.isLearner) {
+    setTimeout(() => {
+      toggleModal('showFeedbackModal', true);
+    }, 1000);
+  }
+      }
+    } catch (err) {
+      console.error('Error completing session:', err);
+      toast.error(err.response?.data?.message || 'Failed to mark session as completed');
+    } finally {
+      setIsSubmitting(false);
+    }
+  },
+  
+  
+  // Submit feedback
+  submitFeedback: async () => {
+    if (formData.rating < 1) {
+      toast.warning('Please select a rating');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      const response = await axios.post(
+        `${BACKEND_URL}/api/reviews`,
+        {
+          sessionId,
+          teacherId: sessionData.session.teacherId,
+          teacherName: sessionData.session.teacherName,
+          skillId: sessionData.session.skillId,
+          rating: formData.rating,
+          reviewText: formData.reviewText
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (response.status === 201) {
+        // Send notification for feedback submission
+        await sendNotification('FEEDBACK_SUBMITTED', sessionData, {
+          rating: formData.rating,
+          reviewText: formData.reviewText || "No text review provided."
+        });
+        
+        toast.success('Thank you for your feedback!');
+        toggleModal('showFeedbackModal', false);
+      }
+    } catch (err) {
+      console.error('Error submitting feedback:', err);
+      toast.error(err.response?.data?.message || 'Failed to submit feedback');
+    } finally {
+      setIsSubmitting(false);
+    }
+  },
+
+  submitTeacherFeedback: async () => {
+    if (!formData.teacherFeedback.trim()) {
+      toast.warning('Please provide feedback for the student');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      const response = await axios.post(
+        `${BACKEND_URL}/api/sessions/${sessionId}/teacher-feedback`,
+        {
+          feedback: formData.teacherFeedback
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (response.status === 200 || response.status === 201) {
+        setSessionData(prev => ({
+          ...prev,
+          session: { 
+            ...prev.session, 
+            teacherFeedback: formData.teacherFeedback,
+            updatedAt: new Date().toISOString()
+          }
+        }));
+        
+        // Send notification for feedback submission
+        await sendNotification('TEACHER_FEEDBACK_SUBMITTED', sessionData, {
+          feedbackText: formData.teacherFeedback
+        });
+        
+        toast.success('Thank you for your feedback!');
+        toggleModal('showTeacherFeedbackModal', false);
+      }
+    } catch (err) {
+      console.error('Error submitting teacher feedback:', err);
+      toast.error(err.response?.data?.message || 'Failed to submit feedback');
+    } finally {
+      setIsSubmitting(false);
+    }
+  },
+
+  // Cancel session
+  cancelSession: async () => {
+    if (!formData.cancellationReason.trim()) {
+      toast.warning('Please provide a reason for cancellation');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      const response = await axios.put(
+        `${BACKEND_URL}/api/sessions/${sessionId}/cancel`,
+        { reason: formData.cancellationReason },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (response.status === 200) {
+        const updatedSession = { 
+          ...sessionData.session, 
+          status: 'cancelled', 
+          cancellationReason: formData.cancellationReason,
+          updatedAt: new Date().toISOString()
+        };
+        
+        setSessionData(prev => ({
+          ...prev,
+          session: updatedSession
+        }));
+        
+        // Send notification for session cancellation
+        await sendNotification('SESSION_CANCELLED', {
+          ...sessionData,
+          session: updatedSession
+        }, {
+          reason: formData.cancellationReason
+        });
+        
+        toast.success('Session has been cancelled');
+        toggleModal('showCancelModal', false);
+      }
+    } catch (err) {
+      console.error('Error cancelling session:', err);
+      toast.error(err.response?.data?.message || 'Failed to cancel session');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+}), [sessionId, formData, toggleModal, toggleInlineEditing, sessionData]);
+
+  /**
+   * Retrieves the current user ID from localStorage
+   * @returns {string|null} The user ID if found, null otherwise
+   */
+  const getCurrentUserId = () => {
+    try {
+      // Get the user object from localStorage
+      const userString = localStorage.getItem('user');
+      
+      // If user data exists, parse it and return the _id
+      if (userString) {
+        const userData = JSON.parse(userString);
+        return userData._id || null;
+      }
+      
+      // Return null if no user data found
+      return null;
+    } catch (error) {
+      console.error('Error retrieving user ID from localStorage:', error);
+      return null;
+    }
+  };
+
+  // Inside your component
+const currentUserId = getCurrentUserId();
+
+
   // Helper functions
   const helpers = useMemo(() => ({
     // Calculate session duration in minutes
@@ -610,10 +747,10 @@ const SessionDetails = () => {
   
   // Get status display properties
   const { statusText, statusVariant } = helpers.getStatusDisplay();
-  console.log(sessionData);
-  console.log("Current time:", new Date());
- console.log("Session end time:", new Date(sessionData.session.endTime));
-console.log("Is button disabled:", isSubmitting || new Date() < new Date(sessionData.session.endTime)); 
+//   console.log(sessionData);
+//   console.log("Current time:", new Date());
+//  console.log("Session end time:", new Date(sessionData.session.endTime));
+// console.log("Is button disabled:", isSubmitting || new Date() < new Date(sessionData.session.endTime)); 
   
 
   return (
@@ -898,25 +1035,49 @@ console.log("Is button disabled:", isSubmitting || new Date() < new Date(session
 </div>
 
 {sessionData.session.status === 'completed' && (
-  <div className="mt-4 text-center">
-    {sessionData.isLearner && !sessionData.session.studentFeedback && (
-      <Button 
-        variant="primary" 
-        className="w-100"
+  <>
+    {/* For Students */}
+    {sessionData.session.studentId._id && sessionData.session.studentId._id === currentUserId && !sessionData.session.studentFeedback && (
+      <button 
         onClick={() => toggleModal('showFeedbackModal', true)}
-      >
-        <StarFill className="me-2" /> Provide Feedback
-      </Button>
+        className="feedback-button"
+      > 
+        Provide Feedback
+      </button>
     )}
     
-    {sessionData.isLearner && sessionData.session.studentFeedback && (
-      <div className="bg-light p-3 rounded text-center">
-        <StarFill className="text-warning mb-2" size={24} />
-        <h6 className="mb-0">You've already provided feedback</h6>
+    {sessionData.session.studentId._id && sessionData.session.studentId._id === currentUserId && sessionData.session.studentFeedback && (
+      <p className="feedback-status">
+        You've already provided feedback
+      </p>
+    )}
+    
+    {/* For Teachers */}
+    {sessionData.session.teacherId._id && sessionData.session.teacherId._id === currentUserId && !sessionData.session.teacherFeedback && (
+      <button 
+        onClick={() => toggleModal('showTeacherFeedbackModal', true)}
+        className="feedback-button"
+      >
+        Provide Student Feedback
+      </button>
+    )}
+    
+    {sessionData.session.teacherId._id && sessionData.session.teacherId._id === currentUserId && sessionData.session.teacherFeedback && (
+      <p className="feedback-status">
+        You've provided feedback to the student
+      </p>
+    )}
+    
+    {/* Show teacher's feedback to student */}
+    {sessionData.session.studentId._id && sessionData.session.studentId._id === currentUserId && sessionData.session.teacherFeedback && (
+      <div className="teacher-feedback">
+        <h4>Teacher's Feedback</h4>
+        <p>{sessionData.session.teacherFeedback}</p>
       </div>
     )}
-  </div>
+  </>
 )}
+
 </Card.Body>
 </Card>
 </Col>
@@ -1154,6 +1315,46 @@ console.log("Is button disabled:", isSubmitting || new Date() < new Date(session
     )}
   </Modal.Footer>
 </Modal>
+
+{/* Teacher Feedback Modal */}
+<Modal 
+  show={modals.showTeacherFeedbackModal} 
+  onHide={() => toggleModal('showTeacherFeedbackModal', false)}
+  centered
+>
+  <Modal.Header closeButton>
+    <Modal.Title>Provide Feedback to Student</Modal.Title>
+  </Modal.Header>
+  <Modal.Body>
+    <Form>
+      <Form.Group className="mb-3">
+        <Form.Label>Your Feedback for the Student</Form.Label>
+        <Form.Control
+          as="textarea"
+          rows={4}
+          placeholder="What feedback would you like to provide to the student about their performance, engagement, or areas for improvement?"
+          value={formData.teacherFeedback}
+          onChange={(e) => updateFormField('teacherFeedback', e.target.value)}
+          required
+        />
+      </Form.Group>
+    </Form>
+  </Modal.Body>
+  <Modal.Footer>
+    <Button variant="secondary" onClick={() => toggleModal('showTeacherFeedbackModal', false)}>
+      Cancel
+    </Button>
+    <Button 
+      variant="primary" 
+      onClick={apiActions.submitTeacherFeedback}
+      disabled={isSubmitting || !formData.teacherFeedback.trim()}
+    >
+      {isSubmitting ? <Spinner size="sm" animation="border" className="me-2" /> : null}
+      Submit Feedback
+    </Button>
+  </Modal.Footer>
+</Modal>
+
 
 </Container>
 );

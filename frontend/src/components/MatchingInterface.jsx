@@ -42,12 +42,14 @@ const MatchingInterface = () => {
       const data = await response.json();
       
       // Filter only learning matches (where user is the requester/learner)
-      const onlyLearningMatches = data.filter(match => 
-        match.requesterId === user?._id || 
-        match.requestorId === user?._id
+      // AND only show matches that have no status or status is null/undefined
+      // (meaning they haven't been requested yet)
+      const onlyUnrequestedMatches = data.filter(match => 
+        (match.requesterId === user?._id || match.requestorId === user?._id) && 
+        (!match.status || match.status === 'initial' || match.status === 'not_requested')
       );
       
-      setLearningMatches(onlyLearningMatches);
+      setLearningMatches(onlyUnrequestedMatches);
     } catch (err) {
       console.error("Error fetching matches:", err);
       setError('Failed to fetch learning matches. Please try again.');
@@ -122,6 +124,7 @@ const MatchingInterface = () => {
       case 'pending': return 'warning';
       case 'accepted': return 'success';
       case 'rejected': return 'danger';
+      case 'rescheduled': return 'info';
       default: return 'secondary';
     }
   };
@@ -146,6 +149,19 @@ const MatchingInterface = () => {
     return colors[charCode % colors.length];
   };
 
+  // Function to render action button based on status
+  const renderActionButton = (match) => {
+    return (
+      <Button 
+        variant="primary" 
+        className="w-100 py-2 shadow-sm" 
+        onClick={() => openScheduleModal(match)}
+      >
+        <i className="bi bi-calendar-plus-fill me-2"></i> Request Session
+      </Button>
+    );
+  };
+
   return (
     <Container fluid className="py-4 px-md-4">
       {/* Header */}
@@ -155,7 +171,7 @@ const MatchingInterface = () => {
             <Col xs={12} md={6}>
               <h1 className="mb-0 fw-bold text-primary">
                 <i className="bi bi-person-lines-fill me-2"></i>
-                My Learning Matches
+                Available Skill Sharers
               </h1>
               <p className="text-muted mt-2 mb-0">Find and connect with teachers for your learning journey</p>
             </Col>
@@ -192,7 +208,7 @@ const MatchingInterface = () => {
 
       {/* Refresh button */}
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="text-dark mb-0">Available Teachers</h2>
+        <h2 className="text-dark mb-0">New Matches</h2>
         <Button 
           variant="primary" 
           onClick={fetchLearningMatches} 
@@ -208,7 +224,7 @@ const MatchingInterface = () => {
         <Card className="text-center my-5 py-5 border-0 shadow-sm">
           <Card.Body>
             <Spinner animation="border" variant="primary" role="status" style={{ width: '3rem', height: '3rem' }} />
-            <h4 className="mt-4 text-primary">Loading your learning matches...</h4>
+            <h4 className="mt-4 text-primary">Loading available teachers...</h4>
             <p className="text-muted">Please wait while we find your perfect teachers</p>
           </Card.Body>
         </Card>
@@ -257,29 +273,9 @@ const MatchingInterface = () => {
                             <strong>Rating:</strong> {match.rating ? `${match.rating}/5` : "No ratings yet"}
                           </Badge>
                         </div>
-                        <div className="mt-3">
-                          <Badge bg={getStatusBadgeVariant(match.status)} className="px-3 py-2">
-                            <i className={`bi ${match.status === 'pending' ? 'bi-hourglass-split' : 
-                                           match.status === 'accepted' ? 'bi-check-circle-fill' : 
-                                           'bi-circle'} me-2`}></i>
-                            Status: {match.status || 'Not Requested'}
-                          </Badge>
-                        </div>
                       </Col>
                       <Col xs={12} md={3} className="d-flex justify-content-md-end mt-4 mt-md-0">
-                        {match.status === 'pending' ? (
-                          <Button variant="warning" className="w-100 py-2 shadow-sm" disabled>
-                            <i className="bi bi-hourglass-split me-2"></i> Request Pending
-                          </Button>
-                        ) : match.status === 'accepted' ? (
-                          <Button variant="success" className="w-100 py-2 shadow-sm" onClick={() => navigate('/sessions/${sessionId}')}>
-                            <i className="bi bi-calendar2-check-fill me-2"></i> View Session
-                          </Button>
-                        ) : (
-                          <Button variant="primary" className="w-100 py-2 shadow-sm" onClick={() => openScheduleModal(match)}>
-                            <i className="bi bi-calendar-plus-fill me-2"></i> Request Session
-                          </Button>
-                        )}
+                        {renderActionButton(match)}
                       </Col>
                     </Row>
                   </Card.Body>
@@ -292,7 +288,7 @@ const MatchingInterface = () => {
         <Card className="text-center my-5 border-0 shadow-sm bg-light py-5">
           <Card.Body className="p-5">
             <i className="bi bi-search display-1 mb-4 text-primary opacity-75"></i>
-            <h3 className="fw-bold">No learning matches found</h3>
+            <h3 className="fw-bold">No new matches found</h3>
             <p className="text-muted mb-4 lead">Try adding more skills you want to learn to find potential teachers!</p>
             <Button variant="primary" size="lg" className="rounded-pill px-4 py-2 shadow" onClick={() => navigate('/profile')}>
               <i className="bi bi-plus-circle-fill me-2"></i> Add Learning Skills
