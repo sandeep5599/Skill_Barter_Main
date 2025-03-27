@@ -121,6 +121,8 @@ const SessionDetails = () => {
   const { sessionId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  const [isReviewSubmitted, setIsReviewSubmitted] = useState(false);
   
   // Session data state with default values
   const [sessionData, setSessionData] = useState({
@@ -380,12 +382,19 @@ const apiActions = useMemo(() => ({
       setIsSubmitting(false);
     }
   },
-  
   // Complete session
   completeSession: async () => {
     setIsSubmitting(true);
     
     try {
+
+      console.log('Attempting to complete session:', {
+        sessionId,
+        URL: `${BACKEND_URL}/api/sessions/${sessionId}/complete`,
+        token: localStorage.getItem('token')
+      });
+
+
       const response = await axios.put(
         `${BACKEND_URL}/api/sessions/${sessionId}/complete`,
         { notes: formData.teacherNotes },
@@ -396,6 +405,8 @@ const apiActions = useMemo(() => ({
           }
         }
       );
+
+     
       
       if (response.status === 200) {
         const updatedSession = { 
@@ -404,6 +415,8 @@ const apiActions = useMemo(() => ({
           notes: formData.teacherNotes,
           updatedAt: new Date().toISOString()
         };
+
+       
         
         setSessionData(prev => ({
           ...prev,
@@ -443,16 +456,23 @@ const apiActions = useMemo(() => ({
   }
       }
     } catch (err) {
-      console.error('Error completing session:', err);
+      // console.error('Error completing session:', err);
+      console.error('Full error details:', err);
+      console.error('Error response:', err.response);
+      console.error('Error request:', err.request);
       toast.error(err.response?.data?.message || 'Failed to mark session as completed');
     } finally {
       setIsSubmitting(false);
     }
   },
-  
-  
   // Submit feedback
   submitFeedback: async () => {
+    // Check if feedback is already submitted
+    if (isReviewSubmitted) {
+      toast.info('You have already submitted feedback for this session.');
+      return;
+    }
+  
     if (formData.rating < 1) {
       toast.warning('Please select a rating');
       return;
@@ -461,13 +481,17 @@ const apiActions = useMemo(() => ({
     setIsSubmitting(true);
     
     try {
+      console.log('Sending request to', `${BACKEND_URL}/api/reviews`);
+  
       const response = await axios.post(
         `${BACKEND_URL}/api/reviews`,
         {
           sessionId,
-          teacherId: sessionData.session.teacherId,
+          teacherId: typeof sessionData.session.teacherId === 'object' ? 
+                     sessionData.session.teacherId._id : sessionData.session.teacherId,
           teacherName: sessionData.session.teacherName,
-          skillId: sessionData.session.skillId,
+          skillId: typeof sessionData.session.skillId === 'object' ? 
+                   sessionData.session.skillId._id : sessionData.session.skillId,
           rating: formData.rating,
           reviewText: formData.reviewText
         },
@@ -478,8 +502,13 @@ const apiActions = useMemo(() => ({
           }
         }
       );
-      
+  
+      console.log('Response received:', response);
+  
       if (response.status === 201) {
+        // Mark review as submitted
+        setIsReviewSubmitted(true);
+  
         // Send notification for feedback submission
         await sendNotification('FEEDBACK_SUBMITTED', sessionData, {
           rating: formData.rating,
@@ -490,12 +519,28 @@ const apiActions = useMemo(() => ({
         toggleModal('showFeedbackModal', false);
       }
     } catch (err) {
-      console.error('Error submitting feedback:', err);
+      // Handle specific error for duplicate submission
+      if (err.response?.status === 409) {
+        // 409 Conflict typically indicates a duplicate submission
+        setIsReviewSubmitted(true);
+        toast.info('Feedback has already been submitted for this session.');
+        toggleModal('showFeedbackModal', false);
+        return;
+      }
+  
+      console.error('Error details:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data,
+        message: err.message
+      });
+      
       toast.error(err.response?.data?.message || 'Failed to submit feedback');
     } finally {
       setIsSubmitting(false);
     }
   },
+
 
   submitTeacherFeedback: async () => {
     if (!formData.teacherFeedback.trim()) {
@@ -507,7 +552,7 @@ const apiActions = useMemo(() => ({
     
     try {
       const response = await axios.post(
-        `${BACKEND_URL}/api/sessions/${sessionId}/teacher-feedback`,
+        `${BACKEND_URL}/api/reviews/${sessionId}/teacher-feedback`,
         {
           feedback: formData.teacherFeedback
         },
@@ -544,7 +589,6 @@ const apiActions = useMemo(() => ({
       setIsSubmitting(false);
     }
   },
-
   // Cancel session
   cancelSession: async () => {
     if (!formData.cancellationReason.trim()) {

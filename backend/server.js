@@ -75,6 +75,11 @@ app.get('/auth/google/callback', async (req, res) => {
 });
 
 
+// Add this to server.js before your existing error handlers
+app.use((err, req, res, next) => {
+  console.error('Global error handler caught:', err);
+  next(err);
+});
 
 // Global error handler
 app.use((err, req, res, next) => {

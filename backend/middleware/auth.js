@@ -10,6 +10,8 @@ const auth = async (req, res, next) => {
     // Store the user object inside req.user
     req.user = { id: decoded.userId };  // Fix here
 
+    // console.log('Auth middleware called', req.headers.authorization);
+
     next();
   } catch (err) {
     res.status(401).json({ message: 'Authentication required' });

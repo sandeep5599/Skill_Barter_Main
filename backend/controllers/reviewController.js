@@ -8,6 +8,8 @@ const { validationResult } = require('express-validator');
 // @route   POST /api/reviews
 // @access  Private (Students only)
 exports.createReview = async (req, res) => {
+  console.log('createReview called', req.body);
+  // Skip validation for now since we don't have validators in the route
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ success: false, errors: errors.array() });
@@ -15,10 +17,23 @@ exports.createReview = async (req, res) => {
 
   try {
     const { sessionId, teacherId, skillId, rating, reviewText } = req.body;
+    console.log('Processing review submission with data:', { sessionId, teacherId, skillId, rating });
+    
+    // Check if user is authenticated
+    if (!req.user || !req.user.id) {
+      console.log('Authentication failed - no user ID');
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated or invalid authentication'
+      });
+    }
+    
+    console.log('Authentication passed, user ID:', req.user.id);
     const studentId = req.user.id;
-
+    
     // Check if sessionId is valid
     if (!mongoose.Types.ObjectId.isValid(sessionId)) {
+      console.log('Invalid session ID format:', sessionId);
       return res.status(400).json({
         success: false,
         message: 'Invalid session ID format'
@@ -26,15 +41,19 @@ exports.createReview = async (req, res) => {
     }
 
     // Check if session exists
-    const session = await Session.findById(sessionId);
+    console.log('Finding session with ID:', sessionId);
+    const session = await Session.findOne({ matchId: sessionId });
     if (!session) {
+      console.log('Session not found with ID:', sessionId);
       return res.status(404).json({
         success: false,
         message: 'Session not found'
       });
     }
+    console.log('Session found:', session._id);
 
     // Verify session status is completed
+    console.log('Session status:', session.status);
     if (session.status !== 'completed') {
       return res.status(400).json({
         success: false,
@@ -43,6 +62,7 @@ exports.createReview = async (req, res) => {
     }
 
     // Verify the requesting user is the student of this session
+    console.log('Comparing student IDs:', session.studentId.toString(), studentId);
     if (session.studentId.toString() !== studentId) {
       return res.status(403).json({
         success: false,
@@ -51,8 +71,10 @@ exports.createReview = async (req, res) => {
     }
 
     // Check if student has already reviewed this session
+    console.log('Checking for existing review');
     const existingReview = await Review.findOne({ sessionId, studentId });
     if (existingReview) {
+      console.log('Existing review found');
       return res.status(400).json({
         success: false,
         message: 'You have already reviewed this session'
@@ -60,6 +82,7 @@ exports.createReview = async (req, res) => {
     }
 
     // Verify the teacherId matches session's teacherId
+    console.log('Comparing teacher IDs:', session.teacherId.toString(), teacherId);
     if (session.teacherId.toString() !== teacherId) {
       return res.status(400).json({
         success: false,
@@ -68,6 +91,7 @@ exports.createReview = async (req, res) => {
     }
 
     // Create review
+    console.log('Creating new review');
     const review = new Review({
       sessionId,
       teacherId,
@@ -78,19 +102,38 @@ exports.createReview = async (req, res) => {
       teacherName: session.teacherName || req.body.teacherName
     });
 
+    console.log('Saving review');
     await review.save();
+    console.log('Review saved successfully');
 
     // Update the session to indicate student feedback submitted
+    console.log('Updating session feedback status');
     session.studentFeedback = true;
     await session.updateOne({ studentFeedback: true });
+    console.log('Session updated successfully');
 
-    // Update teacher's average rating
-    const teacherRatingData = await Review.getAverageRating(teacherId);
-    await User.findByIdAndUpdate(teacherId, {
+   // Update teacher average rating
+console.log('Updating teacher average rating');
+try {
+  const teacherRatingData = await Review.getAverageRating(teacherId);
+  console.log('Teacher rating data:', teacherRatingData);
+
+  const updatedTeacher = await User.findByIdAndUpdate(
+    teacherId, 
+    {
       averageRating: teacherRatingData.averageRating,
       reviewCount: teacherRatingData.reviewCount
-    });
+    },
+    { new: true } // Return the updated document
+  );
 
+  console.log('Updated teacher:', updatedTeacher);
+} catch (ratingErr) {
+  console.error('Comprehensive error updating teacher rating:', ratingErr);
+  // Optionally, you might want to send an error notification or log to a monitoring service
+}
+
+    console.log('About to send final success response');
     return res.status(201).json({
       success: true,
       data: review
@@ -111,6 +154,50 @@ exports.createReview = async (req, res) => {
     });
   }
 };
+
+// exports.createReview = async (req, res) => {
+//   try {
+//     console.log('1. Starting createReview');
+    
+//     // Skip validation for now
+//     // const errors = validationResult(req);
+//     // if (!errors.isEmpty()) {
+//     //   return res.status(400).json({ success: false, errors: errors.array() });
+//     // }
+    
+//     const { sessionId, teacherId, skillId, rating, reviewText } = req.body;
+//     console.log('2. Extracted request body', { sessionId, teacherId, skillId, rating });
+    
+//     // Check if user is authenticated
+//     if (!req.user || !req.user.id) {
+//       console.log('3. Authentication failed - no user ID');
+//       return res.status(401).json({
+//         success: false,
+//         message: 'User not authenticated or invalid authentication'
+//       });
+//     }
+    
+//     console.log('3. Authentication passed, user ID:', req.user.id);
+//     const studentId = req.user.id;
+    
+//     // Create a simple response for testing
+//     console.log('4. Sending test response');
+//     return res.status(201).json({
+//       success: true,
+//       message: 'Test response - request received',
+//       data: { sessionId, teacherId, skillId, rating, reviewText, studentId }
+//     });
+    
+//     // Original code would continue here...
+//   } catch (err) {
+//     console.error('ERROR in createReview:', err);
+//     return res.status(500).json({
+//       success: false,
+//       message: 'Server error',
+//       error: err.message
+//     });
+//   }
+// };
 
 // @desc    Get all reviews for a teacher
 // @route   GET /api/reviews/teacher/:teacherId
@@ -621,3 +708,78 @@ exports.getReviewById = async (req, res) => {
     }
   };
   
+
+  exports.submitTeacherFeedback = async (req, res) => {
+    try {
+      // Validation from express-validator
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ 
+          success: false, 
+          errors: errors.array() 
+        });
+      }
+  
+      const { sessionId } = req.params;
+      const { feedback } = req.body;
+      const teacherId = req.user.id;
+
+      console.log('Submitting teacher feedback:', { 
+        sessionId, 
+        feedback, 
+        teacherId 
+      });
+
+  
+      // Validate session ID
+      if (!mongoose.Types.ObjectId.isValid(sessionId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid session ID format'
+        });
+      }
+  
+      // Find the session
+       const session = await Session.findOne({ matchId: sessionId });
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Session not found'
+        });
+      }
+  
+      // Verify the requesting user is the teacher of this session
+      if (session.teacherId.toString() !== teacherId) {
+        return res.status(403).json({
+          success: false,
+          message: 'You are not authorized to provide feedback for this session'
+        });
+      }
+  
+      // Update session with teacher feedback
+      session.teacherFeedback = feedback;
+      session.teacherFeedbackDate = new Date();
+      
+      await session.save();
+  
+      return res.status(200).json({
+        success: true,
+        message: 'Teacher feedback submitted successfully',
+        data: {
+          feedback: session.teacherFeedback,
+          submittedAt: session.teacherFeedbackDate
+        }
+      });
+  
+    } catch (error) {
+      console.error('Error submitting teacher feedback:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Server error',
+        error: error.message
+      });
+    }
+  };
+
+
+

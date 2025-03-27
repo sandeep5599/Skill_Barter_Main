@@ -59,20 +59,46 @@ ReviewSchema.index({ skillId: 1 });
 
 // Static method to get average rating for a teacher
 ReviewSchema.statics.getAverageRating = async function(teacherId) {
-  const obj = await this.aggregate([
-    {
-      $match: { teacherId: mongoose.Types.ObjectId(teacherId) }
-    },
-    {
-      $group: {
-        _id: '$teacherId',
-        averageRating: { $avg: '$rating' },
-        reviewCount: { $sum: 1 }
-      }
-    }
-  ]);
+  try {
+    console.log('Calculating average rating for teacherId:', teacherId);
 
-  return obj[0] || { averageRating: 0, reviewCount: 0 };
+    // Validate teacherId
+    if (!mongoose.Types.ObjectId.isValid(teacherId)) {
+      console.error('Invalid teacherId format:', teacherId);
+      return { averageRating: 0, reviewCount: 0 };
+    }
+
+    const obj = await this.aggregate([
+      {
+        $match: { 
+          // Use mongoose.Types.ObjectId constructor correctly
+          teacherId: new mongoose.Types.ObjectId(teacherId) 
+        }
+      },
+      {
+        $group: {
+          _id: '$teacherId',
+          averageRating: { $avg: '$rating' },
+          reviewCount: { $sum: 1 }
+        }
+      }
+    ]);
+
+    console.log('Average rating calculation result:', obj);
+
+    // Return result or default values
+    const result = obj[0] || { averageRating: 0, reviewCount: 0 };
+    
+    // Round average rating to 2 decimal places
+    result.averageRating = result.averageRating 
+      ? Number(result.averageRating.toFixed(2)) 
+      : 0;
+
+    return result;
+  } catch (error) {
+    console.error('Error in getAverageRating:', error);
+    return { averageRating: 0, reviewCount: 0 };
+  }
 };
 
 module.exports = mongoose.model('Review', ReviewSchema);
