@@ -23,7 +23,8 @@ const NotificationSchema = new mongoose.Schema({
       'session_completed',
       'session_status',
       'reschedule_accepted',
-      'reschedule_declined'
+      'reschedule_declined',
+      'FEEDBACK_SUBMITTED'
     ],
     required: true
   },

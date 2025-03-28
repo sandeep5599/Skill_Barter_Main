@@ -105,6 +105,9 @@ const SessionSchema = new mongoose.Schema(
       trim: true,
       maxlength: 500,
     },
+    teacherFeedbackDate: {
+      type: Date
+    }
   },
   {
     timestamps: true, // Auto `createdAt` & `updatedAt`

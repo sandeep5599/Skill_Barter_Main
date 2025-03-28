@@ -246,7 +246,7 @@ const sessionController = {
       const userId = req.user.id;
 
       // Find session
-      const session = await Session.findById(sessionId);
+      const session = await Session.findOne({matchId : sessionId});
       if (!session) {
         return res.status(404).json({ error: 'Session not found' });
       }
@@ -289,7 +289,7 @@ const sessionController = {
     }
   },
 
-    // Add this to your sessionController.js file
+  // Add this to your sessionController.js file
   confirmSession: async (req, res) => {
     try {
       // Check authentication
@@ -369,78 +369,79 @@ const sessionController = {
       });
     }
   },
-  // Add this method to your existing sessionController.js file
-// Make sure to include mongoose at the top of your file if it's not already there
-// const mongoose = require('mongoose');
 
-// @desc    Submit teacher feedback for a session
-// @route   POST /api/sessions/:id/teacher-feedback
-// @access  Private (Teacher only)
-submitTeacherFeedback: async (req, res) => {
-  try {
-    const sessionId = req.params.id;
-    const { feedback } = req.body;
-    
-    // Validate session ID
-    if (!mongoose.Types.ObjectId.isValid(sessionId)) {
-      return res.status(400).json({
+  // Add this method to your existing sessionController.js file
+  // Make sure to include mongoose at the top of your file if it's not already there
+  // const mongoose = require('mongoose');
+
+  // @desc    Submit teacher feedback for a session
+  // @route   POST /api/sessions/:id/teacher-feedback
+  // @access  Private (Teacher only)
+  submitTeacherFeedback: async (req, res) => {
+    try {
+      const sessionId = req.params.id;
+      const { feedback } = req.body;
+      
+      // Validate session ID
+      if (!mongoose.Types.ObjectId.isValid(sessionId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid session ID format'
+        });
+      }
+      
+      // Check if feedback is provided
+      if (!feedback || feedback.trim() === '') {
+        return res.status(400).json({
+          success: false,
+          message: 'Feedback is required'
+        });
+      }
+      
+      // Find the session
+      const session = await Session.findById(sessionId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Session not found'
+        });
+      }
+      
+      // Check if user is the teacher for this session
+      if (session.teacherId.toString() !== req.user.id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Only the teacher can provide feedback for this session'
+        });
+      }
+      
+      // Check if session is completed
+      if (session.status !== 'completed') {
+        return res.status(400).json({
+          success: false,
+          message: 'Teacher feedback can only be provided for completed sessions'
+        });
+      }
+      
+      // Update the session with teacher feedback
+      session.teacherFeedback = feedback;
+      session.updatedAt = Date.now();
+      
+      await session.save();
+      
+      return res.status(200).json({
+        success: true,
+        data: session
+      });
+    } catch (err) {
+      console.error('Error submitting teacher feedback:', err);
+      return res.status(500).json({
         success: false,
-        message: 'Invalid session ID format'
+        message: 'Server error',
+        error: err.message
       });
     }
-    
-    // Check if feedback is provided
-    if (!feedback || feedback.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        message: 'Feedback is required'
-      });
-    }
-    
-    // Find the session
-    const session = await Session.findById(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Session not found'
-      });
-    }
-    
-    // Check if user is the teacher for this session
-    if (session.teacherId.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Only the teacher can provide feedback for this session'
-      });
-    }
-    
-    // Check if session is completed
-    if (session.status !== 'completed') {
-      return res.status(400).json({
-        success: false,
-        message: 'Teacher feedback can only be provided for completed sessions'
-      });
-    }
-    
-    // Update the session with teacher feedback
-    session.teacherFeedback = feedback;
-    session.updatedAt = Date.now();
-    
-    await session.save();
-    
-    return res.status(200).json({
-      success: true,
-      data: session
-    });
-  } catch (err) {
-    console.error('Error submitting teacher feedback:', err);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: err.message
-    });
-  }
-},
+  },
 
   submitFeedback: async (req, res) => {
     try {

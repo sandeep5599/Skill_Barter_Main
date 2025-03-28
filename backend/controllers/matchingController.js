@@ -847,6 +847,30 @@ updateMatchStatus: async (req, res) => {
           notificationKey = generateNotificationKey('rescheduled', matchId, timestampForKey);
           break;
           
+          case 'completed':
+            notificationType = VALID_NOTIFICATION_TYPES.COMPLETED;
+            notificationTitle = `${senderRole} ${senderName}: Completed ${courseName}`;
+            notificationMessage = `${senderName} marked your ${courseName} as completed${message ? ` with feedback` : ''}.`;
+            
+            // Explicitly set the match status to 'completed' as well
+            match.status = 'completed';
+            
+            notificationDetails = {
+              senderRole,
+              senderName,
+              course: courseName,
+              feedback: message || null
+            };
+            
+            emailSubject = `${courseName} Completed with ${senderName}`;
+            emailBody = `
+              <h2>${senderRole} ${senderName} has marked ${courseName} as completed</h2>
+              ${message ? `<p><strong>Feedback:</strong> "${message}"</p>` : ''}
+            `;
+            
+            notificationKey = generateNotificationKey('completed', matchId, timestampForKey);
+          break;
+          
         case 'rejected':
           notificationType = VALID_NOTIFICATION_TYPES.REJECTED;
           notificationTitle = `${senderRole} ${senderName}: Declined ${courseName}`;
@@ -1178,6 +1202,8 @@ updateMatchStatus: async (req, res) => {
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
+
+
 },
 
 

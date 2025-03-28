@@ -7,17 +7,19 @@ const auth = require('../middleware/auth');
 // Create a new review
 router.post(
   '/',
+  auth,
   [
-    auth,
-    [
-      check('sessionId', 'Session ID is required').not().isEmpty(),
-      check('teacherId', 'Teacher ID is required').not().isEmpty(),
-      check('skillId', 'Skill ID is required').not().isEmpty(),
-      check('rating', 'Rating is required').isInt({ min: 1, max: 5 })
-    ]
+    check('sessionId', 'Session ID is required').not().isEmpty(),
+    check('teacherId', 'Teacher ID is required').not().isEmpty(),
+    check('skillId', 'Skill ID is required').not().isEmpty(),
+    check('rating', 'Rating must be between 1 and 5').isInt({ min: 1, max: 5 })
   ],
   reviewController.createReview
 );
+
+router.get('/test', (req, res) => {
+  res.json({ message: 'Reviews routes are working' });
+});
 
 // Get all reviews for a teacher
 router.get(
@@ -69,8 +71,13 @@ router.get(
 router.get('/:id', reviewController.getReviewById);
 router.get('/user/:userId', reviewController.getReviewsByUserId);
 
-// // Protected routes
-// router.post('/', auth, reviewController.createReview);
-
+router.post(
+  '/:sessionId/teacher-feedback', 
+  auth,
+  [
+    check('feedback', 'Feedback is required').not().isEmpty().trim()
+  ],
+  reviewController.submitTeacherFeedback
+);
 
 module.exports = router;

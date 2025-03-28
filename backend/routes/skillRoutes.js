@@ -27,10 +27,25 @@ router.post('/', auth, async (req, res) => {
 // @route   GET api/skills/:userId
 router.get('/:userId', auth, async (req, res) => {
   try {
-    const skills = await Skill.find({ userId: req.params.userId });
+    const { includeTeaching, includeLearning } = req.query;
+    
+    const filter = { userId: req.params.userId };
+    
+    // Apply filtering based on query parameters if specified
+    if (includeTeaching === 'true' && includeLearning === 'true') {
+      // Include both teaching and learning skills
+      filter.$or = [{ isTeaching: true }, { isLearning: true }];
+    } else if (includeTeaching === 'true') {
+      filter.isTeaching = true;
+    } else if (includeLearning === 'true') {
+      filter.isLearning = true;
+    }
+
+    const skills = await Skill.find(filter);
+
     res.json({
       teachingSkills: skills.filter(skill => skill.isTeaching),
-      learningSkills: skills.filter(skill => skill.isLearning),
+      learningSkills: skills.filter(skill => skill.isLearning)
     });
   } catch (err) {
     console.error(err.message);

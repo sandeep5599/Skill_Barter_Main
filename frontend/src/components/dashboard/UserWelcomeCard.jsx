@@ -13,6 +13,10 @@ const UserWelcomeCard = ({
   navigate 
 }) => {
   // State for leaderboard data
+
+  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+
+  
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [userRank, setUserRank] = useState(null);
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(true);
@@ -29,15 +33,39 @@ const UserWelcomeCard = ({
     [stats?.points]
   );
   
-  const teachingSkillCount = useMemo(() => 
-    Object.keys(user?.teachingSkills || {}).length,
-    [user?.teachingSkills]
-  );
-  
-  const learningSkillCount = useMemo(() => 
-    Object.keys(user?.learningSkills || {}).length,
-    [user?.learningSkills]
-  );
+const [teachingSkillCount, setTeachingSkillCount] = useState(0);
+const [learningSkillCount, setLearningSkillCount] = useState(0);
+useEffect(() => {
+  const fetchUserSkills = async () => {
+    if (!user?._id) return;
+
+    try {
+      const response = await axios.get(
+        `${BACKEND_URL}/api/skills/${user._id}`, 
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          params: {
+            includeTeaching: true,
+            includeLearning: true
+          }
+        }
+      );
+
+      // Directly use the backend-filtered skills
+      setTeachingSkillCount(response.data.teachingSkills.length);
+      setLearningSkillCount(response.data.learningSkills.length);
+
+    } catch (error) {
+      console.error('Error fetching user skills:', error);
+      // Optional: Add error handling like showing a toast notification
+    }
+  };
+
+  fetchUserSkills();
+}, [user?._id, BACKEND_URL]);
+
   
   const teachingStatus = useMemo(() => 
     teachingPercentage > 70 ? 'Expert' : teachingPercentage > 40 ? 'Intermediate' : 'Beginner',
