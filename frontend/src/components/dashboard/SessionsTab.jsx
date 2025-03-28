@@ -3,6 +3,7 @@ import { Card, Button, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { isSessionJoinable, getTimeUntilSession } from './dashboardUtils';
 
 const SessionsTab = ({ sessions, matches, navigate }) => {
+  console.log('SessionsTab sessions:', sessions);
   return (
     <Card className="mb-4 shadow-sm border-0">
       <Card.Header className="bg-primary text-white">

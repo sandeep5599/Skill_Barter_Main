@@ -121,6 +121,8 @@ const sessionController = {
       if (!mongoose.Types.ObjectId.isValid(sessionId)) {
         return res.status(400).json({ error: 'Invalid ID format' });
       }
+
+      // const session = await Session.findOne({matchId : sessionId});
       
       // Try to find session by ID first
       let session = await Session.findById(sessionId)
@@ -191,7 +193,7 @@ const sessionController = {
       const userId = req.user.id;
 
       // Find session
-      const session = await Session.findById(sessionId);
+     const session = await Session.findOne({matchId : sessionId});
       if (!session) {
         return res.status(404).json({ error: 'Session not found' });
       }
@@ -302,7 +304,7 @@ const sessionController = {
       const userId = req.user.id;
 
       // Find session
-      const session = await Session.findById(sessionId);
+      const session = await Session.findOne({matchId : sessionId});
       if (!session) {
         return res.status(404).json({ error: 'Session not found' });
       }
@@ -370,13 +372,6 @@ const sessionController = {
     }
   },
 
-  // Add this method to your existing sessionController.js file
-  // Make sure to include mongoose at the top of your file if it's not already there
-  // const mongoose = require('mongoose');
-
-  // @desc    Submit teacher feedback for a session
-  // @route   POST /api/sessions/:id/teacher-feedback
-  // @access  Private (Teacher only)
   submitTeacherFeedback: async (req, res) => {
     try {
       const sessionId = req.params.id;
@@ -399,7 +394,7 @@ const sessionController = {
       }
       
       // Find the session
-      const session = await Session.findById(sessionId);
+      const session = await Session.findOne({matchId : sessionId});
       if (!session) {
         return res.status(404).json({
           success: false,
@@ -460,7 +455,7 @@ const sessionController = {
       }
 
       // Find session
-      const session = await Session.findById(sessionId);
+      const session = await Session.findOne({matchId : sessionId});
       if (!session) {
         return res.status(404).json({ error: 'Session not found' });
       }

@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Notification = require('../models/Notification'); // Add this import
 const router = express.Router();
+const auth = require('../middleware/auth'); // Import the auth middleware
 
 // Register Route
 router.post('/register', async (req, res) => {
@@ -120,6 +121,75 @@ router.post('/login', async (req, res) => {
     } else {
       return res.status(500).json({ msg: 'Server error. Please try again later.' });
     }
+  }
+});
+
+
+// New Token Validation Route
+router.post('/validate-token', auth, async (req, res) => {
+  try {
+    // If authenticateToken middleware passes, the user is valid
+    // Fetch the full user details, excluding sensitive information
+    const user = await User.findById(req.user.userId)
+      .select('-password') // Exclude password
+      .lean(); // Convert to plain object
+
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    // Additional optional fields you might want to include
+    const userResponse = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      // Add any other non-sensitive fields you want to return
+      offeredSkills: user.offeredSkills || [],
+      desiredSkills: user.desiredSkills || []
+    };
+
+    // Optionally generate a new token to extend session
+    const newToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    res.json({
+      user: userResponse,
+      token: newToken
+    });
+  } catch (error) {
+    console.error('Token validation error:', error);
+    res.status(500).json({ message: 'Internal server error during token validation' });
+  }
+});
+
+// Password Reset Request Route (Optional but recommended)
+router.post('/request-password-reset', async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      // For security, return success even if email not found
+      return res.status(200).json({ 
+        message: 'If an account exists with this email, a reset link will be sent.' 
+      });
+    }
+
+    // Generate a password reset token
+    const resetToken = jwt.sign(
+      { userId: user._id, purpose: 'password-reset' }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '15m' }
+    );
+
+    // TODO: Implement email sending logic
+    // Send email with reset link containing the resetToken
+
+    res.status(200).json({ 
+      message: 'Password reset link sent if account exists.' 
+    });
+  } catch (error) {
+    console.error('Password reset request error:', error);
+    res.status(500).json({ message: 'Error processing password reset request' });
   }
 });
 

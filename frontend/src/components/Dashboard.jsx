@@ -232,6 +232,8 @@ const Dashboard = () => {
       }
   
       const result = await response.json();
+
+      console.log('Generated matches:', result);
   
       // Check both learning and teaching matches
       const learningMatches = result.matchesFound || [];
@@ -381,7 +383,7 @@ const Dashboard = () => {
       />
       
       {/* Header with Navigation */}
-      <DashboardHeader handleLogout={handleLogout} navigate={navigate} />
+      <DashboardHeader handleLogout={handleLogout} navigate={navigate} triggerRefresh={triggerRefresh}/>
 
       {/* User Welcome Card */}
       <UserWelcomeCard 

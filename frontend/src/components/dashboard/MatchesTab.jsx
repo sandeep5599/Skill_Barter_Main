@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, Button, Badge } from 'react-bootstrap';
 
 const MatchesTab = ({ matches, navigate }) => {
+  console.log('MatchesTab matches:', matches);
   return (
     <Card className="mb-4 shadow-sm border-0">
       <Card.Header className="bg-success text-white">
@@ -25,7 +26,7 @@ const MatchesTab = ({ matches, navigate }) => {
                     <td>
                       <span className="fw-bold">{match.skillName}</span>
                     </td>
-                    <td>{match.teacherName || 'Satwika'}</td>
+                    <td>{match.teacherName}</td>
                     <td>
                       <Badge 
                         bg={match.status === 'accepted' ? 'success' : 'warning'}

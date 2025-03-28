@@ -416,17 +416,26 @@ const apiActions = useMemo(() => ({
           updatedAt: new Date().toISOString()
         };
 
+
+         // Update match status to completed
+         const updatedMatch = await apiActions.updateMatchStatus(
+          sessionData.session.matchId, 
+          'completed'
+        );
+        
        
         
         setSessionData(prev => ({
           ...prev,
-          session: updatedSession
+          session: updatedSession,
+          match: updatedMatch
         }));
         
         // Send notification for session completion
         await sendNotification('SESSION_COMPLETED', {
           ...sessionData,
-          session: updatedSession
+          session: updatedSession,
+          match: updatedMatch
         }, {
           notes: formData.teacherNotes || "No notes provided."
         });
@@ -541,7 +550,6 @@ const apiActions = useMemo(() => ({
     }
   },
 
-
   submitTeacherFeedback: async () => {
     if (!formData.teacherFeedback.trim()) {
       toast.warning('Please provide feedback for the student');
@@ -640,7 +648,49 @@ const apiActions = useMemo(() => ({
     } finally {
       setIsSubmitting(false);
     }
-  }
+  },
+
+  updateMatchStatus: async (matchId, status) => {
+    setIsSubmitting(true);
+    
+    try {
+      const response = await axios.put(
+        `${BACKEND_URL}/api/matches/${matchId}/status`,
+        { status },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (response.status === 200) {
+        // Optional: Update local state if needed
+        setSessionData(prev => ({
+          ...prev,
+          match: response.data.match
+        }));
+        
+        // Send notification for match status update
+        await sendNotification('MATCH_STATUS_UPDATED', {
+          ...sessionData,
+          match: response.data.match
+        });
+        
+        toast.success(`Match status updated to ${status}`);
+        return response.data.match;
+      }
+    } catch (err) {
+      console.error('Error updating match status:', err);
+      toast.error(err.response?.data?.message || 'Failed to update match status');
+      throw err;
+    } finally {
+      setIsSubmitting(false);
+    }
+  },
+
+
 }), [sessionId, formData, toggleModal, toggleInlineEditing, sessionData]);
 
   /**

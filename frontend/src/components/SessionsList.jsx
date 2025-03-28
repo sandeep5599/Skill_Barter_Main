@@ -205,7 +205,7 @@ const SessionsList = () => {
                     <Button 
                       variant="success" 
                       className="py-1 px-3" 
-                      onClick={() => handleViewSession(session._id)}
+                      onClick={() => navigate(`/sessions/${session._id}`)}
                     >
                       View Details
                     </Button>

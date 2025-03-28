@@ -11,4 +11,5 @@ router.put('/:matchId', auth, matchingController.updateMatchStatus);
 router.post('/generate', auth, matchingController.generateMatches);
 router.delete('/by-skill/:skillId', auth, matchingController.deleteMatchesBySkill); // New route
 
+router.put('/:matchId/status', auth, matchingController.updateMatchStatus);
 module.exports = router;
