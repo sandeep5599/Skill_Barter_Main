@@ -7,6 +7,9 @@ import AOS from 'aos';
 import 'aos/dist/aos.css';
 import CountUp from 'react-countup';
 import VisibilitySensor from 'react-visibility-sensor';
+import { Link } from 'react-router-dom';
+import { FaSearch } from 'react-icons/fa';
+import NavbarSearchDropdown from './search/NavbarSearchDropdown';
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -91,17 +94,20 @@ const LandingPage = () => {
           <Navbar.Brand href="#" className="fw-bold fs-4 text-primary">SkillBarter</Navbar.Brand>
           <Navbar.Toggle aria-controls="navbarSupportedContent" />
           <Navbar.Collapse id="navbarSupportedContent">
-            <Nav className="ms-auto mb-2 mb-lg-0">
-              <Nav.Link href="#features" className="mx-2">Features</Nav.Link>
-              <Nav.Link href="#how-it-works" className="mx-2">How It Works</Nav.Link>
-              <Nav.Link href="#testimonials" className="mx-2">Testimonials</Nav.Link>
-              <Nav.Link href="#" className="mx-2">Contact</Nav.Link>
-            </Nav>
-            <div className="d-flex ms-lg-3">
-              <Button variant="primary" className="me-2" onClick={() => navigate('/login')}>Login</Button>
-              <Button variant="primary" onClick={() => navigate('/register')}>Register</Button>
-            </div>
-          </Navbar.Collapse>
+  <Nav className="ms-auto mb-2 mb-lg-0">
+    <Nav.Link href="#features" className="mx-2">Features</Nav.Link>
+    <Nav.Link href="#how-it-works" className="mx-2">How It Works</Nav.Link>
+    <Nav.Link href="#testimonials" className="mx-2">Testimonials</Nav.Link>
+    <Nav.Link href="#" className="mx-2">Contact</Nav.Link>
+    <Nav.Item className="mx-2">
+      <NavbarSearchDropdown />
+    </Nav.Item>
+  </Nav>
+  <div className="d-flex ms-lg-3">
+    <Button variant="primary" className="me-2" onClick={() => navigate('/login')}>Login</Button>
+    <Button variant="primary" onClick={() => navigate('/register')}>Register</Button>
+  </div>
+</Navbar.Collapse>
         </Container>
       </Navbar>
 
@@ -140,6 +146,17 @@ const LandingPage = () => {
             >
               Learn More
             </Button>
+
+            {/* <Link to="/search">
+  <Button 
+    variant="light" 
+    size="lg" 
+    className="fw-bold px-4 py-3 shadow-sm"
+  >
+    Find Skills <FaSearch className="ms-2" />
+  </Button>
+</Link> */}
+
           </div>
         </div>
       </Col>

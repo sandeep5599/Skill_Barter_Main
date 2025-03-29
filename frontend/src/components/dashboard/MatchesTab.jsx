@@ -37,13 +37,26 @@ const MatchesTab = ({ matches, navigate }) => {
                       </Badge>
                     </td>
                     <td>
-                      <Button 
-                        variant={match.status === 'accepted' ? 'primary' : 'outline-primary'} 
-                        size="sm"
-                        onClick={() => navigate(`/match/details/${match._id}`)}
-                      >
-                        View Details
-                      </Button>
+                    <Button 
+  variant={
+    match.status === 'accepted' ? 'success' : 
+    match.status === 'pending' ? 'warning' : 
+    match.status === 'rejected' ? 'danger' :
+    match.status === 'completed' ? 'info' :
+    'primary'
+  } 
+  size="sm"
+  onClick={() => navigate(`/match/details/${match._id}`)}
+>
+  <i className={
+    match.status === 'accepted' ? 'bi bi-check-circle-fill me-2' : 
+    match.status === 'pending' ? 'bi bi-hourglass-split me-2' : 
+    match.status === 'rejected' ? 'bi bi-x-circle-fill me-2' :
+    match.status === 'completed' ? 'bi bi-trophy-fill me-2' :
+    'bi bi-info-circle-fill me-2'
+  }></i>
+  View Details
+</Button>
                     </td>
                   </tr>
                 ))}

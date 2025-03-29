@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import SessionScheduler from './SessionScheduler';
 import NotificationCenter from './NotificationCenter';
+import { fetchTeacherRatings } from '../services/reviewService';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
@@ -15,6 +16,9 @@ const MatchingInterface = () => {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const [teacherStats, setTeacherStats] = useState({});
+
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -22,6 +26,66 @@ const MatchingInterface = () => {
     logout(); 
     navigate('/');
   };
+
+  const fetchTeacherStats = useCallback(async () => {
+    if (!learningMatches.length) return;
+    
+    const statsPromises = learningMatches.map(async (match) => {
+      const teacherId = match.teacherId;
+      if (!teacherId) return null;
+      
+      try {
+        // Get ratings
+        const ratings = await fetchTeacherRatings(teacherId);
+        
+        // Get completed sessions count
+        const sessionsResponse = await fetch(`${BACKEND_URL}/api/sessions?teacherId=${teacherId}&status=completed&userId=${user._id}`, {
+          headers: { 
+            'Authorization': `Bearer ${localStorage.getItem('token')}` 
+          }
+        });
+        
+        if (!sessionsResponse.ok) throw new Error('Failed to fetch sessions');
+        const sessionsData = await sessionsResponse.json();
+        
+        return {
+          teacherId,
+          ratings: ratings?.overall || { averageRating: 0, totalReviews: 0 },
+          completedSessions: sessionsData.length || 0
+        };
+      } catch (error) {
+        console.error(`Error fetching stats for teacher ${teacherId}:`, error);
+        return {
+          teacherId,
+          ratings: { averageRating: 0, totalReviews: 0 },
+          completedSessions: 0,
+          error: true
+        };
+      }
+    });
+    
+
+    const results = await Promise.all(statsPromises);
+
+   // Convert array to object with teacherId as keys
+  const statsObj = results.reduce((acc, stat) => {
+    if (stat && stat.teacherId) {
+      acc[stat.teacherId] = stat;
+    }
+    return acc;
+  }, {});
+  
+  setTeacherStats(statsObj);
+}, [learningMatches, user]);
+
+// Call this in useEffect after fetchLearningMatches
+useEffect(() => {
+  if (user?._id && learningMatches.length > 0) {
+    fetchTeacherStats();
+  }
+}, [fetchTeacherStats, learningMatches, user]);
+
+
 
   const fetchLearningMatches = useCallback(async () => {
     setLoading(true);
@@ -46,7 +110,7 @@ const MatchingInterface = () => {
       // (meaning they haven't been requested yet)
       const onlyUnrequestedMatches = data.filter(match => 
         (match.requesterId === user?._id || match.requestorId === user?._id) && 
-        (!match.status || match.status === 'initial' || match.status === 'not_requested')
+        (!match.status || match.status === 'initial' || match.status === 'not_requested' ||  match.status === 'completed')
       );
       
       setLearningMatches(onlyUnrequestedMatches);
@@ -268,11 +332,38 @@ const MatchingInterface = () => {
                             <i className="bi bi-bar-chart-fill text-success me-2"></i>
                             <strong>Level:</strong> {match.proficiency || match.proficiencyLevel || "Fetching..."}
                           </Badge>
-                          <Badge bg="light" text="dark" className="px-3 py-2 border">
-                            <i className="bi bi-star-fill text-warning me-2"></i>
-                            <strong>Rating:</strong> {match.rating ? `${match.rating}/5` : "No ratings yet"}
-                          </Badge>
+                           {/* Updated Rating Badge */}
+            <Badge bg="light" text="dark" className="px-3 py-2 border">
+              <i className="bi bi-star-fill text-warning me-2"></i>
+              <strong>Rating:</strong> {
+                !teacherStats[match.teacherId] ? 
+                  <Spinner animation="border" size="sm" className="ms-1" /> :
+                teacherStats[match.teacherId]?.ratings?.totalReviews > 0 ?
+                  `${teacherStats[match.teacherId].ratings.averageRating.toFixed(1)}/5 (${teacherStats[match.teacherId].ratings.totalReviews} review${teacherStats[match.teacherId].ratings.totalReviews !== 1 ? 's' : ''})` :
+                  "No ratings yet"
+              }
+            </Badge>
+
+             {/* New Badge for Completed Sessions */}
+             {teacherStats[match.teacherId]?.completedSessions > 0 && (
+              <Badge bg="success" className="px-3 py-2">
+                <i className="bi bi-check-circle-fill me-2"></i>
+                <strong>Completed Sessions:</strong> {teacherStats[match.teacherId].completedSessions}
+              </Badge>
+            )}
+         
+      
+
                         </div>
+
+                         {/* Show completed match status if applicable */}
+          {match.status === 'completed' && (
+            <Alert variant="success" className="mb-0 mt-2 py-2">
+              <i className="bi bi-check-circle-fill me-2"></i>
+              You've completed sessions with this teacher. Consider booking another one!
+            </Alert>
+          )}
+          
                       </Col>
                       <Col xs={12} md={3} className="d-flex justify-content-md-end mt-4 mt-md-0">
                         {renderActionButton(match)}

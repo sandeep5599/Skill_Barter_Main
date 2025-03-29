@@ -1,17 +1,19 @@
-// components/requests/RequestCard.js
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { Card, Row, Col, Badge, Button, Modal, Form, Spinner } from 'react-bootstrap';
 import TimeSlotsList from './TimeSlotsList';
 import StatusBadge from './StatusBadge';
 import ActionButtons from './ActionButtons';
+import { fetchTeacherRatings } from '../../services/reviewService';
 
 const RequestCard = ({ request, navigate, handleStatusUpdate, isProcessing }) => {
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [declineSubmitting, setDeclineSubmitting] = useState(false);
+  const [teacherRatings, setTeacherRatings] = useState({ averageRating: 0, totalReviews: 0, loading: true });
 
   const requestId = request._id || request.id;
   const sessionId = request.sessionId || requestId;
+  const teacherId = request.teacherId || request.teacher?._id;
 
   // Handle accepting a time slot
   const handleAccept = () => {
@@ -24,6 +26,65 @@ const RequestCard = ({ request, navigate, handleStatusUpdate, isProcessing }) =>
     await handleStatusUpdate(requestId, 'rejected', rejectionReason);
     setDeclineSubmitting(false);
     setShowDeclineModal(false);
+  };
+
+  // Fetch teacher ratings
+// Fetch teacher ratings
+useEffect(() => {
+  const getTeacherRatings = async () => {
+    if (teacherId) {
+      try {
+        const ratings = await fetchTeacherRatings(teacherId);
+        setTeacherRatings({
+          // Update these lines to access the nested structure
+          averageRating: ratings.overall?.averageRating || 0,
+          totalReviews: ratings.overall?.totalReviews || 0,
+          loading: false
+        });
+      } catch (error) {
+        console.error('Error in fetching teacher ratings:', error);
+        setTeacherRatings({
+          averageRating: 0,
+          totalReviews: 0,
+          loading: false,
+          error: true
+        });
+      }
+    } else {
+      setTeacherRatings({
+        averageRating: 0,
+        totalReviews: 0,
+        loading: false
+      });
+    }
+  };
+
+  getTeacherRatings();
+}, [teacherId]);
+
+  // Function to render stars based on rating
+  const renderStarRating = (rating) => {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    const stars = [];
+    
+    // Add full stars
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(<i key={`full-${i}`} className="bi bi-star-fill text-warning"></i>);
+    }
+    
+    // Add half star if needed
+    if (hasHalfStar) {
+      stars.push(<i key="half" className="bi bi-star-half text-warning"></i>);
+    }
+    
+    // Add empty stars
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    for (let i = 0; i < emptyStars; i++) {
+      stars.push(<i key={`empty-${i}`} className="bi bi-star text-warning"></i>);
+    }
+    
+    return stars;
   };
 
   return (
@@ -55,6 +116,31 @@ const RequestCard = ({ request, navigate, handleStatusUpdate, isProcessing }) =>
                   <div className="d-flex align-items-center">
                     <i className="bi bi-book me-2 text-primary"></i>
                     <span>{request.skillName || request.expertise || "Not specified"}</span>
+                  </div>
+                  
+                  {/* Teacher Ratings */}
+                  <div className="d-flex align-items-center mt-1">
+                    {teacherRatings.loading ? (
+                      <small className="text-muted">
+                        <Spinner animation="border" size="sm" /> Loading ratings...
+                      </small>
+                    ) : teacherRatings.error ? (
+                      <small className="text-muted">Couldn't load ratings</small>
+                    ) : teacherRatings.totalReviews === 0 || teacherRatings.averageRating === 0 ? (
+                      <small className="text-muted">
+                        <i className="bi bi-star text-muted me-1"></i>
+                        No ratings yet
+                      </small>
+                    ) : (
+                      <>
+                        <div className="me-2">
+                          {renderStarRating(teacherRatings.averageRating)}
+                        </div>
+                        <small className="text-muted">
+                          {teacherRatings.averageRating.toFixed(1)} ({teacherRatings.totalReviews} {teacherRatings.totalReviews === 1 ? 'review' : 'reviews'})
+                        </small>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

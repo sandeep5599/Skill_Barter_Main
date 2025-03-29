@@ -179,7 +179,7 @@ const OverviewTab = ({ stats, navigate, handleFindLearningMatches, user }) => {
           </Card.Header>
           <Card.Body>
             <div className="d-grid gap-3">
-              <Button variant="primary" className="d-flex justify-content-between align-items-center" onClick={() => navigate('/profile/skills')}>
+              <Button variant="primary" className="d-flex justify-content-between align-items-center" onClick={() => navigate('/profile')}>
                 <span>Add New Skills</span>
                 <ArrowRepeat />
               </Button>

@@ -20,7 +20,7 @@ export const fetchLearnerRequests = async (userId) => {
   
   // Filter matches to include only relevant ones where the user is the student
   const learnerRequests = data.filter(match => 
-    ['pending', 'rescheduled', 'accepted', 'rejected'].includes(match.status) &&
+    ['pending', 'rescheduled', 'accepted', 'rejected', 'completed'].includes(match.status) &&
     match.requesterId === userId // Make sure user is the student
   );
   

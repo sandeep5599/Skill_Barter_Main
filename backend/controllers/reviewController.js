@@ -42,7 +42,7 @@ exports.createReview = async (req, res) => {
 
     // Check if session exists
     console.log('Finding session with ID:', sessionId);
-    const session = await Session.findOne({ matchId: sessionId });
+    const session = await Session.findById(sessionId);
     if (!session) {
       console.log('Session not found with ID:', sessionId);
       return res.status(404).json({
@@ -531,6 +531,7 @@ exports.deleteReview = async (req, res) => {
 // @route   GET /api/reviews/stats/teacher/:teacherId
 // @access  Public
 exports.getTeacherReviewStats = async (req, res) => {
+  // console.log('called getTeacherReviewStats with teacherId:', req.params.teacherId);
   try {
     const { teacherId } = req.params;
     
@@ -541,10 +542,13 @@ exports.getTeacherReviewStats = async (req, res) => {
         message: 'Invalid teacher ID format'
       });
     }
-
+    
+    // Convert the ID once and reuse
+    const teacherObjectId = new mongoose.Types.ObjectId(teacherId);
+    
     // Get rating distribution
     const ratingDistribution = await Review.aggregate([
-      { $match: { teacherId: mongoose.Types.ObjectId(teacherId) } },
+      { $match: { teacherId: teacherObjectId } },
       { $group: {
           _id: '$rating',
           count: { $sum: 1 }
@@ -552,7 +556,7 @@ exports.getTeacherReviewStats = async (req, res) => {
       },
       { $sort: { _id: -1 } }
     ]);
-
+    
     // Format rating distribution for all 5 stars (even if zero)
     const formattedDistribution = Array.from({ length: 5 }, (_, i) => {
       const rating = i + 1;
@@ -562,10 +566,10 @@ exports.getTeacherReviewStats = async (req, res) => {
         count: found ? found.count : 0
       };
     });
-
+    
     // Get overall stats
     const overallStats = await Review.aggregate([
-      { $match: { teacherId: mongoose.Types.ObjectId(teacherId) } },
+      { $match: { teacherId: teacherObjectId } },
       { $group: {
           _id: null,
           averageRating: { $avg: '$rating' },
@@ -574,19 +578,19 @@ exports.getTeacherReviewStats = async (req, res) => {
         }
       }
     ]);
-
+    
     // Get recent reviews (last 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
     const recentStats = await Review.aggregate([
-      { 
-        $match: { 
-          teacherId: mongoose.Types.ObjectId(teacherId),
+      {
+        $match: {
+          teacherId: teacherObjectId,
           createdAt: { $gte: thirtyDaysAgo }
-        } 
+        }
       },
-      { 
+      {
         $group: {
           _id: null,
           averageRating: { $avg: '$rating' },
@@ -594,7 +598,8 @@ exports.getTeacherReviewStats = async (req, res) => {
         }
       }
     ]);
-
+    
+    // console.log('Rating distribution:', formattedDistribution);
     return res.status(200).json({
       success: true,
       data: {
@@ -603,8 +608,8 @@ exports.getTeacherReviewStats = async (req, res) => {
           averageRating: overallStats[0].averageRating,
           totalReviews: overallStats[0].totalReviews,
           reviewsWithText: overallStats[0].reviewsWithText,
-          textReviewPercentage: overallStats[0].totalReviews > 0 
-            ? (overallStats[0].reviewsWithText / overallStats[0].totalReviews) * 100 
+          textReviewPercentage: overallStats[0].totalReviews > 0
+            ? (overallStats[0].reviewsWithText / overallStats[0].totalReviews) * 100
             : 0
         } : {
           averageRating: 0,
@@ -673,113 +678,113 @@ exports.getReviewById = async (req, res) => {
   // @desc    Get reviews by user ID
   // @route   GET /api/reviews/user/:userId
   // @access  Public
-  exports.getReviewsByUserId = async (req, res) => {
-    try {
-      const userId = req.params.userId;
-      
-      // Validate user ID
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid user ID format'
-        });
-      }
-      
-      // Find all reviews for this user
-      const reviews = await Review.find({
-        $or: [
-          { teacherId: userId },
-          { studentId: userId }
-        ]
-      }).sort({ createdAt: -1 });
-      
-      return res.status(200).json({
-        success: true,
-        count: reviews.length,
-        data: reviews
-      });
-    } catch (err) {
-      console.error('Error fetching reviews by user ID:', err);
-      return res.status(500).json({
+exports.getReviewsByUserId = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    
+    // Validate user ID
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
         success: false,
-        message: 'Server error',
-        error: err.message
+        message: 'Invalid user ID format'
       });
     }
-  };
+    
+    // Find all reviews for this user
+    const reviews = await Review.find({
+      $or: [
+        { teacherId: userId },
+        { studentId: userId }
+      ]
+    }).sort({ createdAt: -1 });
+    
+    return res.status(200).json({
+      success: true,
+      count: reviews.length,
+      data: reviews
+    });
+  } catch (err) {
+    console.error('Error fetching reviews by user ID:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: err.message
+    });
+  }
+};
   
 
-  exports.submitTeacherFeedback = async (req, res) => {
-    try {
-      // Validation from express-validator
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ 
-          success: false, 
-          errors: errors.array() 
-        });
-      }
-  
-      const { sessionId } = req.params;
-      const { feedback } = req.body;
-      const teacherId = req.user.id;
-
-      console.log('Submitting teacher feedback:', { 
-        sessionId, 
-        feedback, 
-        teacherId 
-      });
-
-  
-      // Validate session ID
-      if (!mongoose.Types.ObjectId.isValid(sessionId)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid session ID format'
-        });
-      }
-  
-      // Find the session
-       const session = await Session.findOne({ matchId: sessionId });
-      if (!session) {
-        return res.status(404).json({
-          success: false,
-          message: 'Session not found'
-        });
-      }
-  
-      // Verify the requesting user is the teacher of this session
-      if (session.teacherId.toString() !== teacherId) {
-        return res.status(403).json({
-          success: false,
-          message: 'You are not authorized to provide feedback for this session'
-        });
-      }
-  
-      // Update session with teacher feedback
-      session.teacherFeedback = feedback;
-      session.teacherFeedbackDate = new Date();
-      
-      await session.save();
-  
-      return res.status(200).json({
-        success: true,
-        message: 'Teacher feedback submitted successfully',
-        data: {
-          feedback: session.teacherFeedback,
-          submittedAt: session.teacherFeedbackDate
-        }
-      });
-  
-    } catch (error) {
-      console.error('Error submitting teacher feedback:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Server error',
-        error: error.message
+exports.submitTeacherFeedback = async (req, res) => {
+  try {
+    // Validation from express-validator
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        success: false, 
+        errors: errors.array() 
       });
     }
-  };
+
+    const { sessionId } = req.params;
+    const { feedback } = req.body;
+    const teacherId = req.user.id;
+
+    console.log('Submitting teacher feedback:', { 
+      sessionId, 
+      feedback, 
+      teacherId 
+    });
+
+
+    // Validate session ID
+    if (!mongoose.Types.ObjectId.isValid(sessionId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid session ID format'
+      });
+    }
+
+    // check if sessionId is valid by findById only
+    const session = await Session.findBy(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found'
+      });
+    }
+
+    // Verify the requesting user is the teacher of this session
+    if (session.teacherId.toString() !== teacherId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to provide feedback for this session'
+      });
+    }
+
+    // Update session with teacher feedback
+    session.teacherFeedback = feedback;
+    session.teacherFeedbackDate = new Date();
+    
+    await session.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Teacher feedback submitted successfully',
+      data: {
+        feedback: session.teacherFeedback,
+        submittedAt: session.teacherFeedbackDate
+      }
+    });
+
+  } catch (error) {
+    console.error('Error submitting teacher feedback:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
 
 
 
