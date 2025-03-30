@@ -64,28 +64,25 @@ const MatchingInterface = () => {
       }
     });
     
-
     const results = await Promise.all(statsPromises);
 
-   // Convert array to object with teacherId as keys
-  const statsObj = results.reduce((acc, stat) => {
-    if (stat && stat.teacherId) {
-      acc[stat.teacherId] = stat;
+    // Convert array to object with teacherId as keys
+    const statsObj = results.reduce((acc, stat) => {
+      if (stat && stat.teacherId) {
+        acc[stat.teacherId] = stat;
+      }
+      return acc;
+    }, {});
+    
+    setTeacherStats(statsObj);
+  }, [learningMatches, user]);
+
+  // Call this in useEffect after fetchLearningMatches
+  useEffect(() => {
+    if (user?._id && learningMatches.length > 0) {
+      fetchTeacherStats();
     }
-    return acc;
-  }, {});
-  
-  setTeacherStats(statsObj);
-}, [learningMatches, user]);
-
-// Call this in useEffect after fetchLearningMatches
-useEffect(() => {
-  if (user?._id && learningMatches.length > 0) {
-    fetchTeacherStats();
-  }
-}, [fetchTeacherStats, learningMatches, user]);
-
-
+  }, [fetchTeacherStats, learningMatches, user]);
 
   const fetchLearningMatches = useCallback(async () => {
     setLoading(true);
@@ -110,7 +107,7 @@ useEffect(() => {
       // (meaning they haven't been requested yet)
       const onlyUnrequestedMatches = data.filter(match => 
         (match.requesterId === user?._id || match.requestorId === user?._id) && 
-        (!match.status || match.status === 'initial' || match.status === 'not_requested' ||  match.status === 'completed')
+        (!match.status || match.status === 'initial' || match.status === 'not_requested' ||  match.status === 'completed' || match.status === '')
       );
       
       setLearningMatches(onlyUnrequestedMatches);
@@ -332,38 +329,34 @@ useEffect(() => {
                             <i className="bi bi-bar-chart-fill text-success me-2"></i>
                             <strong>Level:</strong> {match.proficiency || match.proficiencyLevel || "Fetching..."}
                           </Badge>
-                           {/* Updated Rating Badge */}
-            <Badge bg="light" text="dark" className="px-3 py-2 border">
-              <i className="bi bi-star-fill text-warning me-2"></i>
-              <strong>Rating:</strong> {
-                !teacherStats[match.teacherId] ? 
-                  <Spinner animation="border" size="sm" className="ms-1" /> :
-                teacherStats[match.teacherId]?.ratings?.totalReviews > 0 ?
-                  `${teacherStats[match.teacherId].ratings.averageRating.toFixed(1)}/5 (${teacherStats[match.teacherId].ratings.totalReviews} review${teacherStats[match.teacherId].ratings.totalReviews !== 1 ? 's' : ''})` :
-                  "No ratings yet"
-              }
-            </Badge>
+                          {/* Rating Badge */}
+                          <Badge bg="light" text="dark" className="px-3 py-2 border">
+                            <i className="bi bi-star-fill text-warning me-2"></i>
+                            <strong>Rating:</strong> {
+                              !teacherStats[match.teacherId] ? 
+                                <Spinner animation="border" size="sm" className="ms-1" /> :
+                              teacherStats[match.teacherId]?.ratings?.totalReviews > 0 ?
+                                `${teacherStats[match.teacherId].ratings.averageRating.toFixed(1)}/5 (${teacherStats[match.teacherId].ratings.totalReviews} review${teacherStats[match.teacherId].ratings.totalReviews !== 1 ? 's' : ''})` :
+                                "No ratings yet"
+                            }
+                          </Badge>
 
-             {/* New Badge for Completed Sessions */}
-             {teacherStats[match.teacherId]?.completedSessions > 0 && (
-              <Badge bg="success" className="px-3 py-2">
-                <i className="bi bi-check-circle-fill me-2"></i>
-                <strong>Completed Sessions:</strong> {teacherStats[match.teacherId].completedSessions}
-              </Badge>
-            )}
-         
-      
-
+                          {/* Only show Completed Sessions badge if this specific match has completed sessions */}
+                          {match.status === 'completed' && teacherStats[match.teacherId]?.completedSessions > 0 && (
+                            <Badge bg="success" className="px-3 py-2">
+                              <i className="bi bi-check-circle-fill me-2"></i>
+                              <strong>Completed Sessions:</strong> {teacherStats[match.teacherId].completedSessions}
+                            </Badge>
+                          )}
                         </div>
 
-                         {/* Show completed match status if applicable */}
-          {match.status === 'completed' && (
-            <Alert variant="success" className="mb-0 mt-2 py-2">
-              <i className="bi bi-check-circle-fill me-2"></i>
-              You've completed sessions with this teacher. Consider booking another one!
-            </Alert>
-          )}
-          
+                        {/* Show completed match status if applicable */}
+                        {match.status === 'completed' && (
+                          <Alert variant="success" className="mb-0 mt-2 py-2">
+                            <i className="bi bi-check-circle-fill me-2"></i>
+                            You've completed sessions with this teacher. Consider booking another one!
+                          </Alert>
+                        )}
                       </Col>
                       <Col xs={12} md={3} className="d-flex justify-content-md-end mt-4 mt-md-0">
                         {renderActionButton(match)}

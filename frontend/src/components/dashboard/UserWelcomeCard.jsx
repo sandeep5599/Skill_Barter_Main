@@ -251,7 +251,7 @@ const UserWelcomeCard = ({
                 <Button 
                   variant="primary" 
                   className="p-0 text-decoration-none primary"
-                  onClick={() => navigate('/profile/skills')}
+                  onClick={() => navigate('/profile')}
                 >
                   Edit
                 </Button>

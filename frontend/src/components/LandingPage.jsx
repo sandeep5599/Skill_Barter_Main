@@ -98,7 +98,7 @@ const LandingPage = () => {
     <Nav.Link href="#features" className="mx-2">Features</Nav.Link>
     <Nav.Link href="#how-it-works" className="mx-2">How It Works</Nav.Link>
     <Nav.Link href="#testimonials" className="mx-2">Testimonials</Nav.Link>
-    <Nav.Link href="#" className="mx-2">Contact</Nav.Link>
+    <Nav.Link href="#contact" className="mx-2">Contact</Nav.Link>
     <Nav.Item className="mx-2">
       <NavbarSearchDropdown />
     </Nav.Item>
@@ -146,17 +146,6 @@ const LandingPage = () => {
             >
               Learn More
             </Button>
-
-            {/* <Link to="/search">
-  <Button 
-    variant="light" 
-    size="lg" 
-    className="fw-bold px-4 py-3 shadow-sm"
-  >
-    Find Skills <FaSearch className="ms-2" />
-  </Button>
-</Link> */}
-
           </div>
         </div>
       </Col>
@@ -435,7 +424,7 @@ const LandingPage = () => {
                 </ul>
               </Col>
               <Col lg={4} md={6}>
-                <h5 className="fw-bold mb-4">Contact Us</h5>
+                <h5 className="fw-bold mb-4" id="contact">Contact Us</h5>
                 <ul className="list-unstyled">
                   <li className="mb-2">
                     <i className="bi bi-geo-alt me-2"></i> 123 Skill Street, Knowledge City
@@ -463,17 +452,20 @@ const LandingPage = () => {
             </Row>
           </Container>
         </footer>
-
-        {/* Back to top button */}
-        <button 
+{/* Back to top button */}
+<button 
           type="button" 
           className="btn btn-primary btn-lg position-fixed bottom-0 end-0 m-4 rounded-circle shadow d-flex align-items-center justify-content-center" 
           style={{ width: '50px', height: '50px', zIndex: 1030 }}
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         >
-          <i className="bi bi-arrow-up"></i>
+           <span style={{ 
+  color: '#00c3ff', 
+  fontSize: '1.4rem',
+  filter: 'drop-shadow(0 0 5px rgba(0, 195, 255, 0.8))'
+}}>↑</span>
         </button>
-
+   
         {/* Custom CSS */}
         <style jsx="true">{`
           .hover-effect {

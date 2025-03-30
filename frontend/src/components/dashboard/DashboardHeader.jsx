@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Card, Button, Spinner, Dropdown } from 'react-bootstrap';
+import { Card, Button, Spinner, Dropdown, Nav } from 'react-bootstrap';
 import { PersonFill, BoxArrowRight, ArrowClockwise, ThreeDotsVertical } from 'react-bootstrap-icons';
 import NotificationCenter from '../NotificationCenter';
 import useResponsive from '../../hooks/useResponsive';  // Changed from named to default import
 import styled from 'styled-components';
 import { breakpoints } from '../../styles/breakpoints';
+import NavbarSearchDropdown from '../search/NavbarSearchDropdown';
 
 const ResponsiveHeader = styled(Card)`
   .header-content {
@@ -53,6 +54,10 @@ const DashboardHeader = ({ handleLogout, navigate, triggerRefresh }) => {
 
   const renderActions = () => (
     <>
+
+    <Nav.Item className="mx-2">
+        <NavbarSearchDropdown />
+      </Nav.Item>
       <Button 
         variant="primary" 
         className="d-flex align-items-center gap-2" 
@@ -85,6 +90,10 @@ const DashboardHeader = ({ handleLogout, navigate, triggerRefresh }) => {
         <ThreeDotsVertical />
       </Dropdown.Toggle>
       <Dropdown.Menu>
+      <Dropdown.Item as="div" className="p-0">
+          <NavbarSearchDropdown />
+        </Dropdown.Item>
+
         <Dropdown.Item onClick={handleRefresh}>
           <ArrowClockwise className="me-2" /> Refresh
         </Dropdown.Item>
@@ -94,6 +103,7 @@ const DashboardHeader = ({ handleLogout, navigate, triggerRefresh }) => {
         <Dropdown.Item onClick={handleLogout}>
           <BoxArrowRight className="me-2" /> Logout
         </Dropdown.Item>
+        
       </Dropdown.Menu>
     </Dropdown>
   );

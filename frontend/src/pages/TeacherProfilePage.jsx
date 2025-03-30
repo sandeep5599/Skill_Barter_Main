@@ -2,16 +2,27 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Container, Row, Col, Card, Badge, Button, Alert } from 'react-bootstrap';
-import { FaStar, FaGraduationCap, FaCalendarAlt, FaComments } from 'react-icons/fa';
+import { FaStar, FaGraduationCap, FaCalendarAlt, FaComments, FaArrowLeft } from 'react-icons/fa';
 import axios from 'axios';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const TeacherProfilePage = () => {
   const { teacherId } = useParams();
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const navigate = useNavigate();
+  
   useEffect(() => {
+    // Check if user is logged in (you might need to adapt this based on your auth system)
+    const checkAuthStatus = () => {
+      const token = localStorage.getItem('token');
+      setIsLoggedIn(!!token);
+    };
+
+    checkAuthStatus();
+    
     const fetchTeacherProfile = async () => {
       try {
         const response = await axios.get(`/api/search/teacher/${teacherId}`);
@@ -26,6 +37,22 @@ const TeacherProfilePage = () => {
 
     fetchTeacherProfile();
   }, [teacherId]);
+
+  const handleBackNavigation = () => {
+    if (isLoggedIn) {
+      navigate('/dashboard');
+    } else {
+      navigate('/');
+    }
+  };
+
+  const handleBookSession = () => {
+    if (isLoggedIn) {
+      navigate('/match/learning');
+    } else {
+      navigate('/register');
+    }
+  };
 
   if (loading) {
     return (
@@ -59,6 +86,18 @@ const TeacherProfilePage = () => {
 
   return (
     <Container className="py-5">
+      {/* Back navigation */}
+      <div className="mb-4">
+        <Button 
+          variant="outline-secondary" 
+          onClick={handleBackNavigation}
+          className="d-flex align-items-center"
+        >
+          <FaArrowLeft className="me-2" />
+          Back to {isLoggedIn ? 'Dashboard' : 'Home'}
+        </Button>
+      </div>
+      
       <Row>
         <Col lg={4} className="mb-4">
           <Card className="border-0 shadow-sm">
@@ -80,11 +119,7 @@ const TeacherProfilePage = () => {
                   </div>
                 </div>
               </div>
-              
-              <Button variant="primary" className="w-100 mb-2">
-                Contact Teacher
-              </Button>
-              <Button variant="primary" className="w-100">
+              <Button variant="primary" onClick={handleBookSession} className="w-100">
                 Book a Session
               </Button>
             </Card.Body>

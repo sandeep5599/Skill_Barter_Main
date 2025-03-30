@@ -1,3 +1,4 @@
+// src/services/socketService.js
 import { io } from 'socket.io-client';
 
 // Extract the base URL without the /api path
@@ -10,6 +11,9 @@ const getBaseUrl = () => {
 // Create socket instance with proper base URL - BUT DON'T CONNECT YET
 let socket = null;
 
+// Heartbeat interval handler
+let heartbeatInterval = null;
+
 // Initialize socket connection - we'll only create the socket once
 export const initializeSocket = (token) => {
   if (!token) {
@@ -20,6 +24,7 @@ export const initializeSocket = (token) => {
   // If we already have a socket instance, disconnect it
   if (socket) {
     console.log('Cleaning up existing socket connection');
+    clearInterval(heartbeatInterval);
     socket.off();
     socket.disconnect();
   }
@@ -46,6 +51,13 @@ export const initializeSocket = (token) => {
       id: socket.id,
       transport: socket.io.engine.transport.name
     });
+    
+    // Setup heartbeat to keep user's "last active" status updated
+    heartbeatInterval = setInterval(() => {
+      if (socket && socket.connected) {
+        socket.emit('user:heartbeat');
+      }
+    }, 60000); // Send heartbeat every minute
   });
   
   socket.on('connect_error', (error) => {
@@ -58,6 +70,7 @@ export const initializeSocket = (token) => {
   
   socket.on('disconnect', (reason) => {
     console.log('Socket disconnected. Reason:', reason);
+    clearInterval(heartbeatInterval);
   });
   
   // Connect to socket server
@@ -69,6 +82,29 @@ export const initializeSocket = (token) => {
   }
   
   return socket;
+};
+
+// Get user online status for multiple users
+export const getUsersStatus = (userIds) => {
+  if (!socket || !socket.connected) {
+    console.warn('Socket not connected, cannot get user statuses');
+    return Promise.reject('Socket not connected');
+  }
+  
+  return new Promise((resolve) => {
+    // Listen for the response once
+    socket.once('users:status', (statuses) => {
+      resolve(statuses);
+    });
+    
+    // Emit request for user statuses
+    socket.emit('get:users_status', userIds);
+    
+    // Set timeout in case the server doesn't respond
+    setTimeout(() => {
+      resolve([]);
+    }, 5000);
+  });
 };
 
 // Function to test different connection approaches
@@ -97,4 +133,4 @@ export const troubleshootConnection = (token) => {
 
 export { socket };
 
-export default { initializeSocket, troubleshootConnection };
+export default { initializeSocket, getUsersStatus, troubleshootConnection };

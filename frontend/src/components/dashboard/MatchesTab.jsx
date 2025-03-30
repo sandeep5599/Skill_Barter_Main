@@ -3,60 +3,67 @@ import { Card, Button, Badge } from 'react-bootstrap';
 
 const MatchesTab = ({ matches, navigate }) => {
   console.log('MatchesTab matches:', matches);
+  
+  // Function to format date and time in a readable format
+  const formatDateTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   return (
-    <Card className="mb-4 shadow-sm border-0">
-      <Card.Header className="bg-success text-white">
-        <h5 className="mb-0">Recent Matches</h5>
-      </Card.Header>
+    <Card>
+      <Card.Header>Recent Matches</Card.Header>
       <Card.Body>
         {matches && matches.length > 0 ? (
           <div className="table-responsive">
-            <table className="table table-hover">
+            <table className="table">
               <thead>
                 <tr>
                   <th>Skill</th>
-                  <th>Teacher</th>
+                  <th>Skill Sharer</th>
                   <th>Status</th>
-                  <th>Action</th>
+                  <th>Time Slots</th>
                 </tr>
               </thead>
               <tbody>
                 {matches.map((match, i) => (
                   <tr key={i}>
-                    <td>
-                      <span className="fw-bold">{match.skillName}</span>
-                    </td>
+                    <td>{match.skillName}</td>
                     <td>{match.teacherName}</td>
                     <td>
                       <Badge 
-                        bg={match.status === 'accepted' ? 'success' : 'warning'}
-                        text={match.status === 'accepted' ? 'white' : 'dark'}
-                        pill
+                        bg={match.status === 'completed' ? 'success' : 
+                           match.status === 'pending' ? 'warning' : 'primary'}
                       >
                         {match.status}
                       </Badge>
                     </td>
                     <td>
-                    <Button 
-  variant={
-    match.status === 'accepted' ? 'success' : 
-    match.status === 'pending' ? 'warning' : 
-    match.status === 'rejected' ? 'danger' :
-    match.status === 'completed' ? 'info' :
-    'primary'
-  } 
-  size="sm"
-  onClick={() => navigate(`/match/details/${match._id}`)}
->
-  <i className={
-    match.status === 'accepted' ? 'bi bi-check-circle-fill me-2' : 
-    match.status === 'pending' ? 'bi bi-hourglass-split me-2' : 
-    match.status === 'rejected' ? 'bi bi-x-circle-fill me-2' :
-    match.status === 'completed' ? 'bi bi-trophy-fill me-2' :
-    'bi bi-info-circle-fill me-2'
-  }></i>
-  View Details
-</Button>
+                      {match.proposedTimeSlots && match.proposedTimeSlots.length > 0 ? (
+                        <div>
+                          <strong>Proposed Time Slots:</strong>
+                          <ul className="list-unstyled mb-0">
+                            {match.proposedTimeSlots.map((slot, index) => (
+                              <li key={index}>
+                                {formatDateTime(slot.startTime)} - {formatDateTime(slot.endTime)}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <Button 
+                          variant="primary" 
+                          size="sm" 
+                          onClick={() => navigate(`/match/details/${match._id}`)}
+                        >
+                          View Details
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -64,9 +71,9 @@ const MatchesTab = ({ matches, navigate }) => {
             </table>
           </div>
         ) : (
-          <div className="text-center p-4">
-            <div className="text-muted mb-3">No recent matches found.</div>
-            <Button variant="success" onClick={() => navigate('/match/finding')}>
+          <div className="text-center">
+            <p>No recent matches found.</p>
+            <Button variant="primary" onClick={() => navigate('/match/finding')}>
               Find New Matches
             </Button>
           </div>
