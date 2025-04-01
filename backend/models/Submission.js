@@ -1,4 +1,6 @@
 // models/Submission.js
+const mongoose = require('mongoose');
+
 const submissionSchema = new mongoose.Schema({
     assessmentId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -43,4 +45,4 @@ const submissionSchema = new mongoose.Schema({
   
   const Submission = mongoose.model('Submission', submissionSchema);
   
-  module.exports = { Assessment, Submission };
+  module.exports = Submission;

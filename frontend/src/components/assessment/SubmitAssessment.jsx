@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 import { socket } from '../../services/socketService';
+import Loading from '../common/Loading';
+import Error from '../common/Error';
 
 const SubmitAssessment = () => {
   const { assessmentId } = useParams();
@@ -52,23 +54,19 @@ const SubmitAssessment = () => {
     setError('');
     
     const formData = new FormData();
+    formData.append('assessmentId', assessmentId);
     formData.append('answersPdf', answersPdf);
     
     try {
-      // Add socket ID to headers for socket.io notifications
       const headers = {
         'Content-Type': 'multipart/form-data',
         'X-Socket-ID': socket?.id || ''
       };
       
-      const response = await axios.post(
-        `/api/assessments/${assessmentId}/submit`,
-        formData,
-        { headers }
-      );
+      const response = await axios.post('/api/assessments/submit', formData, { headers });
       
       if (response.data.success) {
-        navigate('/assessments/submitted');
+        navigate(`/skills/${assessment.skillId}/assessments/submitted`);
       }
     } catch (error) {
       setError(error.response?.data?.message || 'Error submitting assessment');
@@ -78,50 +76,45 @@ const SubmitAssessment = () => {
   };
   
   if (loading) {
-    return <div>Loading assessment details...</div>;
+    return <Loading message="Loading assessment details..." />;
   }
   
   if (!assessment) {
-    return <div>Assessment not found</div>;
+    return <Error message="Assessment not found" />;
   }
   
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
+    <div className="bg-white rounded-lg">
       <h2 className="text-xl font-semibold mb-4">Submit Assessment: {assessment.title}</h2>
       
-      {error && (
-        <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
-          {error}
-        </div>
-      )}
+      {error && <Error message={error} />}
       
       <div className="mb-6">
-        <h3 className="font-medium mb-2">Description</h3>
-        <p className="text-gray-700">{assessment.description}</p>
+        <h3 className="font-medium mb-2">Instructions</h3>
+        <p className="text-gray-700 mb-4">{assessment.description}</p>
         
         {assessment.dueDate && (
-          <p className="text-sm text-gray-600 mt-2">
-            Due by: {new Date(assessment.dueDate).toLocaleString()}
+          <p className="text-sm text-gray-600">
+            <strong>Due by:</strong> {new Date(assessment.dueDate).toLocaleString()}
           </p>
         )}
-      </div>
-      
-      <div className="mb-6">
-        <h3 className="font-medium mb-2">Download Questions</h3>
-        <a
-          href={assessment.questionsPdfUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-600 hover:underline flex items-center"
-        >
-          <span>View/Download Questions PDF</span>
-        </a>
+        
+        <div className="mt-4">
+          <a
+            href={assessment.questionsPdfUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline flex items-center"
+          >
+            <span>Download Questions PDF</span>
+          </a>
+        </div>
       </div>
       
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
           <label className="block text-gray-700 mb-2" htmlFor="answersPdf">
-            Your Answers (PDF)
+            Upload Your Answers (PDF)
           </label>
           <input
             id="answersPdf"
@@ -132,7 +125,7 @@ const SubmitAssessment = () => {
             required
           />
           <p className="text-sm text-gray-500 mt-1">
-            Upload a PDF file containing your answers.
+            Please submit your answers as a single PDF file.
           </p>
         </div>
         

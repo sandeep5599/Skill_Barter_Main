@@ -1,5 +1,7 @@
 // controllers/assessmentController.js
-const { Assessment, Submission } = require('../models/Assessment');
+// If Assessment is the default export:
+const Assessment = require('../models/Assessment');
+const Submission = require('../models/Submission'); // if this is in a separate file
 const User = require('../models/User');
 const uploadService = require('../services/uploadService'); // Implement this for file uploads
 
@@ -142,5 +144,21 @@ exports.getPendingAssessments = async (req, res) => {
       message: 'Error fetching pending assessments',
       error: error.message
     });
+  }
+};
+
+// In assessmentController.js
+exports.getAvailableAssessments = async (req, res) => {
+  try {
+    const availableAssessments = await Assessment.find({ 
+      isPublished: true, 
+      // Add other conditions as needed
+    });
+    
+    // Change this line to return an object with assessments property
+    res.status(200).json({ success: true, assessments: availableAssessments });
+  } catch (error) {
+    console.error('Error fetching available assessments:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };

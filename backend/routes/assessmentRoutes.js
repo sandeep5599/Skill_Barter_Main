@@ -82,4 +82,11 @@ router.get(
   submissionController.getLearnerSubmissions
 );
 
+router.get(
+  '/available',
+  auth,
+  assessmentController.getAvailableAssessments
+);
+
+
 module.exports = router;

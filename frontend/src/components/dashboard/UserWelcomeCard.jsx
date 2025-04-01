@@ -331,7 +331,7 @@ const UserWelcomeCard = ({
                       variant="primary" 
                       size="sm" 
                       className="rounded-pill px-3"
-                      onClick={() => navigate('/profile/assessment')}
+                      onClick={() => navigate('/assessments')}
                     >
                       Take Assessment
                     </Button>

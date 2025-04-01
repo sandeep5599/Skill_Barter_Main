@@ -19,9 +19,7 @@ import SessionsList from "./components/SessionsList";
 import GlobalStyles from "./styles/GlobalStyles";
 import { ThemeProvider } from 'styled-components';
 import { theme } from './styles/theme';
-import SearchPage from './pages/SearchPage';
-import TeacherProfilePage from './pages/TeacherProfilePage';
-import FeatureUnavailable from './components/FeatureUnavailable';
+import AssessmentDashboard from "./components/assessment/AssessmentDashboard";
 
 function App() {
   return (
@@ -31,7 +29,6 @@ function App() {
           <GlobalStyles />
           <ToastContainer position="top-right" autoClose={5000} />
           <Routes>
-            {/* Existing routes */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -42,18 +39,7 @@ function App() {
             <Route path="/sessions" element={<PrivateRoute><SessionsList /></PrivateRoute>} />
             <Route path="/sessions/:sessionId" element={<PrivateRoute><SessionDetails /></PrivateRoute>} />
             <Route path="/profile" element={<PrivateRoute><ProfileManagement /></PrivateRoute>} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/teacher/:teacherId" element={<TeacherProfilePage />} />
-            
-            {/* New routes for upcoming features */}
-            <Route path="/leaderboard" element={<PrivateRoute><FeatureUnavailable featureName="leaderboard" /></PrivateRoute>} />
-            <Route path="/profile/assessment" element={<PrivateRoute><FeatureUnavailable featureName="assessment" /></PrivateRoute>} />
-            
-            {/* Premium features route */}
-            <Route path="/premium/*" element={<PrivateRoute><FeatureUnavailable featureName="premium" /></PrivateRoute>} />
-            
-            {/* Generic "coming soon" route for any other undeveloped features */}
-            <Route path="/coming-soon/*" element={<PrivateRoute><FeatureUnavailable /></PrivateRoute>} />
+            <Route path="/assessments" element={<PrivateRoute><AssessmentDashboard /></PrivateRoute>} />
           </Routes>
         </NotificationProvider>
       </AuthProvider>

@@ -44,3 +44,4 @@ assessmentSchema.index({ skillId: 1 });
 
 const Assessment = mongoose.model('Assessment', assessmentSchema);
 
+module.exports = Assessment;
