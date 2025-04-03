@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Routes, Route, useLocation } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 
 // Import components
 import AssessmentList from './AssessmentList';
 import CreateAssessment from './CreateAssessment';
 import CreateSessionAssessment from './CreateSessionAssessment ';
+import CompletedSessionsList from './CompletedSessionsList';
 import SubmissionsList from './SubmissionsList';
 import LearnerSubmissionsList from './LearnerSubmissionsList';
 import SubmitAssessment from './SubmitAssessment';
 import EvaluateSubmission from './EvaluateSubmission';
-import SubmissionSuccess from './SubmissionSucess';
+import SubmissionSuccess from './SubmissionSucess'; // Fixed typo in import
 import Loading from '../common/Loading';
 import Error from '../common/Error';
 
@@ -24,7 +24,9 @@ import {
   ArrowRight, 
   ChevronRight,
   ArrowLeftCircle,
-  House
+  House,
+  Calendar,
+  CheckCircle
 } from 'react-bootstrap-icons';
 
 const AssessmentDashboard = () => {
@@ -37,17 +39,22 @@ const AssessmentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [skillData, setSkillData] = useState(null);
+  const [completedSessions, setCompletedSessions] = useState([]);
+  const [selectedSession, setSelectedSession] = useState(null);
   const [stats, setStats] = useState({
     totalAssessments: 0,
     pendingSubmissions: 0,
     completedSubmissions: 0,
-    averageScore: 0
+    averageScore: 0,
+    totalCompletedSessions: 0
   });
 
   useEffect(() => {
     // Determine active tab from URL
     if (location.pathname.includes('/submissions')) {
       setActiveTab('submissions');
+    } else if (location.pathname.includes('/completed-sessions')) {
+      setActiveTab('completed-sessions');
     } else if (location.pathname.includes('/create-session')) {
       setActiveTab('create-session');
     } else if (location.pathname.includes('/create')) {
@@ -57,47 +64,151 @@ const AssessmentDashboard = () => {
     } else {
       setActiveTab('available');
     }
-
+  
     // Check if user is a skill sharer and fetch skill data
-    const fetchSkillData = async () => {
+    const fetchData = async () => {
       try {
+        setLoading(true);
+        setError('');
+        
+        let userIsSkillSharer = false; // Initialize flag
+        
+        // Fetch skill data if skillId is provided
         if (skillId) {
-          const response = await axios.get(`/api/skills/${skillId}`);
-          setSkillData(response.data.skill);
+          const skillResponse = await fetch(`/api/skills/${skillId}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+            cache: 'no-store' // Prevent caching
+          });
           
-          // Update this line to check directly for the boolean value true
-          setIsSkillSharer(response.data.skill.isTeaching === true);
+          if (!skillResponse.ok) {
+            throw new Error(`Failed to fetch skill data: ${skillResponse.status}`);
+          }
+          
+          const skillData = await skillResponse.json();
+          setSkillData(skillData.skill);
+          
+          // Check if user is a skill sharer from skill data
+          if (skillData.skill.isTeaching === true) {
+            userIsSkillSharer = true;
+          }
           
           // Fetch assessment stats
-          const statsResponse = await axios.get(`/api/skills/${skillId}/assessment-stats`);
-          if (statsResponse.data.success) {
-            setStats(statsResponse.data.stats);
+          const statsResponse = await fetch(`/api/skills/${skillId}/assessment-stats`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+            cache: 'no-store'
+          });
+          
+          if (statsResponse.ok) {
+            const statsData = await statsResponse.json();
+            if (statsData.success) {
+              setStats(prev => ({
+                ...prev,
+                totalAssessments: statsData.stats.totalAssessments,
+                pendingSubmissions: statsData.stats.pendingSubmissions,
+                completedSubmissions: statsData.stats.completedSubmissions,
+                averageScore: statsData.stats.averageScore
+              }));
+            }
           }
         }
+  
+        // Fetch completed sessions where user was the teacher
+        if (user?._id) {
+          try {
+            const sessionsResponse = await fetch(`/api/sessions/user/${user._id}?status=completed&status=scheduled`, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              },
+              cache: 'no-store'
+            });
+            
+            if (!sessionsResponse.ok) {
+              throw new Error(`Failed to fetch sessions: ${sessionsResponse.status}`);
+            }
+            
+            const sessionsData = await sessionsResponse.json();
+            console.log("Sessions data:", sessionsData);
+            
+            // Filter sessions where user is the teacher (using teacherId)
+            // Include both 'completed' and 'scheduled' sessions
+            if (sessionsData.sessions && Array.isArray(sessionsData.sessions)) {
+              
+              // Use this more robust comparison instead
+              const teachingSessions = sessionsData.sessions.filter(session => {
+                const sessionTeacherId = typeof session.teacherId === 'object' ? 
+                  session.teacherId._id || session.teacherId.$oid : session.teacherId;
+                const userIdForComparison = user._id.$oid || user._id;
+                
+                return (session.status === 'completed' || session.status === 'scheduled') && 
+                      sessionTeacherId === userIdForComparison;
+              });
+              
+              setCompletedSessions(teachingSessions);
+              
+              // If user has teaching sessions, they are a skill sharer
+              if (teachingSessions.length > 0) {
+                userIsSkillSharer = true;
+              }
+              
+              setStats(prev => ({
+                ...prev,
+                totalCompletedSessions: teachingSessions.length
+              }));
+            } else {
+              console.error('Sessions data is not in expected format:', sessionsData);
+              setCompletedSessions([]);
+            }
+          } catch (sessionErr) {
+            console.error('Error fetching sessions:', sessionErr);
+            // Don't fail the entire component if sessions fetch fails
+            setCompletedSessions([]);
+          }
+        }
+        
+        // Set the isSkillSharer state after all checks
+        setIsSkillSharer(userIsSkillSharer);
+        
       } catch (err) {
-        console.error('Error fetching skill data:', err);
-        setError('Failed to load skill information');
+        console.error('Error fetching data:', err);
+        setError('Failed to load information. Please try refreshing the page.');
       } finally {
         setLoading(false);
       }
     };
-
-    fetchSkillData();
-  }, [location.pathname, skillId, user._id]);
+  
+    fetchData();
+  }, [location.pathname, skillId, user?._id]);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     if (tab === 'available') {
-      navigate(`/skills/${skillId}/assessments`);
+      navigate(skillId ? `/skills/${skillId}/assessments` : '/assessments');
     } else if (tab === 'create') {
-      navigate(`/skills/${skillId}/assessments/create`);
+      navigate(skillId ? `/skills/${skillId}/assessments/create` : '/assessments/create');
     } else if (tab === 'create-session') {
-      navigate(`/skills/${skillId}/assessments/create-session`);
+      navigate(skillId ? `/skills/${skillId}/assessments/create-session` : '/assessments/create-session');
     } else if (tab === 'submissions') {
-      navigate(`/skills/${skillId}/assessments/submissions`);
+      navigate(skillId ? `/skills/${skillId}/assessments/submissions` : '/assessments/submissions');
     } else if (tab === 'my-submissions') {
-      navigate(`/skills/${skillId}/assessments/my-submissions`);
+      navigate(skillId ? `/skills/${skillId}/assessments/my-submissions` : '/assessments/my-submissions');
+    } else if (tab === 'completed-sessions') {
+      navigate(skillId ? `/skills/${skillId}/assessments/completed-sessions` : '/assessments/completed-sessions');
     }
+  };
+
+  const handleSessionSelect = (session) => {
+    setSelectedSession(session);
+    handleTabChange('create-session');
   };
 
   const navigateToDashboard = () => {
@@ -120,7 +231,7 @@ const AssessmentDashboard = () => {
           
           {/* Back to Dashboard Button */}
           <button 
-            className="btn primary rounded-pill btn-sm d-flex align-items-center"
+            className="btn btn-primary rounded-pill btn-sm d-flex align-items-center"
             onClick={navigateToDashboard}
           >
             <House className="me-2" /> Back to Dashboard
@@ -149,6 +260,17 @@ const AssessmentDashboard = () => {
           {isSkillSharer && (
             <>
               <div 
+                className={`px-4 py-3 cursor-pointer border-end d-flex align-items-center ${activeTab === 'completed-sessions' ? 'bg-white border-bottom-0 fw-bold text-primary' : 'text-muted'}`}
+                onClick={() => handleTabChange('completed-sessions')}
+                style={{ cursor: 'pointer' }}
+              >
+                <CheckCircle className="me-2" /> Teaching Sessions
+                {completedSessions.length > 0 && (
+                  <span className="ms-2 badge bg-primary rounded-pill">{completedSessions.length}</span>
+                )}
+              </div>
+            
+              <div 
                 className={`px-4 py-3 cursor-pointer border-end d-flex align-items-center ${activeTab === 'create' ? 'bg-white border-bottom-0 fw-bold text-primary' : 'text-muted'}`}
                 onClick={() => handleTabChange('create')}
                 style={{ cursor: 'pointer' }}
@@ -170,6 +292,9 @@ const AssessmentDashboard = () => {
                 style={{ cursor: 'pointer' }}
               >
                 <Inbox className="me-2" /> All Submissions
+                {stats.pendingSubmissions > 0 && (
+                  <span className="ms-2 badge bg-warning rounded-pill">{stats.pendingSubmissions}</span>
+                )}
               </div>
             </>
           )}
@@ -177,6 +302,141 @@ const AssessmentDashboard = () => {
       </div>
     );
   };
+  const TeacherCompletedSessionsList = ({ sessions, onCreateAssessment }) => {
+    console.log("TeacherCompletedSessionsList received sessions:", sessions);
+    
+    if (sessions.length === 0) {
+      return (
+        <div className="text-center py-5">
+          <div className="mb-3">
+            <Calendar size={48} className="text-muted" />
+          </div>
+          <h5 className="fw-bold">No Teaching Sessions</h5>
+          <p className="text-muted">You haven't taught any sessions yet or they're not available.</p>
+          <button 
+            className="btn btn-outline-primary rounded-pill mt-3"
+            onClick={() => handleTabChange('available')}
+          >
+            <ClipboardCheck className="me-2" /> Browse Available Assessments
+          </button>
+        </div>
+      );
+    }
+  
+    return (
+      <div className="sessions-list">
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <h5 className="fw-bold mb-0">Your Teaching Sessions ({sessions.length})</h5>
+          <div className="dropdown">
+            <button className="btn btn-outline-secondary dropdown-toggle rounded-pill btn-sm" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              Sort By
+            </button>
+            <ul className="dropdown-menu" aria-labelledby="sortDropdown">
+              <li><button className="dropdown-item">Most Recent</button></li>
+              <li><button className="dropdown-item">Oldest First</button></li>
+              <li><button className="dropdown-item">Student Name</button></li>
+            </ul>
+          </div>
+        </div>
+        
+        <div className="row g-4">
+          {sessions.map(session => {
+            // Format date and time
+            const sessionDate = session.startTime ? new Date(session.startTime) : 
+                               session.date ? new Date(session.date) : new Date();
+            const formattedDate = sessionDate.toLocaleDateString();
+            const formattedTime = sessionDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            // Calculate duration
+            let duration = 'N/A';
+            if (session.duration) {
+              duration = `${session.duration} minutes`;
+            } else if (session.startTime && session.endTime) {
+              const startTime = new Date(session.startTime);
+              const endTime = new Date(session.endTime);
+              if (!isNaN(startTime) && !isNaN(endTime)) {
+                const durationMinutes = Math.round((endTime - startTime) / (1000 * 60));
+                duration = `${durationMinutes} minutes`;
+              }
+            }
+            
+            // Get session title
+            const sessionTitle = session.title || 
+                               (session.skillDetails && session.skillDetails.title) || 
+                               (session.skillId && typeof session.skillId === 'object' && session.skillId.title) ||
+                               'Skill Session';
+            
+            // Get student name
+            const studentName = session.studentName || 
+                              (session.learnerDetails && session.learnerDetails.name) ||
+                              (session.studentId && typeof session.studentId === 'object' && session.studentId.name) ||
+                              'Student';
+            
+            return (
+              <div key={session._id} className="col-md-6 col-lg-4">
+                <div className="card h-100 border-0 shadow-sm rounded-3 position-relative">
+                  {/* Status badge */}
+                  <div className="position-absolute top-0 end-0 m-3">
+                    <span className={`badge ${session.status === 'completed' ? 'bg-success' : 'bg-warning'}`}>
+                      {session.status === 'completed' ? 'Completed' : 'Scheduled'}
+                    </span>
+                  </div>
+                  
+                  <div className="card-body p-4">
+                    <div className="d-flex align-items-center mb-3">
+                      <div className="rounded-circle bg-primary bg-opacity-10 p-2 me-3">
+                        <Calendar className="text-primary" />
+                      </div>
+                      <div>
+                        <h5 className="mb-0 fw-bold">{sessionTitle}</h5>
+                        <p className="text-muted mb-0 small">
+                          {formattedDate} at {formattedTime}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <div className="d-flex justify-content-between mb-2">
+                        <span className="text-muted small">Duration:</span>
+                        <span className="fw-medium">{duration}</span>
+                      </div>
+                      <div className="d-flex justify-content-between mb-2">
+                        <span className="text-muted small">Student:</span>
+                        <span className="fw-medium">{studentName}</span>
+                      </div>
+                      {session.description && (
+                        <div className="mt-3">
+                          <p className="text-muted small mb-1">Description:</p>
+                          <p className="mb-0 small text-truncate">{session.description}</p>
+                        </div>
+                      )}
+                      {session.notes && (
+                        <div className="mt-3">
+                          <p className="text-muted small mb-1">Session Notes:</p>
+                          <p className="mb-0 small text-truncate">{session.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="d-grid mt-3">
+                      <button 
+                        className="btn btn-primary rounded-pill py-2 d-flex align-items-center justify-content-center"
+                        onClick={() => onCreateAssessment(session)}
+                      >
+                        <PlusCircle className="me-2" />
+                        <span>Create Assessment</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
 
   if (loading) {
     return <Loading message="Loading assessment dashboard..." />;
@@ -202,9 +462,9 @@ const AssessmentDashboard = () => {
                       <ClipboardCheck size={24} className="text-white" />
                     </div>
                     <div>
-                      <h5 className="mb-0 fw-bold">{skillData?.title || 'Skill Assessments'}</h5>
+                      <h5 className="mb-0 fw-bold">{skillData?.title || 'Assessment Dashboard'}</h5>
                       <p className="text-muted mb-0 small">
-                        {skillData?.category || 'Learning Assessment Platform'}
+                        {skillData?.category || 'Skill Assessment Platform'}
                       </p>
                     </div>
                   </div>
@@ -216,7 +476,7 @@ const AssessmentDashboard = () => {
                   <div className="d-grid gap-2">
                     <button 
                       className="btn btn-primary rounded-pill py-2 d-flex align-items-center justify-content-center position-relative"
-                      onClick={() => navigate(`/skills/${skillId}/assessments`)}
+                      onClick={() => handleTabChange('available')}
                     >
                       <span>Browse Available Assessments</span>
                       <ChevronRight className="position-absolute end-0 me-3" />
@@ -225,26 +485,29 @@ const AssessmentDashboard = () => {
                     {isSkillSharer && (
                       <>
                         <button 
-                          className="btn btn-outline-primary rounded-pill py-2 d-flex align-items-center justify-content-center"
-                          onClick={() => navigate(`/skills/${skillId}/assessments/create`)}
+                          className="btn primary rounded-pill py-2 d-flex align-items-center justify-content-center"
+                          onClick={() => handleTabChange('completed-sessions')}
+                        >
+                          <CheckCircle className="me-2" />
+                          <span>View Teaching Sessions</span>
+                          {completedSessions.length > 0 && (
+                            <span className="ms-2 badge bg-primary rounded-pill">{completedSessions.length}</span>
+                          )}
+                        </button>
+                        
+                        <button 
+                          className="btn primary rounded-pill py-2 d-flex align-items-center justify-content-center"
+                          onClick={() => handleTabChange('create')}
                         >
                           <PlusCircle className="me-2" />
                           <span>Create New Assessment</span>
                         </button>
-                        
-                        <button 
-                          className="btn btn-outline-primary rounded-pill py-2 d-flex align-items-center justify-content-center"
-                          onClick={() => navigate(`/skills/${skillId}/assessments/create-session`)}
-                        >
-                          <PlusCircle className="me-2" />
-                          <span>Create from Session/Match</span>
-                        </button>
                       </>
                     )}
                     
-                    {/* Back to Dashboard Button - Alternative Placement */}
+                    {/* Back to Dashboard Button */}
                     <button 
-                      className="btn btn-primary rounded-pill py-2 d-flex align-items-center justify-content-center"
+                      className="btn primary rounded-pill py-2 d-flex align-items-center justify-content-center"
                       onClick={navigateToDashboard}
                     >
                       <ArrowLeftCircle className="me-2" />
@@ -296,11 +559,11 @@ const AssessmentDashboard = () => {
                         <div className="card-body p-3">
                           <div className="d-flex align-items-center mb-2">
                             <div className="rounded-circle bg-success bg-opacity-10 p-2 me-2">
-                              <PersonBadge className="text-success" />
+                              <CheckCircle className="text-success" />
                             </div>
-                            <span className="text-muted small">Completed</span>
+                            <span className="text-muted small">Teaching Sessions</span>
                           </div>
-                          <h3 className="fw-bold mb-0 text-success">{stats.completedSubmissions}</h3>
+                          <h3 className="fw-bold mb-0 text-success">{stats.totalCompletedSessions}</h3>
                         </div>
                       </div>
                     </div>
@@ -338,17 +601,39 @@ const AssessmentDashboard = () => {
 
           {/* Content */}
           <div className="p-4">
-            <Routes>
-              <Route path="/" element={<AssessmentList skillId={skillId} isSkillSharer={isSkillSharer} />} />
-              <Route path="/create" element={<CreateAssessment skillId={skillId} />} />
-              <Route path="/create-session" element={<CreateSessionAssessment userId={user?._id} />} />
-              <Route path="/submissions" element={<SubmissionsList skillId={skillId} />} />
-              <Route path="/my-submissions" element={<LearnerSubmissionsList userId={user?._id} />} />
-              <Route path="/assessment/:assessmentId/submit" element={<SubmitAssessment />} />
-              <Route path="/assessment/:assessmentId/submissions" element={<SubmissionsList />} />
-              <Route path="/submission/:submissionId/evaluate" element={<EvaluateSubmission />} />
-              <Route path="/submitted" element={<SubmissionSuccess />} />
-            </Routes>
+           {activeTab === 'completed-sessions' && (
+  <>
+    {console.log("Sessions being passed to list:", completedSessions)}
+    <TeacherCompletedSessionsList 
+      sessions={completedSessions} 
+      onCreateAssessment={handleSessionSelect}
+    />
+  </>
+)}
+            
+            {activeTab === 'create-session' && (
+              <CreateSessionAssessment 
+                userId={user?._id} 
+                initialSession={selectedSession}
+                onComplete={() => {
+                  setSelectedSession(null);
+                  handleTabChange('available');
+                }}
+              />
+            )}
+            
+            {activeTab !== 'completed-sessions' && activeTab !== 'create-session' && (
+              <Routes>
+                <Route path="/" element={<AssessmentList skillId={skillId} isSkillSharer={isSkillSharer} />} />
+                <Route path="/create" element={<CreateAssessment skillId={skillId} />} />
+                <Route path="/submissions" element={<SubmissionsList skillId={skillId} />} />
+                <Route path="/my-submissions" element={<LearnerSubmissionsList userId={user?._id} />} />
+                <Route path="/assessment/:assessmentId/submit" element={<SubmitAssessment />} />
+                <Route path="/assessment/:assessmentId/submissions" element={<SubmissionsList />} />
+                <Route path="/submission/:submissionId/evaluate" element={<EvaluateSubmission />} />
+                <Route path="/submitted" element={<SubmissionSuccess />} />
+              </Routes>
+            )}
           </div>
         </div>
       </div>

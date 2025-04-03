@@ -1,3 +1,4 @@
+// 1. Updated AuthContext.js
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from "react";
 import { initializeSocket } from '../services/socketService';
 
@@ -7,48 +8,62 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [socketInitialized, setSocketInitialized] = useState(false);
+  const [isValidating, setIsValidating] = useState(true); // Added to match your PrivateRoute component
   
   // Load user & token from localStorage
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem("user");
-      const storedToken = localStorage.getItem("token");
-      
-      if (storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          if (parsedUser) setUser(parsedUser);
-        } catch (error) {
-          console.error("Error parsing user data from localStorage:", error);
-          localStorage.removeItem("user"); // Remove corrupted data
+    const loadUserSession = async () => {
+      setIsValidating(true);
+      try {
+        const storedUser = localStorage.getItem("user");
+        const storedToken = localStorage.getItem("token");
+        
+        if (storedUser && storedToken) {
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            if (parsedUser) {
+              setUser(parsedUser);
+              setToken(storedToken);
+              
+              // Initialize socket connection with the token
+              if (!socketInitialized) {
+                initializeSocket(storedToken);
+                setSocketInitialized(true);
+              }
+            }
+          } catch (error) {
+            console.error("Error parsing user data from localStorage:", error);
+            localStorage.removeItem("user");
+            localStorage.removeItem("token");
+          }
         }
+      } catch (error) {
+        console.error("Error accessing localStorage:", error);
+      } finally {
+        setIsValidating(false);
       }
-      
-      if (storedToken && !socketInitialized) {
-        setToken(storedToken);
-        // Initialize socket connection with the token - only once
-        initializeSocket(storedToken);
-        setSocketInitialized(true);
-      }
-    } catch (error) {
-      console.error("Error accessing localStorage:", error);
-    }
-  }, [socketInitialized]);
+    };
+    
+    loadUserSession();
+  }, []); // No dependencies to prevent re-runs
   
   // Login function with error handling
   const login = useCallback((userData, authToken) => {
     if (!userData || !authToken) {
-      console.error("Invalid login data provided:", userData, authToken);
+      console.error("Invalid login data provided");
       return;
     }
     
     try {
+      // Store user data in localStorage
       localStorage.setItem("user", JSON.stringify(userData));
       localStorage.setItem("token", authToken);
+      
+      // Update state
       setUser(userData);
       setToken(authToken);
       
-      // Initialize socket connection with the token - only if not already initialized
+      // Initialize socket connection
       if (!socketInitialized) {
         initializeSocket(authToken);
         setSocketInitialized(true);
@@ -66,7 +81,7 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setToken(null);
       
-      // Disconnect socket and reset initialized state
+      // Disconnect socket
       const socketService = require('../services/socketService');
       if (socketService.socket) {
         socketService.socket.disconnect();
@@ -83,8 +98,9 @@ export const AuthProvider = ({ children }) => {
     token, 
     login, 
     logout, 
-    socketInitialized 
-  }), [user, token, login, logout, socketInitialized]);
+    socketInitialized,
+    isValidating // Include isValidating to match your PrivateRoute
+  }), [user, token, login, logout, socketInitialized, isValidating]);
   
   return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
 };

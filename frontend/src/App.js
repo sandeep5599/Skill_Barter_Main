@@ -39,7 +39,7 @@ function App() {
             <Route path="/sessions" element={<PrivateRoute><SessionsList /></PrivateRoute>} />
             <Route path="/sessions/:sessionId" element={<PrivateRoute><SessionDetails /></PrivateRoute>} />
             <Route path="/profile" element={<PrivateRoute><ProfileManagement /></PrivateRoute>} />
-            <Route path="/assessments" element={<PrivateRoute><AssessmentDashboard /></PrivateRoute>} />
+            <Route path="/assessments/*" element={<PrivateRoute><AssessmentDashboard /></PrivateRoute>} />
           </Routes>
         </NotificationProvider>
       </AuthProvider>

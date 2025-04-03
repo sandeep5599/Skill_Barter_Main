@@ -155,7 +155,15 @@ const sessionController = {
   getUserSessions: async (req, res) => {
     try {
       const userId = req.params.userId;
-      const status = req.query.status || 'scheduled';
+      // Allow multiple status values
+      const statusFilter = req.query.status 
+        ? Array.isArray(req.query.status) 
+          ? req.query.status 
+          : [req.query.status]
+        : ['scheduled', 'completed'];
+      
+      console.log("getUserSessions called with User ID parameter:", userId);
+      console.log("Status filter:", statusFilter);
       
       // Find sessions where the user is either a teacher or student
       const sessions = await Session.find({
@@ -163,18 +171,43 @@ const sessionController = {
           { teacherId: userId },
           { studentId: userId }
         ],
-        status: status
+        status: { $in: statusFilter }  // Use $in operator for multiple statuses
       })
-      .populate('skillId', 'name')
+      .populate('skillId', 'title description category')
       .populate('teacherId', 'name avatar')
       .populate('studentId', 'name avatar')
-      .sort({ startTime: 1 }) // Sort by start time, upcoming first
-      .limit(5); // Limit to 5 upcoming sessions by default
+      .sort({ startTime: 1 })
+      .limit(req.query.limit ? parseInt(req.query.limit) : 5);
       
-      return res.status(200).json({ sessions });
+      // Transform the sessions to handle ObjectId properly
+      const transformedSessions = sessions.map(session => {
+        const plainSession = session.toObject();
+        return {
+          ...plainSession,
+          _id: plainSession._id.toString(),
+          teacherId: plainSession.teacherId ? 
+            (typeof plainSession.teacherId === 'object' ? 
+              plainSession.teacherId._id ? plainSession.teacherId._id.toString() : plainSession.teacherId.toString() 
+              : plainSession.teacherId) 
+            : null,
+          studentId: plainSession.studentId ? 
+            (typeof plainSession.studentId === 'object' ? 
+              plainSession.studentId._id ? plainSession.studentId._id.toString() : plainSession.studentId.toString() 
+              : plainSession.studentId)
+            : null,
+          skillId: plainSession.skillId ? 
+            (typeof plainSession.skillId === 'object' ? 
+              plainSession.skillId._id ? plainSession.skillId._id.toString() : plainSession.skillId.toString()
+              : plainSession.skillId)
+            : null
+        };
+      });
+      
+      console.log(`Found ${sessions.length} sessions for user ${userId}`);
+      return res.status(200).json({ sessions: transformedSessions });
     } catch (error) {
       console.error("Error fetching user sessions:", error);
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Failed to fetch sessions',
         message: error.message
       });
