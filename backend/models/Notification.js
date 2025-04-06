@@ -24,7 +24,10 @@ const NotificationSchema = new mongoose.Schema({
       'session_status',
       'reschedule_accepted',
       'reschedule_declined',
-      'FEEDBACK_SUBMITTED'
+      'FEEDBACK_SUBMITTED',
+      'assessment_submitted',
+      'assessment_graded'
+
     ],
     required: true
   },
@@ -42,7 +45,7 @@ const NotificationSchema = new mongoose.Schema({
   },
   relatedModel: {
     type: String,
-    enum: ['User', 'Match', 'Session']
+    enum: ['User', 'Match', 'Session', 'Assessment', 'Submission']
   },
   read: {
     type: Boolean,

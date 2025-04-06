@@ -5,7 +5,7 @@ const Notification = require('../models/Notification');
 
 const createNotification = async (data) => {
   try {
-    const { userId, type, title, message, link = null, additionalData = {} } = data;
+    const { userId, type, title, message, link = null,relatedId, relatedModel = null, additionalData = {} } = data;
     
     // Check if a notification with the same userId, type, and title already exists
     const existingNotification = await Notification.findOne({
@@ -26,6 +26,8 @@ const createNotification = async (data) => {
       title,
       message,
       link,
+      relatedId,
+      relatedModel,
       data: additionalData
     });
     

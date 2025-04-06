@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Routes, Route, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 // Import components
 import AssessmentList from './AssessmentList';
 import CreateAssessment from './CreateAssessment';
-import CreateSessionAssessment from './CreateSessionAssessment ';
+import CreateSessionAssessment from './CreateSessionAssessment';
 import CompletedSessionsList from './CompletedSessionsList';
 import SubmissionsList from './SubmissionsList';
 import LearnerSubmissionsList from './LearnerSubmissionsList';
 import SubmitAssessment from './SubmitAssessment';
 import EvaluateSubmission from './EvaluateSubmission';
-import SubmissionSuccess from './SubmissionSucess'; // Fixed typo in import
+import SubmissionSuccess from './SubmissionSuccess'; // Fixed typo in import
 import Loading from '../common/Loading';
 import Error from '../common/Error';
 
@@ -53,8 +53,6 @@ const AssessmentDashboard = () => {
     // Determine active tab from URL
     if (location.pathname.includes('/submissions')) {
       setActiveTab('submissions');
-    } else if (location.pathname.includes('/completed-sessions')) {
-      setActiveTab('completed-sessions');
     } else if (location.pathname.includes('/create-session')) {
       setActiveTab('create-session');
     } else if (location.pathname.includes('/create')) {
@@ -68,13 +66,16 @@ const AssessmentDashboard = () => {
     // Check if user is a skill sharer and fetch skill data
     const fetchData = async () => {
       try {
+        console.log("Starting fetchData function");
         setLoading(true);
         setError('');
         
         let userIsSkillSharer = false; // Initialize flag
         
+        console.log("About to check skillId:", skillId);
         // Fetch skill data if skillId is provided
         if (skillId) {
+          console.log("SkillId exists, making first API call");
           const skillResponse = await fetch(`/api/skills/${skillId}`, {
             method: 'GET',
             headers: {
@@ -95,9 +96,10 @@ const AssessmentDashboard = () => {
           if (skillData.skill.isTeaching === true) {
             userIsSkillSharer = true;
           }
-          
+
+          console.log("About to fetch stats for skillId:", skillId);
           // Fetch assessment stats
-          const statsResponse = await fetch(`/api/skills/${skillId}/assessment-stats`, {
+          const statsResponse = await fetch(`/api/assessments/${skillId}/assessment-stats`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -106,8 +108,12 @@ const AssessmentDashboard = () => {
             cache: 'no-store'
           });
           
+          console.log("Stats response status:", statsResponse.status);
+
           if (statsResponse.ok) {
             const statsData = await statsResponse.json();
+
+           
             if (statsData.success) {
               setStats(prev => ({
                 ...prev,
@@ -195,8 +201,6 @@ const AssessmentDashboard = () => {
       navigate(skillId ? `/skills/${skillId}/assessments` : '/assessments');
     } else if (tab === 'create') {
       navigate(skillId ? `/skills/${skillId}/assessments/create` : '/assessments/create');
-    } else if (tab === 'create-session') {
-      navigate(skillId ? `/skills/${skillId}/assessments/create-session` : '/assessments/create-session');
     } else if (tab === 'submissions') {
       navigate(skillId ? `/skills/${skillId}/assessments/submissions` : '/assessments/submissions');
     } else if (tab === 'my-submissions') {
@@ -270,13 +274,6 @@ const AssessmentDashboard = () => {
                 )}
               </div>
             
-              <div 
-                className={`px-4 py-3 cursor-pointer border-end d-flex align-items-center ${activeTab === 'create' ? 'bg-white border-bottom-0 fw-bold text-primary' : 'text-muted'}`}
-                onClick={() => handleTabChange('create')}
-                style={{ cursor: 'pointer' }}
-              >
-                <PlusCircle className="me-2" /> Create Assessment
-              </div>
               
               <div 
                 className={`px-4 py-3 cursor-pointer border-end d-flex align-items-center ${activeTab === 'create-session' ? 'bg-white border-bottom-0 fw-bold text-primary' : 'text-muted'}`}
@@ -302,10 +299,12 @@ const AssessmentDashboard = () => {
       </div>
     );
   };
+
+  // Define TeacherCompletedSessionsList as a proper component
   const TeacherCompletedSessionsList = ({ sessions, onCreateAssessment }) => {
     console.log("TeacherCompletedSessionsList received sessions:", sessions);
     
-    if (sessions.length === 0) {
+    if (!sessions || sessions.length === 0) {
       return (
         <div className="text-center py-5">
           <div className="mb-3">
@@ -340,7 +339,7 @@ const AssessmentDashboard = () => {
         </div>
         
         <div className="row g-4">
-          {sessions.map(session => {
+          {sessions.map((session, index) => {
             // Format date and time
             const sessionDate = session.startTime ? new Date(session.startTime) : 
                                session.date ? new Date(session.date) : new Date();
@@ -373,7 +372,7 @@ const AssessmentDashboard = () => {
                               'Student';
             
             return (
-              <div key={session._id} className="col-md-6 col-lg-4">
+              <div key={session._id || index} className="col-md-6 col-lg-4">
                 <div className="card h-100 border-0 shadow-sm rounded-3 position-relative">
                   {/* Status badge */}
                   <div className="position-absolute top-0 end-0 m-3">
@@ -437,7 +436,6 @@ const AssessmentDashboard = () => {
     );
   };
 
-
   if (loading) {
     return <Loading message="Loading assessment dashboard..." />;
   }
@@ -445,6 +443,50 @@ const AssessmentDashboard = () => {
   if (error) {
     return <Error message={error} />;
   }
+
+  // Render content based on active tab instead of using Routes component directly
+  const renderContent = () => {
+    try {
+      if (activeTab === 'completed-sessions') {
+        return (
+          <TeacherCompletedSessionsList 
+            sessions={completedSessions} 
+            onCreateAssessment={handleSessionSelect}
+          />
+        );
+      } else if (activeTab === 'create-session') {
+        return (
+          <CreateSessionAssessment 
+            userId={user?._id} 
+            initialSession={selectedSession}
+            onComplete={() => {
+              setSelectedSession(null);
+              handleTabChange('available');
+            }}
+          />
+        );
+      } else if (activeTab === 'available') {
+        return <AssessmentList skillId={skillId} isSkillSharer={isSkillSharer} />;
+      } else if (activeTab === 'create') {
+        return <CreateAssessment skillId={skillId} />;
+      } else if (activeTab === 'submissions') {
+        return <SubmissionsList skillId={skillId} />;
+      } else if (activeTab === 'my-submissions') {
+        // Check if LearnerSubmissionsList is a valid component before rendering
+        if (typeof LearnerSubmissionsList !== 'function') {
+          console.error('LearnerSubmissionsList is not a valid component:', LearnerSubmissionsList);
+          return <div className="alert alert-danger">Unable to load submissions. Component error.</div>;
+        }
+        return <LearnerSubmissionsList userId={user?._id} />;
+      } else {
+        // Default to assessment list if no match
+        return <AssessmentList skillId={skillId} isSkillSharer={isSkillSharer} />;
+      }
+    } catch (err) {
+      console.error('Error rendering content:', err);
+      return <div className="alert alert-danger">Failed to render content: {err.message}</div>;
+    }
+  };
 
   return (
     <div className="bg-light min-vh-100 py-4">
@@ -483,31 +525,21 @@ const AssessmentDashboard = () => {
                     </button>
                     
                     {isSkillSharer && (
-                      <>
-                        <button 
-                          className="btn primary rounded-pill py-2 d-flex align-items-center justify-content-center"
-                          onClick={() => handleTabChange('completed-sessions')}
-                        >
-                          <CheckCircle className="me-2" />
-                          <span>View Teaching Sessions</span>
-                          {completedSessions.length > 0 && (
-                            <span className="ms-2 badge bg-primary rounded-pill">{completedSessions.length}</span>
-                          )}
-                        </button>
-                        
-                        <button 
-                          className="btn primary rounded-pill py-2 d-flex align-items-center justify-content-center"
-                          onClick={() => handleTabChange('create')}
-                        >
-                          <PlusCircle className="me-2" />
-                          <span>Create New Assessment</span>
-                        </button>
-                      </>
+                      <button 
+                        className="btn btn-outline-primary rounded-pill py-2 d-flex align-items-center justify-content-center"
+                        onClick={() => handleTabChange('completed-sessions')}
+                      >
+                        <CheckCircle className="me-2" />
+                        <span>View Teaching Sessions</span>
+                        {completedSessions.length > 0 && (
+                          <span className="ms-2 badge bg-primary rounded-pill">{completedSessions.length}</span>
+                        )}
+                      </button>
                     )}
                     
                     {/* Back to Dashboard Button */}
                     <button 
-                      className="btn primary rounded-pill py-2 d-flex align-items-center justify-content-center"
+                      className="btn btn-primary rounded-pill py-2 d-flex align-items-center justify-content-center"
                       onClick={navigateToDashboard}
                     >
                       <ArrowLeftCircle className="me-2" />
@@ -601,39 +633,7 @@ const AssessmentDashboard = () => {
 
           {/* Content */}
           <div className="p-4">
-           {activeTab === 'completed-sessions' && (
-  <>
-    {console.log("Sessions being passed to list:", completedSessions)}
-    <TeacherCompletedSessionsList 
-      sessions={completedSessions} 
-      onCreateAssessment={handleSessionSelect}
-    />
-  </>
-)}
-            
-            {activeTab === 'create-session' && (
-              <CreateSessionAssessment 
-                userId={user?._id} 
-                initialSession={selectedSession}
-                onComplete={() => {
-                  setSelectedSession(null);
-                  handleTabChange('available');
-                }}
-              />
-            )}
-            
-            {activeTab !== 'completed-sessions' && activeTab !== 'create-session' && (
-              <Routes>
-                <Route path="/" element={<AssessmentList skillId={skillId} isSkillSharer={isSkillSharer} />} />
-                <Route path="/create" element={<CreateAssessment skillId={skillId} />} />
-                <Route path="/submissions" element={<SubmissionsList skillId={skillId} />} />
-                <Route path="/my-submissions" element={<LearnerSubmissionsList userId={user?._id} />} />
-                <Route path="/assessment/:assessmentId/submit" element={<SubmitAssessment />} />
-                <Route path="/assessment/:assessmentId/submissions" element={<SubmissionsList />} />
-                <Route path="/submission/:submissionId/evaluate" element={<EvaluateSubmission />} />
-                <Route path="/submitted" element={<SubmissionSuccess />} />
-              </Routes>
-            )}
+            {renderContent()}
           </div>
         </div>
       </div>

@@ -21,6 +21,7 @@
     "react-scripts": "5.0.1",
     "react-toastify": "^11.0.5",
     "react-visibility-sensor": "^5.1.1",
+    "recharts": "^2.15.2",
     "socket.io-client": "^4.8.1",
     "styled-components": "^6.1.16",
     "styled-jsx": "^5.1.6",
@@ -55,5 +56,10 @@
   "main": "index.js",
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.1"
+  }
 }

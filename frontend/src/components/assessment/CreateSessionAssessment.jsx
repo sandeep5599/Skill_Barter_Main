@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Form, Button, Alert, Card } from 'react-bootstrap';
-import { Calendar, CheckCircle, PlusCircle } from 'react-bootstrap-icons';
+import { Calendar, CheckCircle, PlusCircle, FileEarmarkPdf, X } from 'react-bootstrap-icons';
 import Loading from '../common/Loading';
 import Error from '../common/Error';
 
@@ -21,8 +21,13 @@ const CreateSessionAssessment = ({ userId, initialSession = null, onComplete }) 
     sessionId: '',
     questions: [{ text: '', points: 10 }],
     dueDate: '',
-    status: 'active'
+    status: 'active',
+    passingScore: 70 // Add this line
   });
+  const [pdfFile, setPdfFile] = useState(null);
+  const [pdfFileName, setPdfFileName] = useState('');
+  const [pdfError, setPdfError] = useState('');
+
   useEffect(() => {
     const fetchSessions = async () => {
       try {
@@ -66,6 +71,8 @@ const CreateSessionAssessment = ({ userId, initialSession = null, onComplete }) 
   }, [userId, initialSession]);
 
   const populateFormFromSession = (session) => {
+
+    // console.log("populateFormFromSession called with session:", session);
     // Extract notes and create questions based on session content
     const sessionNotes = session.notes || '';
     const defaultTitle = `${session.skillDetails?.title || 'Skill'} Assessment`;
@@ -83,12 +90,13 @@ const CreateSessionAssessment = ({ userId, initialSession = null, onComplete }) 
     
     setFormData({
       title: defaultTitle,
-      description: `Assessment based on our session on ${new Date(session.date).toLocaleDateString()}.`,
+      description: `Assessment based on our session on ${new Date(session.startTime).toLocaleDateString()}.`,
       skillId: session.skillId || '',
       sessionId: session._id || '',
       questions: defaultQuestions,
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Due in 7 days
-      status: 'active'
+      status: 'active',
+      passingScore: 70 // Add this line
     });
   };
 
@@ -121,6 +129,33 @@ const CreateSessionAssessment = ({ userId, initialSession = null, onComplete }) 
     setFormData({ ...formData, questions: updatedQuestions });
   };
 
+  const handlePdfUpload = (e) => {
+    const file = e.target.files[0];
+    setPdfError('');
+    
+    if (!file) return;
+    
+    if (file.type !== 'application/pdf') {
+      setPdfError('Please upload a PDF file');
+      return;
+    }
+    
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      setPdfError('File size should be less than 10MB');
+      return;
+    }
+    
+    setPdfFile(file);
+    setPdfFileName(file.name);
+  };
+
+  const handleRemovePdf = () => {
+    setPdfFile(null);
+    setPdfFileName('');
+    // Reset the file input
+    document.getElementById('pdfUpload').value = '';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -143,17 +178,38 @@ const CreateSessionAssessment = ({ userId, initialSession = null, onComplete }) 
     try {
       setSubmitting(true);
       setError('');
-  
-      // Create the assessment using fetch API
-      const response = await fetch('/api/assessments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(formData),
-        cache: 'no-store'
-      });
+      
+      // Create FormData if there's a PDF to upload
+      let assessmentData = formData;
+      let response;
+      
+      if (pdfFile) {
+        const formDataObj = new FormData();
+        formDataObj.append('questionsPdf', pdfFile);
+        // console.log("Sending assessment data:", JSON.stringify(formData));
+        
+        formDataObj.append('assessmentData', JSON.stringify(formData));
+        
+        // Upload with PDF file
+        response = await fetch('/api/assessments/create', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: formDataObj,
+        });
+      } else {
+        // Create the assessment using fetch API without PDF
+        response = await fetch('/api/assessments', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify(formData),
+          cache: 'no-store'
+        });
+      }
   
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
@@ -265,7 +321,8 @@ const CreateSessionAssessment = ({ userId, initialSession = null, onComplete }) 
                 </div>
                 <div>
                 <h6 className="mb-0 fw-bold">{selectedSession.skillDetails?.title || 'Creating Assessment'}</h6>
-                  <small className="text-muted">Session from {new Date(selectedSession.date).toLocaleDateString()}</small>
+                  <small className="text-muted">Session from {new Date(selectedSession.
+        startTime).toLocaleDateString()}</small>
                 </div>
               </div>
             </div>
@@ -304,65 +361,162 @@ const CreateSessionAssessment = ({ userId, initialSession = null, onComplete }) 
                   required
                 />
               </Form.Group>
+              
+              {/* PDF File Upload Section */}
+              <Form.Group className="mb-4">
+                <Form.Label className="fw-bold d-block">Upload Assessment PDF (Optional)</Form.Label>
+                <div className="border rounded p-3 bg-light">
+                  {!pdfFileName ? (
+                    <>
+                      <Form.Control
+                        type="file"
+                        id="pdfUpload"
+                        accept=".pdf"
+                        onChange={handlePdfUpload}
+                        style={{ display: 'none' }}
+                      />
+                      <div className="text-center">
+                        <FileEarmarkPdf className="text-primary mb-2" size={32} />
+                        <p className="mb-2">Drag & drop a PDF file here or</p>
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() => document.getElementById('pdfUpload').click()}
+                        >
+                          Browse Files
+                        </Button>
+                        <p className="mt-2 small text-muted">Max file size: 10MB</p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="d-flex align-items-center justify-content-between">
+                      <div className="d-flex align-items-center">
+                        <FileEarmarkPdf className="text-primary me-2" size={24} />
+                        <div>
+                          <div className="fw-medium">{pdfFileName}</div>
+                          <small className="text-muted">PDF Document</small>
+                        </div>
+                      </div>
+                      <Button
+                        variant="link"
+                        className="text-danger p-0"
+                        onClick={handleRemovePdf}
+                      >
+                        <X size={20} />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                {pdfError && <p className="text-danger small mt-1">{pdfError}</p>}
+              </Form.Group>
 
               <hr className="my-4" />
               
               <div className="mb-3">
-                <label className="fw-bold mb-3">Assessment Questions</label>
-                
-                {formData.questions.map((question, index) => (
-                  <div key={index} className="card border mb-3">
-                    <div className="card-body">
-                      <div className="d-flex justify-content-between mb-2">
-                        <h6 className="fw-bold mb-0">Question {index + 1}</h6>
-                        {formData.questions.length > 1 && (
-                          <Button 
-                            variant="link" 
-                            className="text-danger p-0" 
-                            onClick={() => removeQuestion(index)}
-                          >
-                            Remove
-                          </Button>
-                        )}
-                      </div>
-                      
-                      <Form.Group className="mb-3">
-                        <Form.Label>Question Text</Form.Label>
-                        <Form.Control
-                          as="textarea"
-                          rows={2}
-                          value={question.text}
-                          onChange={(e) => handleQuestionChange(index, 'text', e.target.value)}
-                          placeholder="Enter question"
-                          required
-                        />
-                      </Form.Group>
-                      
-                      <Form.Group>
-                        <Form.Label>Points (1-100)</Form.Label>
-                        <Form.Control
-                          type="number"
-                          min="1"
-                          max="100"
-                          value={question.points}
-                          onChange={(e) => handleQuestionChange(index, 'points', parseInt(e.target.value))}
-                          required
-                        />
-                      </Form.Group>
-                    </div>
-                  </div>
-                ))}
-                
-                <Button 
-                  variant="outline-primary" 
-                  className="d-flex align-items-center" 
-                  onClick={addQuestion}
-                  type="button"
-                >
-                  <PlusCircle className="me-2" />
-                  Add Question
-                </Button>
+  <label className="fw-bold mb-3">Assessment Points Configuration</label>
+  
+  {pdfFileName ? (
+    <div className="card border mb-3">
+      <div className="card-body">
+        <div className="mb-3">
+          <h6 className="fw-bold mb-2">Questions from PDF</h6>
+          <p className="text-muted small">The questions will be taken from the uploaded PDF file.</p>
+        </div>
+        
+        <Form.Group>
+          <Form.Label>Number of Questions in PDF</Form.Label>
+          <Form.Control
+            type="number"
+            min="1"
+            max="50"
+            name="questionCount"
+            onChange={(e) => {
+              const count = parseInt(e.target.value);
+              if (count > 0) {
+                // Create placeholders for each question with default points
+                const newQuestions = Array(count).fill().map((_, i) => ({
+                  text: `Question ${i+1} from PDF`,
+                  points: 10
+                }));
+                setFormData({...formData, questions: newQuestions});
+              }
+            }}
+            placeholder="Enter the number of questions in your PDF"
+            required
+          />
+        </Form.Group>
+        
+        <div className="mt-3">
+          <h6 className="fw-bold mb-2">Points Configuration</h6>
+          {formData.questions.map((question, index) => (
+            <div key={index} className="d-flex align-items-center mb-2 border-bottom pb-2">
+              <div className="me-2">
+                <span className="badge bg-primary bg-opacity-10 text-primary">Q{index + 1}</span>
               </div>
+              <div className="flex-grow-1">
+                <Form.Group>
+                  <Form.Label className="small">Points for Question {index + 1}</Form.Label>
+                  <Form.Control
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={question.points}
+                    onChange={(e) => handleQuestionChange(index, 'points', parseInt(e.target.value))}
+                    required
+                  />
+                </Form.Group>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  ) : (
+    <div className="alert alert-info">
+      <div className="d-flex align-items-center">
+        <FileEarmarkPdf className="text-primary me-2" size={24} />
+        <div>
+          <p className="mb-0">Please upload a PDF with assessment questions first.</p>
+          <small>Once uploaded, you can specify the number of questions and points per question.</small>
+        </div>
+      </div>
+    </div>
+  )}
+  
+  <div className="mt-3">
+    <Form.Group>
+      <Form.Label className="fw-bold">Total Assessment Value</Form.Label>
+      <Form.Control
+        type="number"
+        value={formData.questions.reduce((sum, q) => sum + q.points, 0)}
+        readOnly
+        className="bg-light"
+      />
+      <Form.Text className="text-muted">
+        Total points across all questions in this assessment
+      </Form.Text>
+    </Form.Group>
+  </div>
+  
+  <div className="mt-3">
+    <Form.Group>
+      <Form.Label className="fw-bold">Passing Score (%)</Form.Label>
+      <Form.Control
+        type="number"
+        min="1"
+        max="100"
+        name="passingScore"
+        onChange={handleInputChange}
+        defaultValue={70}
+        required
+      />
+      <Form.Text className="text-muted">
+        Minimum percentage required to pass this assessment
+      </Form.Text>
+    </Form.Group>
+  </div>
+</div>
+
             </div>
             <div className="card-footer bg-light border-0 py-3">
               <div className="d-flex justify-content-end gap-2">

@@ -4,13 +4,18 @@ const Assessment = require('../models/Assessment');
 const Submission = require('../models/Submission'); // if this is in a separate file
 const User = require('../models/User');
 const uploadService = require('../services/uploadService'); // Implement this for file uploads
+const { sendNotification } = require('../services/notificationService');
 
 // Create a new assessment
 exports.createAssessment = async (req, res) => {
   try {
-    const { title, description, skillId, dueDate } = req.body;
+
+    const assessmentData = JSON.parse(req.body.assessmentData);
+    const { title, description, skillId, dueDate } = assessmentData;
     const questionsPdf = req.file;
     
+    // console.log("Parsed assessment data:", assessmentData); // Debug
+    // console.log("Request file:", req.file);  
     if (!questionsPdf) {
       return res.status(400).json({ success: false, message: 'Questions PDF file is required' });
     }
@@ -147,6 +152,168 @@ exports.getPendingAssessments = async (req, res) => {
   }
 };
 
+exports.getAssessmentStats = async (req, res) => {
+  try {
+    const { skillId } = req.params;
+    const userId = req.user.id; // Assuming auth middleware adds user to req
+    
+    // Get total assessments for this skill
+    const totalAssessments = await Assessment.countDocuments({ 
+      skillId: skillId,
+      isActive: true 
+    });
+    
+    // Get pending submissions for this skill where user is the creator
+    const pendingSubmissions = await Submission.countDocuments({
+      assessmentId: { $in: await Assessment.find({ skillId, createdBy: userId }).distinct('_id') },
+      evaluatedAt: null // Not yet evaluated
+    });
+    
+    // Get completed submissions for this skill where user is the creator
+    const completedSubmissions = await Submission.countDocuments({
+      assessmentId: { $in: await Assessment.find({ skillId, createdBy: userId }).distinct('_id') },
+      evaluatedAt: { $ne: null } // Has been evaluated
+    });
+    
+    // Calculate average score from completed submissions
+    let averageScore = 0;
+    if (completedSubmissions > 0) {
+      const submissions = await Submission.find({
+        assessmentId: { $in: await Assessment.find({ skillId, createdBy: userId }).distinct('_id') },
+        evaluatedAt: { $ne: null },
+        score: { $exists: true }
+      });
+      
+      const totalScore = submissions.reduce((sum, sub) => sum + (sub.score || 0), 0);
+      averageScore = submissions.length > 0 ? Math.round(totalScore / submissions.length) : 0;
+    }
+    
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalAssessments,
+        pendingSubmissions,
+        completedSubmissions,
+        averageScore
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching assessment stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching assessment statistics',
+      error: error.message
+    });
+  }
+};
+// Evaluate a submission
+exports.evaluateSubmission = async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const { feedback, score, passed } = req.body;
+    
+    const submission = await Submission.findById(submissionId)
+      .populate({
+        path: 'assessmentId',
+        populate: { path: 'skillId', select: 'title' }
+      })
+      .populate('submittedBy', 'name');
+    
+    if (!submission) {
+      return res.status(404).json({
+        success: false,
+        message: 'Submission not found'
+      });
+    }
+    
+    // Update submission with evaluation
+    submission.evaluatedBy = req.user.id;
+    submission.evaluatedAt = new Date();
+    submission.feedback = feedback;
+    submission.score = score;
+    submission.passed = passed;
+    
+    await submission.save();
+    
+    // Send notification to the student
+    if (req.app.get('io')) {
+      await sendNotification(req.app.get('io'), {
+        userId: submission.submittedBy._id, // The student's user ID
+        type: 'assessment_evaluated',
+        title: 'Assessment Evaluated',
+        message: `Your submission for "${submission.assessmentId.title}" has been evaluated`,
+        link: `/skills/${submission.assessmentId.skillId._id}/assessments/${submission.assessmentId._id}/result`,
+        additionalData: {
+          assessmentId: submission.assessmentId._id,
+          skillId: submission.assessmentId.skillId._id,
+          passed: submission.passed,
+          score: submission.score
+        }
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      submission
+    });
+  } catch (error) {
+    console.error('Error evaluating submission:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error evaluating submission',
+      error: error.message
+    });
+  }
+};
+
+// Get submissions for an assessment
+exports.getSubmissionsByAssessment = async (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+    
+    const submissions = await Submission.find({ assessmentId })
+      .populate('submittedBy', 'name')
+      .populate('evaluatedBy', 'name')
+      .sort({ submittedAt: -1 });
+    
+    res.status(200).json({
+      success: true,
+      submissions
+    });
+  } catch (error) {
+    console.error('Error fetching submissions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching submissions',
+      error: error.message
+    });
+  }
+};
+
+// Get submissions made by a learner
+exports.getLearnerSubmissions = async (req, res) => {
+  try {
+    const submissions = await Submission.find({ submittedBy: req.user.id })
+      .populate({
+        path: 'assessmentId',
+        populate: { path: 'skillId', select: 'title' }
+      })
+      .sort({ submittedAt: -1 });
+    
+    res.status(200).json({
+      success: true,
+      submissions
+    });
+  } catch (error) {
+    console.error('Error fetching learner submissions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching submissions',
+      error: error.message
+    });
+  }
+};
+
 // In assessmentController.js
 exports.getAvailableAssessments = async (req, res) => {
   try {
@@ -162,3 +329,4 @@ exports.getAvailableAssessments = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+

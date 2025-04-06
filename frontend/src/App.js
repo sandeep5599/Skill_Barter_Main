@@ -16,6 +16,7 @@ import TeachingRequests from "./components/TeachingRequests";
 import LearnerRequests from "./components/LearnerRequests";
 import SessionDetails from "./components/SessionDetails";
 import SessionsList from "./components/SessionsList";
+import SubmitAssessment from "./components/assessment/SubmitAssessment"; 
 import GlobalStyles from "./styles/GlobalStyles";
 import { ThemeProvider } from 'styled-components';
 import { theme } from './styles/theme';
@@ -40,6 +41,7 @@ function App() {
             <Route path="/sessions/:sessionId" element={<PrivateRoute><SessionDetails /></PrivateRoute>} />
             <Route path="/profile" element={<PrivateRoute><ProfileManagement /></PrivateRoute>} />
             <Route path="/assessments/*" element={<PrivateRoute><AssessmentDashboard /></PrivateRoute>} />
+            <Route path="/assessment/:assessmentId/submit" element={<PrivateRoute><SubmitAssessment /></PrivateRoute>} />
           </Routes>
         </NotificationProvider>
       </AuthProvider>
