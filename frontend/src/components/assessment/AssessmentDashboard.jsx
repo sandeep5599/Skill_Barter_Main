@@ -301,7 +301,7 @@ const AssessmentDashboard = () => {
   };
 
   // Define TeacherCompletedSessionsList as a proper component
-  const TeacherCompletedSessionsList = ({ sessions, onCreateAssessment }) => {
+  const TeacherCompletedSessionsList = ({ sessions, onCreateAssessment, existingAssessments }) => {
     console.log("TeacherCompletedSessionsList received sessions:", sessions);
     
     if (!sessions || sessions.length === 0) {
@@ -321,6 +321,60 @@ const AssessmentDashboard = () => {
         </div>
       );
     }
+  
+    // Helper function to check if a session already has an assessment
+    const hasExistingAssessment = (sessionId) => {
+      if (!existingAssessments || !Array.isArray(existingAssessments)) return false;
+      return existingAssessments.some(assessment => 
+        assessment.sessionId === sessionId || 
+        (assessment.sessionId && typeof assessment.sessionId === 'object' && assessment.sessionId._id === sessionId)
+      );
+    };
+  
+    // Helper function to get the button for assessment action
+    const getAssessmentButton = (session) => {
+      const sessionId = session._id;
+      const hasAssessment = hasExistingAssessment(sessionId);
+      
+      if (hasAssessment) {
+        const assessment = existingAssessments.find(a => 
+          a.sessionId === sessionId || 
+          (a.sessionId && typeof a.sessionId === 'object' && a.sessionId._id === sessionId)
+        );
+        
+        return (
+          <div className="d-grid mt-3">
+            <button 
+              className="btn btn-outline-success rounded-pill py-2 d-flex align-items-center justify-content-center"
+              onClick={() => onViewAssessment(assessment)}
+            >
+              <CheckCircle className="me-2" />
+              <span>View Assessment</span>
+            </button>
+          </div>
+        );
+      } else {
+        return (
+          <div className="d-grid mt-3">
+            <button 
+              className="btn btn-primary rounded-pill py-2 d-flex align-items-center justify-content-center"
+              onClick={() => onCreateAssessment(session)}
+            >
+              <PlusCircle className="me-2" />
+              <span>Create Assessment</span>
+            </button>
+          </div>
+        );
+      }
+    };
+  
+    // We'll need this function for the button
+    const onViewAssessment = (assessment) => {
+      // Navigate to assessment view page
+      window.location.href = `/assessment/${assessment._id}/view`;
+      // Alternatively, if using react-router-dom:
+      // navigate(`/assessment/${assessment._id}/view`);
+    };
   
     return (
       <div className="sessions-list">
@@ -379,6 +433,9 @@ const AssessmentDashboard = () => {
                     <span className={`badge ${session.status === 'completed' ? 'bg-success' : 'bg-warning'}`}>
                       {session.status === 'completed' ? 'Completed' : 'Scheduled'}
                     </span>
+                    {hasExistingAssessment(session._id) && (
+                      <span className="badge bg-info ms-1">Assessment Created</span>
+                    )}
                   </div>
                   
                   <div className="card-body p-4">
@@ -417,15 +474,7 @@ const AssessmentDashboard = () => {
                       )}
                     </div>
                     
-                    <div className="d-grid mt-3">
-                      <button 
-                        className="btn btn-primary rounded-pill py-2 d-flex align-items-center justify-content-center"
-                        onClick={() => onCreateAssessment(session)}
-                      >
-                        <PlusCircle className="me-2" />
-                        <span>Create Assessment</span>
-                      </button>
-                    </div>
+                    {getAssessmentButton(session)}
                   </div>
                 </div>
               </div>
@@ -526,7 +575,7 @@ const AssessmentDashboard = () => {
                     
                     {isSkillSharer && (
                       <button 
-                        className="btn btn-outline-primary rounded-pill py-2 d-flex align-items-center justify-content-center"
+                        className="btn primary rounded-pill py-2 d-flex align-items-center justify-content-center"
                         onClick={() => handleTabChange('completed-sessions')}
                       >
                         <CheckCircle className="me-2" />

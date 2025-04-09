@@ -17,55 +17,62 @@ const AssessmentList = ({ skillId, isSkillSharer }) => {
         setLoading(true);
         setError('');
         
-        // Fetch assessments
-        const endpoint = skillId 
-          ? `/api/skills/${skillId}/assessments` 
-          : '/api/assessments';
-        
-        const assessmentResponse = await fetch(endpoint, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-          cache: 'no-store'
-        });
-        
-        if (!assessmentResponse.ok) {
-          throw new Error(`Failed to fetch assessments: ${assessmentResponse.status}`);
-        }
-        
-        const assessmentData = await assessmentResponse.json();
-        // console.log("Fetched assessments:", assessmentData);
-        
-        let assessmentList = [];
-        if (assessmentData.success && Array.isArray(assessmentData.assessments)) {
-          assessmentList = assessmentData.assessments;
-        } else if (Array.isArray(assessmentData)) {
-          assessmentList = assessmentData;
-        } else {
-          console.error('Unexpected data format:', assessmentData);
-          assessmentList = [];
-        }
-        
-        setAssessments(assessmentList);
-        
-        // Fetch user's submissions for these assessments
-        const submissionsResponse = await fetch('/api/assessments/submissions/learner', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          }
-        });
-        
-        if (submissionsResponse.ok) {
-          const submissionsData = await submissionsResponse.json();
-          // console.log("Fetched submissions:", submissionsData);
+        // Only fetch assessments if user is not a skill sharer for this skill
+        // or if they're accessing their own created assessments
+        if (!isSkillSharer) {
+          // Fetch assessments
+          const endpoint = skillId 
+            ? `/api/skills/${skillId}/assessments` 
+            : '/api/assessments';
           
-          if (submissionsData.success && Array.isArray(submissionsData.submissions)) {
-            setSubmissions(submissionsData.submissions);
+          const assessmentResponse = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+            cache: 'no-store'
+          });
+          
+          if (!assessmentResponse.ok) {
+            throw new Error(`Failed to fetch assessments: ${assessmentResponse.status}`);
           }
+          
+          const assessmentData = await assessmentResponse.json();
+          // console.log("Fetched assessments:", assessmentData);
+          
+          let assessmentList = [];
+          if (assessmentData.success && Array.isArray(assessmentData.assessments)) {
+            assessmentList = assessmentData.assessments;
+          } else if (Array.isArray(assessmentData)) {
+            assessmentList = assessmentData;
+          } else {
+            console.error('Unexpected data format:', assessmentData);
+            assessmentList = [];
+          }
+          
+          setAssessments(assessmentList);
+          
+          // Fetch user's submissions for these assessments
+          const submissionsResponse = await fetch('/api/assessments/submissions/learner', {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            }
+          });
+          
+          if (submissionsResponse.ok) {
+            const submissionsData = await submissionsResponse.json();
+            // console.log("Fetched submissions:", submissionsData);
+            
+            if (submissionsData.success && Array.isArray(submissionsData.submissions)) {
+              setSubmissions(submissionsData.submissions);
+            }
+          }
+        } else {
+          // If user is a skill sharer, set assessments to empty
+          setAssessments([]);
         }
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -76,7 +83,7 @@ const AssessmentList = ({ skillId, isSkillSharer }) => {
     };
     
     fetchData();
-  }, [skillId]);
+  }, [skillId, isSkillSharer]);
 
   // Helper function to find submission for an assessment
   const getSubmissionForAssessment = (assessmentId) => {
@@ -98,6 +105,25 @@ const AssessmentList = ({ skillId, isSkillSharer }) => {
     return <ErrorMessage message={error} />;
   }
 
+  // If user is a skill sharer, show them a different view
+  if (isSkillSharer) {
+    return (
+      <div className="text-center py-5">
+        <div className="mb-3">
+          <FileEarmarkPdf size={48} className="text-muted" />
+        </div>
+        <h5 className="fw-bold">Assessment Management</h5>
+        <p className="text-muted">As a skill sharer, you can create and manage assessments for your skills.</p>
+        <button 
+          className="btn btn-primary rounded-pill mt-3"
+          onClick={() => navigate(skillId ? `/skills/${skillId}/assessments/completed-sessions` : '/assessments/completed-sessions')}
+        >
+          <PlusCircle className="me-2" /> Manage Assessments
+        </button>
+      </div>
+    );
+  }
+
   if (assessments.length === 0) {
     return (
       <div className="text-center py-5">
@@ -106,14 +132,6 @@ const AssessmentList = ({ skillId, isSkillSharer }) => {
         </div>
         <h5 className="fw-bold">No Assessments Available</h5>
         <p className="text-muted">There are no assessments available for this skill yet.</p>
-        {isSkillSharer && (
-          <button 
-            className="btn btn-primary rounded-pill mt-3"
-            onClick={() => navigate(skillId ? `/skills/${skillId}/assessments/completed-sessions` : '/assessments/completed-sessions')}
-          >
-            <PlusCircle className="me-2" /> Create an Assessment
-          </button>
-        )}
       </div>
     );
   }

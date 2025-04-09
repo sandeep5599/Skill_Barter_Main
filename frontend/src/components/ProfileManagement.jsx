@@ -7,6 +7,25 @@ import ProfileCard from './ProfileCard';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
+// List of countries for the dropdown
+const COUNTRIES = [
+  "United States", "Canada", "United Kingdom", "Australia", "India",
+  "Germany", "France", "Japan", "China", "Brazil", "Mexico", "Spain",
+  "Italy", "Netherlands", "Sweden", "South Korea", "Russia", "Other"
+];
+
+// List of security questions to choose from
+const SECURITY_QUESTIONS = [
+  "What was the name of your first pet?",
+  "In what city were you born?",
+  "What is your mother's maiden name?",
+  "What high school did you attend?",
+  "What was the make of your first car?",
+  "What was your childhood nickname?",
+  "What is the name of your favorite childhood friend?",
+  "What street did you grow up on?"
+];
+
 const ProfileManagement = () => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
@@ -16,7 +35,9 @@ const ProfileManagement = () => {
     teachingSkills: [], 
     learningSkills: [],
     name: '',
-    email: ''
+    email: '',
+    country: '',
+    hasSecurityQuestions: false
   });
   const [newTeachingSkill, setNewTeachingSkill] = useState({ name: '', proficiency: 'Beginner', description: '' });
   const [newLearningSkill, setNewLearningSkill] = useState({ name: '', proficiency: 'Beginner', description: '' });
@@ -26,6 +47,7 @@ const ProfileManagement = () => {
   const [editProfileData, setEditProfileData] = useState({
     name: '',
     email: '',
+    country: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -40,6 +62,14 @@ const ProfileManagement = () => {
   });
 
   const [passwordChangeMode, setPasswordChangeMode] = useState(false);
+  
+  // Security questions states
+  const [securityQuestions, setSecurityQuestions] = useState([
+    { question: SECURITY_QUESTIONS[0], answer: '' },
+    { question: SECURITY_QUESTIONS[1], answer: '' }
+  ]);
+  const [showSecurityQuestionsModal, setShowSecurityQuestionsModal] = useState(false);
+  const [securityQuestionsError, setSecurityQuestionsError] = useState('');
 
   useEffect(() => {
     if (user?._id) {
@@ -77,6 +107,8 @@ const ProfileManagement = () => {
         learningSkills: skillsData.learningSkills || [],
         name: userData.name || '',
         email: userData.email || '',
+        country: userData.country || '',
+        hasSecurityQuestions: userData.securityQuestions && userData.securityQuestions.length > 0,
         joinedDate: userData.createdAt || new Date(),
         matchesCompleted: userData.matchesCompleted || 0
       }));
@@ -85,10 +117,19 @@ const ProfileManagement = () => {
       setEditProfileData({
         name: userData.name || '',
         email: userData.email || '',
+        country: userData.country || '',
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
+      
+      // If user has security questions, prefill the questions (not answers)
+      if (userData.securityQuestions && userData.securityQuestions.length > 0) {
+        setSecurityQuestions(userData.securityQuestions.map(q => ({
+          question: q.question,
+          answer: '' // Never load the hashed answers from server
+        })));
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
     }
@@ -130,85 +171,6 @@ const ProfileManagement = () => {
     setProfileEditErrors(errors);
     return isValid;
   };
-
-  // const handleUpdateProfile = async (e) => {
-  //   e.preventDefault();
-    
-  //   // Reset errors
-  //   setProfileEditErrors({
-  //     general: '',
-  //     currentPassword: '',
-  //     newPassword: '',
-  //     confirmNewPassword: ''
-  //   });
-
-  //   // Validate inputs
-  //   if (!validatePasswords()) return;
-
-  //   try {
-  //     const updateData = {
-  //       name: editProfileData.name,
-  //       email: editProfileData.email,
-  //       currentPassword: editProfileData.currentPassword,
-  //     };
-
-  //     // Only include new password if password change mode is active
-  //     if (passwordChangeMode) {
-  //       updateData.newPassword = editProfileData.newPassword;
-  //     }
-
-  //     const response = await fetch(`${BACKEND_URL}/api/profile/update`, {
-  //       method: 'PUT',
-  //       headers: {
-  //         'Authorization': `Bearer ${localStorage.getItem('token')}`,
-  //         'Content-Type': 'application/json',
-  //       },
-  //       body: JSON.stringify(updateData),
-  //     });
-
-  //     const data = await response.json();
-
-  //     if (!response.ok) {
-  //       // Handle specific error messages from backend
-  //       setProfileEditErrors(prev => ({
-  //         ...prev,
-  //         general: data.message || 'Failed to update profile'
-  //       }));
-  //       return;
-  //     }
-
-  //     // Update local profile state
-  //     setProfile(prev => ({
-  //       ...prev,
-  //       name: editProfileData.name,
-  //       email: editProfileData.email
-  //     }));
-
-  //     // Reset form and modes
-  //     setPasswordChangeMode(false);
-  //     setEditProfileData(prev => ({
-  //       ...prev,
-  //       currentPassword: '',
-  //       newPassword: '',
-  //       confirmNewPassword: ''
-  //     }));
-
-  //     // Optional: Show success message
-  //     setProfileEditErrors(prev => ({
-  //       ...prev,
-  //       general: 'Profile updated successfully!'
-  //     }));
-
-  //   } catch (error) {
-  //     console.error('Error updating profile:', error);
-  //     setProfileEditErrors(prev => ({
-  //       ...prev,
-  //       general: 'An unexpected error occurred'
-  //     }));
-  //   }
-  // };
-
-
 
   const handleAddSkill = async (type) => {
     const skillsKey = type === 'teach' ? 'teachingSkills' : 'learningSkills';
@@ -291,16 +253,13 @@ const ProfileManagement = () => {
     e.preventDefault();
     setEditProfileError('');
 
-    // Validate password
-    if (editProfileData.newPassword !== editProfileData.confirmPassword) {
-      setEditProfileError('New passwords do not match');
-      return;
-    }
+    if (!validatePasswords()) return;
 
     try {
       const updateData = {
         name: editProfileData.name,
         email: editProfileData.email,
+        country: editProfileData.country,
         currentPassword: editProfileData.currentPassword,
       };
 
@@ -328,22 +287,91 @@ const ProfileManagement = () => {
       setProfile(prev => ({
         ...prev,
         name: editProfileData.name,
-        email: editProfileData.email
+        email: editProfileData.email,
+        country: editProfileData.country
       }));
 
       // Close modal and reset
       setShowEditProfileModal(false);
       setEditProfileData({
-        name: editProfileData.name,
-        email: editProfileData.email,
+        ...editProfileData,
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
+      
+      setProfileEditErrors({
+        ...profileEditErrors,
+        general: 'Profile updated successfully!'
+      });
+      
+      // Reset password change mode
+      setPasswordChangeMode(false);
     } catch (error) {
       setEditProfileError(error.message);
+      setProfileEditErrors({
+        ...profileEditErrors,
+        general: error.message
+      });
       console.error('Error updating profile:', error);
     }
+  };
+
+  const handleUpdateSecurityQuestions = async (e) => {
+    e.preventDefault();
+    setSecurityQuestionsError('');
+
+    // Validate all security questions have answers
+    const hasEmptyAnswers = securityQuestions.some(q => !q.answer.trim());
+    if (hasEmptyAnswers) {
+      setSecurityQuestionsError('All security questions must have answers');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/profile/security-questions`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ securityQuestions }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to update security questions');
+      }
+
+      // Update profile state to indicate user has security questions
+      setProfile(prev => ({
+        ...prev,
+        hasSecurityQuestions: true
+      }));
+
+      // Reset form and close modal
+      setSecurityQuestions(securityQuestions.map(q => ({ 
+        question: q.question, 
+        answer: '' 
+      })));
+      setShowSecurityQuestionsModal(false);
+      
+      // Show success message
+      setProfileEditErrors({
+        ...profileEditErrors,
+        general: 'Security questions updated successfully!'
+      });
+    } catch (error) {
+      setSecurityQuestionsError(error.message);
+      console.error('Error updating security questions:', error);
+    }
+  };
+
+  const handleSecurityQuestionChange = (index, field, value) => {
+    const updatedQuestions = [...securityQuestions];
+    updatedQuestions[index][field] = value;
+    setSecurityQuestions(updatedQuestions);
   };
 
   const renderEditProfileModal = () => (
@@ -376,6 +404,19 @@ const ProfileManagement = () => {
           </Form.Group>
 
           <Form.Group className="mb-3">
+            <Form.Label>Country</Form.Label>
+            <Form.Select
+              value={editProfileData.country}
+              onChange={(e) => setEditProfileData(prev => ({ ...prev, country: e.target.value }))}
+            >
+              <option value="">Select a country</option>
+              {COUNTRIES.map((country, index) => (
+                <option key={index} value={country}>{country}</option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+
+          <Form.Group className="mb-3">
             <Form.Label>Current Password (required to make changes)</Form.Label>
             <Form.Control
               type="password"
@@ -405,6 +446,59 @@ const ProfileManagement = () => {
 
           <Button variant="primary" type="submit">
             Update Profile
+          </Button>
+        </Form>
+      </Modal.Body>
+    </Modal>
+  );
+  
+  const renderSecurityQuestionsModal = () => (
+    <Modal show={showSecurityQuestionsModal} onHide={() => setShowSecurityQuestionsModal(false)}>
+      <Modal.Header closeButton>
+        <Modal.Title>Set Security Questions</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form onSubmit={handleUpdateSecurityQuestions}>
+          {securityQuestionsError && <Alert variant="danger">{securityQuestionsError}</Alert>}
+          
+          <p className="text-muted mb-3">
+            Security questions will help you recover your account if you forget your password.
+            Choose questions you can easily remember but others cannot guess.
+          </p>
+          
+          {securityQuestions.map((q, index) => (
+            <div key={index} className="mb-4">
+              <Form.Group className="mb-2">
+                <Form.Label>Question {index + 1}</Form.Label>
+                <Form.Select
+                  value={q.question}
+                  onChange={(e) => handleSecurityQuestionChange(index, 'question', e.target.value)}
+                  required
+                >
+                  {SECURITY_QUESTIONS.map((question, qIdx) => (
+                    <option key={qIdx} value={question}>{question}</option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+              
+              <Form.Group>
+                <Form.Label>Answer</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={q.answer}
+                  onChange={(e) => handleSecurityQuestionChange(index, 'answer', e.target.value)}
+                  placeholder="Your answer"
+                  required
+                />
+                <Form.Text muted>
+                  Answers are case-insensitive. Remember your answers exactly as you type them.
+                </Form.Text>
+              </Form.Group>
+            </div>
+          ))}
+
+          <Button variant="primary" type="submit" className="w-100">
+            Save Security Questions
           </Button>
         </Form>
       </Modal.Body>
@@ -483,6 +577,7 @@ const ProfileManagement = () => {
       </Card>
 
       {renderEditProfileModal()}
+      {renderSecurityQuestionsModal()}
 
       <Row>
         <Col md={3}>
@@ -503,6 +598,14 @@ const ProfileManagement = () => {
                     onClick={() => setActiveTab('profile')}
                   >
                     Edit Profile
+                  </Nav.Link>
+                </Nav.Item>
+                <Nav.Item>
+                  <Nav.Link 
+                    active={activeTab === 'security'} 
+                    onClick={() => setActiveTab('security')}
+                  >
+                    Security Settings
                   </Nav.Link>
                 </Nav.Item>
                 <Nav.Item>
@@ -533,103 +636,164 @@ const ProfileManagement = () => {
             </Card>
           )}
 
-{activeTab === 'profile' && (
-        <Card className="mb-4">
-          <Card.Body>
-            <h3>Edit Profile</h3>
-            {profileEditErrors.general && (
-              <Alert 
-                variant={profileEditErrors.general.includes('successfully') ? 'success' : 'danger'}
-              >
-                {profileEditErrors.general}
-              </Alert>
-            )}
-            <Form onSubmit={handleUpdateProfile}>
-              <Form.Group className="mb-3">
-                <Form.Label>Name</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={editProfileData.name}
-                  onChange={(e) => setEditProfileData(prev => ({ ...prev, name: e.target.value }))}
-                  required
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Label>Email</Form.Label>
-                <Form.Control
-                  type="email"
-                  value={editProfileData.email}
-                  onChange={(e) => setEditProfileData(prev => ({ ...prev, email: e.target.value }))}
-                  required
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Label>Current Password</Form.Label>
-                <Form.Control
-                  type="password"
-                  value={editProfileData.currentPassword}
-                  onChange={(e) => setEditProfileData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                  required
-                  isInvalid={!!profileEditErrors.currentPassword}
-                />
-                <Form.Control.Feedback type="invalid">
-                  {profileEditErrors.currentPassword}
-                </Form.Control.Feedback>
-              </Form.Group>
-
-              {/* Password Change Section */}
-              <div className="mb-3">
-                <Form.Check 
-                  type="switch"
-                  id="password-change-switch"
-                  label="Change Password"
-                  checked={passwordChangeMode}
-                  onChange={() => setPasswordChangeMode(!passwordChangeMode)}
-                />
-              </div>
-
-              {passwordChangeMode && (
-                <>
+          {activeTab === 'profile' && (
+            <Card className="mb-4">
+              <Card.Body>
+                <h3>Edit Profile</h3>
+                {profileEditErrors.general && (
+                  <Alert 
+                    variant={profileEditErrors.general.includes('successfully') ? 'success' : 'danger'}
+                  >
+                    {profileEditErrors.general}
+                  </Alert>
+                )}
+                <Form onSubmit={handleUpdateProfile}>
                   <Form.Group className="mb-3">
-                    <Form.Label>New Password</Form.Label>
+                    <Form.Label>Name</Form.Label>
                     <Form.Control
-                      type="password"
-                      value={editProfileData.newPassword}
-                      onChange={(e) => setEditProfileData(prev => ({ ...prev, newPassword: e.target.value }))}
-                      isInvalid={!!profileEditErrors.newPassword}
+                      type="text"
+                      value={editProfileData.name}
+                      onChange={(e) => setEditProfileData(prev => ({ ...prev, name: e.target.value }))}
+                      required
                     />
-                    <Form.Control.Feedback type="invalid">
-                      {profileEditErrors.newPassword}
-                    </Form.Control.Feedback>
-                    <Form.Text muted>
-                      Password must be at least 8 characters long
-                    </Form.Text>
                   </Form.Group>
 
                   <Form.Group className="mb-3">
-                    <Form.Label>Confirm New Password</Form.Label>
+                    <Form.Label>Email</Form.Label>
+                    <Form.Control
+                      type="email"
+                      value={editProfileData.email}
+                      onChange={(e) => setEditProfileData(prev => ({ ...prev, email: e.target.value }))}
+                      required
+                    />
+                  </Form.Group>
+                  
+                  <Form.Group className="mb-3">
+                    <Form.Label>Country</Form.Label>
+                    <Form.Select
+                      value={editProfileData.country}
+                      onChange={(e) => setEditProfileData(prev => ({ ...prev, country: e.target.value }))}
+                    >
+                      <option value="">Select a country</option>
+                      {COUNTRIES.map((country, index) => (
+                        <option key={index} value={country}>{country}</option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+
+                  <Form.Group className="mb-3">
+                    <Form.Label>Current Password</Form.Label>
                     <Form.Control
                       type="password"
-                      value={editProfileData.confirmNewPassword}
-                      onChange={(e) => setEditProfileData(prev => ({ ...prev, confirmNewPassword: e.target.value }))}
-                      isInvalid={!!profileEditErrors.confirmNewPassword}
+                      value={editProfileData.currentPassword}
+                      onChange={(e) => setEditProfileData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                      required
+                      isInvalid={!!profileEditErrors.currentPassword}
                     />
                     <Form.Control.Feedback type="invalid">
-                      {profileEditErrors.confirmNewPassword}
+                      {profileEditErrors.currentPassword}
                     </Form.Control.Feedback>
                   </Form.Group>
-                </>
-              )}
 
-              <Button variant="primary" type="submit">
-                Update Profile
-              </Button>
-            </Form>
-          </Card.Body>
-        </Card>
-      )}
+                  {/* Password Change Section */}
+                  <div className="mb-3">
+                    <Form.Check 
+                      type="switch"
+                      id="password-change-switch"
+                      label="Change Password"
+                      checked={passwordChangeMode}
+                      onChange={() => setPasswordChangeMode(!passwordChangeMode)}
+                    />
+                  </div>
+
+                  {passwordChangeMode && (
+                    <>
+                      <Form.Group className="mb-3">
+                        <Form.Label>New Password</Form.Label>
+                        <Form.Control
+                          type="password"
+                          value={editProfileData.newPassword}
+                          onChange={(e) => setEditProfileData(prev => ({ ...prev, newPassword: e.target.value }))}
+                          isInvalid={!!profileEditErrors.newPassword}
+                        />
+                        <Form.Control.Feedback type="invalid">
+                          {profileEditErrors.newPassword}
+                        </Form.Control.Feedback>
+                        <Form.Text muted>
+                          Password must be at least 8 characters long
+                        </Form.Text>
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>Confirm New Password</Form.Label>
+                        <Form.Control
+                          type="password"
+                          value={editProfileData.confirmNewPassword}
+                          onChange={(e) => setEditProfileData(prev => ({ ...prev, confirmNewPassword: e.target.value }))}
+                          isInvalid={!!profileEditErrors.confirmNewPassword}
+                        />
+                        <Form.Control.Feedback type="invalid">
+                          {profileEditErrors.confirmNewPassword}
+                        </Form.Control.Feedback>
+                      </Form.Group>
+                    </>
+                  )}
+
+                  <Button variant="primary" type="submit">
+                    Update Profile
+                  </Button>
+                </Form>
+              </Card.Body>
+            </Card>
+          )}
+          
+          {activeTab === 'security' && (
+            <Card className="mb-4">
+              <Card.Body>
+                <h3>Security Settings</h3>
+                <div className="mb-4">
+                  <h4>Security Questions</h4>
+                  <p>
+                    Security questions help you recover your account if you forget your password.
+                  </p>
+                  
+                  {profile.hasSecurityQuestions ? (
+                    <>
+                      <Alert variant="success">
+                        <Alert.Heading>Security Questions Set</Alert.Heading>
+                        <p>
+                          You have already set up security questions for your account. 
+                          You can update them at any time.
+                        </p>
+                      </Alert>
+                      <Button 
+                        variant="outline-primary"
+                        onClick={() => setShowSecurityQuestionsModal(true)}
+                      >
+                        Update Security Questions
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Alert variant="warning">
+                        <Alert.Heading>No Security Questions</Alert.Heading>
+                        <p>
+                          You haven't set up security questions yet. We recommend setting them up
+                          to help recover your account if you forget your password.
+                        </p>
+                      </Alert>
+                      <Button 
+                        variant="primary"
+                        onClick={() => setShowSecurityQuestionsModal(true)}
+                      >
+                        Set Up Security Questions
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </Card.Body>
+            </Card>
+          )}
 
           {activeTab === 'view' && (
             <Card className="mb-4">
@@ -639,6 +803,7 @@ const ProfileManagement = () => {
                   profile={{
                     name: profile.name,
                     email: profile.email,
+                    country: profile.country,
                     teachingSkills: profile.teachingSkills,
                     learningSkills: profile.learningSkills
                   }} 

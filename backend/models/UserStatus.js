@@ -19,7 +19,7 @@ const userStatusSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Create index for faster queries
-userStatusSchema.index({ userId: 1 });
+// userStatusSchema.index({ userId: 1 });
 userStatusSchema.index({ isOnline: 1 });
 
 const UserStatus = mongoose.model('UserStatus', userStatusSchema);

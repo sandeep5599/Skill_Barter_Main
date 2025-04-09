@@ -24,7 +24,8 @@ const Leaderboard = () => {
   const [sortDirection, setSortDirection] = useState('desc');
   const [isScrolledDown, setIsScrolledDown] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  
+  const [currentUserDetails, setCurrentUserDetails] = useState(null);
+
   // Achievement badges configuration
   const badges = useMemo(() => ({
     teacher: {
@@ -149,6 +150,8 @@ const Leaderboard = () => {
         // For this example, we'll use the basic endpoint
         const response = await axios.get(`/api/points/leaderboard?${params.toString()}`);
         
+        console.log('Leaderboard response:', response.data);
+
         if (response.data.success) {
           setLeaderboardData(response.data.leaderboard);
           setTotalPages(Math.ceil(response.data.total / limit) || 1);
@@ -184,6 +187,8 @@ const Leaderboard = () => {
     
     fetchLeaderboardData();
   }, [timeFrame, category, page, limit, sortBy, sortDirection, searchQuery]);
+
+ 
 
   // Handle sort change
   const handleSort = (column) => {
@@ -361,7 +366,7 @@ const Leaderboard = () => {
     <Container fluid className="py-4">
       {/* Back button & page title */}
       <div className="mb-4 d-flex align-items-center justify-content-between">
-        <Button className="text-decoration-none ps-0" onClick={() => navigate('/')}>
+        <Button className="text-decoration-none ps-0" onClick={() => navigate('/dashboard')}>
           <ArrowLeft /> Back to Dashboard
         </Button>
         <div>
@@ -566,6 +571,7 @@ const Leaderboard = () => {
                             user.points >= 50 ? getBadgeLevel('contributor', user.points) : null
                           ].filter(Boolean);
                           
+
                           return (
                             <tr key={user.userId} className={user.rank === userRank ? 'bg-primary bg-opacity-10' : ''}>
                               <td className="text-center align-middle">
@@ -607,8 +613,9 @@ const Leaderboard = () => {
                                   <div>
                                     <h6 className="mb-0 fw-semibold">{user.name}</h6>
                                     <div className="small text-muted">
-                                      <GeoAlt size={12} className="me-1" /> Unknown Location
-                                    </div>
+                                        <GeoAlt size={12} className="me-1" />
+                                        {user.country || 'Not specified'}
+                                      </div>
                                   </div>
                                 </div>
                               </td>

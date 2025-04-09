@@ -19,7 +19,7 @@ const reviewRoutes = require('./routes/reviewRoutes');
 const searchRoutes = require('./routes/searchRoutes');
 const assessmentRoutes = require('./routes/assessmentRoutes'); // New assessment routes
 const userStatusRoutes = require('./routes/userStatusRoutes'); // New user status routes
-
+const profileRoutes = require('./routes/profileRoutes'); // Profile routes
 // Configure environment
 dotenv.config();
 
@@ -109,7 +109,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/assessments', assessmentRoutes); // New assessment routes
 app.use('/api/user-status', userStatusRoutes); // New user status routes
-
+app.use('/api/profile', profileRoutes); // Profile routes
 // Providing upload middleware to be used in routes
 app.set('upload', upload);
 

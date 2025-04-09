@@ -32,10 +32,10 @@ const Dashboard = () => {
   const [isGeneratingMatches, setIsGeneratingMatches] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [isFirstLoad, setIsFirstLoad] = useState(true);
-  // Add a refresh trigger state
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   const { user, logout } = useAuth();
+  console.log('User data from Dashboard:', user); // Debugging line to check user object
   const navigate = useNavigate();
   const location = useLocation();
 

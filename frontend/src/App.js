@@ -22,6 +22,8 @@ import { ThemeProvider } from 'styled-components';
 import { theme } from './styles/theme';
 import AssessmentDashboard from "./components/assessment/AssessmentDashboard";
 import Leaderboard from "./components/Leaderboard";
+import SearchPage from "./pages/SearchPage";
+import PasswordReset from "./components/PasswordReset";
 
 function App() {
   return (
@@ -43,6 +45,8 @@ function App() {
             <Route path="/profile" element={<PrivateRoute><ProfileManagement /></PrivateRoute>} />
             <Route path="/assessments/*" element={<PrivateRoute><AssessmentDashboard /></PrivateRoute>} />
             <Route path="/assessment/:assessmentId/submit" element={<PrivateRoute><SubmitAssessment /></PrivateRoute>} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/forgot-password" element={<PasswordReset />} />
             <Route path="/leaderboard" element={<PrivateRoute><Leaderboard /></PrivateRoute>} />
           </Routes>
         </NotificationProvider>

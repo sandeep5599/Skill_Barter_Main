@@ -94,15 +94,15 @@ const LandingPage = () => {
           <Navbar.Brand href="#" className="fw-bold fs-4 text-primary">SkillBarter</Navbar.Brand>
           <Navbar.Toggle aria-controls="navbarSupportedContent" />
           <Navbar.Collapse id="navbarSupportedContent">
-  <Nav className="ms-auto mb-2 mb-lg-0">
-    <Nav.Link href="#features" className="mx-2">Features</Nav.Link>
-    <Nav.Link href="#how-it-works" className="mx-2">How It Works</Nav.Link>
-    <Nav.Link href="#testimonials" className="mx-2">Testimonials</Nav.Link>
-    <Nav.Link href="#contact" className="mx-2">Contact</Nav.Link>
-    <Nav.Item className="mx-2">
-      <NavbarSearchDropdown />
-    </Nav.Item>
-  </Nav>
+          <Nav className="ms-auto mb-2 mb-lg-0">
+            <Nav.Link href="#features" className="mx-2">Features</Nav.Link>
+            <Nav.Link href="#how-it-works" className="mx-2">How It Works</Nav.Link>
+            <Nav.Link href="#testimonials" className="mx-2">Testimonials</Nav.Link>
+            <Nav.Link href="#contact" className="mx-2">Contact</Nav.Link>
+            <Nav.Item className="mx-2">
+              <NavbarSearchDropdown />
+            </Nav.Item>
+          </Nav>
   <div className="d-flex ms-lg-3">
     <Button variant="primary" className="me-2" onClick={() => navigate('/login')}>Login</Button>
     <Button variant="primary" onClick={() => navigate('/register')}>Register</Button>

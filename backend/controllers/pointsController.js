@@ -54,13 +54,12 @@ exports.checkIn = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
-
 exports.getLeaderboard = async (req, res) => {
   try {
     const leaderboard = await Points.find()
       .sort('-points')
       .limit(10)
-      .populate('userId', 'name avatar email')
+      .populate('userId', 'name avatar email country') // Add country to the populated fields
       .lean();
     
     // Format the response for frontend consumption
@@ -69,10 +68,12 @@ exports.getLeaderboard = async (req, res) => {
       userId: entry.userId._id,
       name: entry.userId.name,
       avatar: entry.userId.avatar,
+      country: entry.userId.country || 'Not specified', // Include country in the response
       points: entry.points,
       streak: entry.streak
     }));
     
+    // console.log('Formatted Leaderboard:', formattedLeaderboard); // Debugging line
     res.json({
       success: true,
       leaderboard: formattedLeaderboard
@@ -82,6 +83,33 @@ exports.getLeaderboard = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+// exports.getLeaderboard = async (req, res) => {
+//   try {
+//     const leaderboard = await Points.find()
+//       .sort('-points')
+//       .limit(10)
+//       .populate('userId', 'name avatar email')
+//       .lean();
+    
+//     // Format the response for frontend consumption
+//     const formattedLeaderboard = leaderboard.map((entry, index) => ({
+//       rank: index + 1,
+//       userId: entry.userId._id,
+//       name: entry.userId.name,
+//       avatar: entry.userId.avatar,
+//       points: entry.points,
+//       streak: entry.streak
+//     }));
+    
+//     res.json({
+//       success: true,
+//       leaderboard: formattedLeaderboard
+//     });
+//   } catch (error) {
+//     console.error('Leaderboard error:', error);
+//     res.status(500).json({ success: false, error: error.message });
+//   }
+// };
 
 // Get user's current points and streak
 exports.getUserPoints = async (req, res) => {

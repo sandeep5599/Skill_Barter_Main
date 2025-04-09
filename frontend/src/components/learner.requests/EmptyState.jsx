@@ -18,3 +18,4 @@ const EmptyState = ({ navigate, actionPath, actionText }) => {
 };
 
 export default EmptyState;
+

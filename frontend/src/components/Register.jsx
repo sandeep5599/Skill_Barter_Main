@@ -1,16 +1,40 @@
 import React, { useState } from 'react';
-import { Form, Button, Container, Card, Alert, Row, Col, InputGroup } from 'react-bootstrap';
+import { Form, Button, Container, Card, Alert, Row, Col, InputGroup, Accordion } from 'react-bootstrap';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaUserPlus } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaUserPlus, FaGlobe, FaShieldAlt } from 'react-icons/fa';
+
+// List of countries for the dropdown
+const COUNTRIES = [
+  "United States", "Canada", "United Kingdom", "Australia", "India",
+  "Germany", "France", "Japan", "China", "Brazil", "Mexico", "Spain",
+  "Italy", "Netherlands", "Sweden", "South Korea", "Russia", "Other"
+];
+
+// List of security questions to choose from
+const SECURITY_QUESTIONS = [
+  "What was the name of your first pet?",
+  "In what city were you born?",
+  "What is your mother's maiden name?",
+  "What high school did you attend?",
+  "What was the make of your first car?",
+  "What was your childhood nickname?",
+  "What is the name of your favorite childhood friend?",
+  "What street did you grow up on?"
+];
 
 const Register = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    country: '',
+    securityQuestions: [
+      { question: SECURITY_QUESTIONS[0], answer: '' },
+      { question: SECURITY_QUESTIONS[1], answer: '' }
+    ]
   });
   const [message, setMessage] = useState({ type: '', text: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -26,6 +50,12 @@ const Register = () => {
       return setMessage({ type: 'danger', text: 'Passwords do not match. Please ensure both passwords are identical.' });
     }
 
+    // Validate security questions
+    const hasEmptyAnswers = formData.securityQuestions.some(q => !q.answer.trim());
+    if (hasEmptyAnswers) {
+      return setMessage({ type: 'danger', text: 'Please answer all security questions. They are required for account recovery.' });
+    }
+
     setMessage({ type: '', text: '' });
     setLoading(true);
 
@@ -33,7 +63,9 @@ const Register = () => {
       const response = await api.post('/auth/register', {
         name: formData.name,
         email: formData.email,
-        password: formData.password
+        password: formData.password,
+        country: formData.country,
+        securityQuestions: formData.securityQuestions
       });
 
       login(response.data);
@@ -47,6 +79,15 @@ const Register = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSecurityQuestionChange = (index, field, value) => {
+    const updatedQuestions = [...formData.securityQuestions];
+    updatedQuestions[index][field] = value;
+    setFormData({
+      ...formData,
+      securityQuestions: updatedQuestions
+    });
   };
 
   const formFields = [
@@ -63,6 +104,14 @@ const Register = () => {
       type: 'email',
       placeholder: 'Enter your email',
       icon: <FaEnvelope className="text-primary" />
+    },
+    { 
+      id: 'country',
+      label: 'Country',
+      type: 'select',
+      placeholder: 'Select your country',
+      icon: <FaGlobe className="text-primary" />,
+      options: COUNTRIES
     },
     { 
       id: 'password',
@@ -160,14 +209,29 @@ const Register = () => {
                           <InputGroup.Text className="bg-light">
                             {field.icon}
                           </InputGroup.Text>
-                          <Form.Control
-                            type={field.type}
-                            placeholder={field.placeholder}
-                            value={formData[field.id]}
-                            onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
-                            required
-                            className="py-2"
-                          />
+                          {field.type === 'select' ? (
+                            <Form.Select
+                              placeholder={field.placeholder}
+                              value={formData[field.id]}
+                              onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                              required
+                              className="py-2"
+                            >
+                              <option value="">Select your country</option>
+                              {field.options.map((option, idx) => (
+                                <option key={idx} value={option}>{option}</option>
+                              ))}
+                            </Form.Select>
+                          ) : (
+                            <Form.Control
+                              type={field.type}
+                              placeholder={field.placeholder}
+                              value={formData[field.id]}
+                              onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                              required
+                              className="py-2"
+                            />
+                          )}
                           {field.toggleIcon && (
                             <InputGroup.Text 
                               className="bg-light cursor-pointer"
@@ -179,6 +243,55 @@ const Register = () => {
                         </InputGroup>
                       </Form.Group>
                     ))}
+
+                    {/* Security Questions Section */}
+                    <Accordion className="mb-4">
+                      <Accordion.Item eventKey="0">
+                        <Accordion.Header>
+                          <div className="d-flex align-items-center">
+                            <FaShieldAlt className="text-primary me-2" />
+                            <span>Security Questions (Required)</span>
+                          </div>
+                        </Accordion.Header>
+                        <Accordion.Body>
+                          <p className="text-muted small mb-3">
+                            Security questions help you recover your account if you forget your password.
+                            Choose questions you can easily remember but others cannot guess.
+                          </p>
+                          
+                          {formData.securityQuestions.map((q, index) => (
+                            <div key={index} className="mb-3">
+                              <Form.Group className="mb-2">
+                                <Form.Label>Question {index + 1}</Form.Label>
+                                <Form.Select
+                                  value={q.question}
+                                  onChange={(e) => handleSecurityQuestionChange(index, 'question', e.target.value)}
+                                  required
+                                >
+                                  {SECURITY_QUESTIONS.map((question, qIdx) => (
+                                    <option key={qIdx} value={question}>{question}</option>
+                                  ))}
+                                </Form.Select>
+                              </Form.Group>
+                              
+                              <Form.Group>
+                                <Form.Label>Answer</Form.Label>
+                                <Form.Control
+                                  type="text"
+                                  value={q.answer}
+                                  onChange={(e) => handleSecurityQuestionChange(index, 'answer', e.target.value)}
+                                  placeholder="Your answer"
+                                  required
+                                />
+                                <Form.Text muted>
+                                  Remember your answer exactly as typed.
+                                </Form.Text>
+                              </Form.Group>
+                            </div>
+                          ))}
+                        </Accordion.Body>
+                      </Accordion.Item>
+                    </Accordion>
 
                     <div className="d-grid mb-4">
                       <Button 

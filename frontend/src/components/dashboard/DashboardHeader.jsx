@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Card, Button, Spinner, Dropdown } from 'react-bootstrap';
+import { Card, Button, Spinner, Dropdown, Nav } from 'react-bootstrap';
 import { PersonFill, BoxArrowRight, ArrowClockwise, ThreeDotsVertical } from 'react-bootstrap-icons';
 import NotificationCenter from '../NotificationCenter';
-import useResponsive from '../../hooks/useResponsive';  // Changed from named to default import
+import useResponsive from '../../hooks/useResponsive';
 import styled from 'styled-components';
 import { breakpoints } from '../../styles/breakpoints';
+import NavbarSearchDropdown from '../search/NavbarSearchDropdown';
 
 const ResponsiveHeader = styled(Card)`
   .header-content {
@@ -110,6 +111,10 @@ const DashboardHeader = ({ handleLogout, navigate, triggerRefresh }) => {
             </h1>
           </div>
           <div className="d-flex align-items-center gap-3">
+            {/* Added NavbarSearchDropdown here */}
+            <Nav.Item className="mx-2">
+              <NavbarSearchDropdown />
+            </Nav.Item>
             <NotificationCenter />
             <div className="d-flex gap-2 actions-container">
               {renderActions()}

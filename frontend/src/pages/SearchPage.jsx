@@ -5,6 +5,7 @@ import axios from 'axios';
 import SearchBar from '../components/search/SearchBar';
 import SearchResults from '../components/search/SearchResults';
 import { FaArrowLeft, FaSearch } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext'; // Import useAuth hook
 
 const SearchPage = () => {
   const [searchResults, setSearchResults] = useState([]);
@@ -19,6 +20,7 @@ const SearchPage = () => {
   
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth(); // Get authentication state using useAuth hook
 
   // Handle initial URL parameters when page loads
   useEffect(() => {
@@ -28,6 +30,7 @@ const SearchPage = () => {
       skillLevel: queryParams.get('skillLevel') || ''
     };
     
+    console.log("From SearchPage: ", initialParams);
     setCurrentParams(initialParams);
     
     // If there are search parameters in URL, perform search
@@ -89,6 +92,10 @@ const SearchPage = () => {
     performSearch(currentParams);
   };
 
+  // Determine button text and navigation target based on authentication state
+  const backButtonText = user ? 'Back to Dashboard' : 'Back to Home';
+  const backButtonTarget = user ? '/dashboard' : '/';
+
   return (
     <div className="search-page-wrapper min-vh-100 d-flex flex-column" 
          style={{ 
@@ -113,13 +120,13 @@ const SearchPage = () => {
 
       {/* Main Content - Full Width */}
       <div className="w-100 p-3 p-md-4 flex-grow-1">
-        {/* Back to Home Button */}
+        {/* Back Button - Dynamic based on auth state */}
         <Button 
           variant="primary" 
           className="mb-4 shadow-sm" 
-          onClick={() => navigate('/')}
+          onClick={() => navigate(backButtonTarget)}
         >
-          <FaArrowLeft className="me-2" /> Back to Home
+          <FaArrowLeft className="me-2" /> {backButtonText}
         </Button>
         
         {/* Header Section - Full Width */}

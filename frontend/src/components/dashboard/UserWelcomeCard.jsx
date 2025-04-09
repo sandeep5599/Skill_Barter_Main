@@ -18,6 +18,9 @@ const UserWelcomeCard = ({
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(true);
   const [leaderboardError, setLeaderboardError] = useState(null);
 
+
+  // console.log('user data:', user);
+
   // Memoized values to prevent unnecessary recalculations
   const formattedDate = useMemo(() => 
     new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),

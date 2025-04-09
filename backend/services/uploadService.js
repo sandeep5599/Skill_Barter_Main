@@ -1,5 +1,5 @@
 // services/uploadService.js
-const AWS = require('aws-sdk');
+// const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
@@ -12,13 +12,13 @@ const path = require('path');
 const STORAGE_TYPE = process.env.STORAGE_TYPE || 'local'; // 'local' or 's3'
 
 // Configure AWS S3 if using S3
-if (STORAGE_TYPE === 's3') {
-  AWS.config.update({
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    region: process.env.AWS_REGION || 'us-east-1'
-  });
-}
+// if (STORAGE_TYPE === 's3') {
+//   AWS.config.update({
+//     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+//     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+//     region: process.env.AWS_REGION || 'us-east-1'
+//   });
+// }
 
 /**
  * Upload a file to storage
