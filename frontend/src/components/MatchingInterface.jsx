@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Container, Card, Button, Row, Col, Alert, Spinner, Modal, Badge } from 'react-bootstrap';
+import { Container, Card, Button, Row, Col, Alert, Spinner, Modal, Badge, Dropdown } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
@@ -239,19 +239,41 @@ const MatchingInterface = () => {
             <Col xs={12} md={6} className="d-flex justify-content-md-end mt-3 mt-md-0">
               <div className="d-flex align-items-center gap-3">
                 <NotificationCenter />
-                <div className="d-flex gap-2">
+                
+                {/* Navigation buttons for Desktop */}
+                <div className="d-none d-md-flex gap-2">
                   <Button variant="primary" onClick={() => navigate('/dashboard')} className="d-flex align-items-center">
                     <i className="bi bi-speedometer2 me-md-2"></i>
-                    <span className="d-none d-md-inline">Dashboard</span>
+                    <span>Dashboard</span>
                   </Button>
                   <Button variant="primary" onClick={() => navigate('/profile')} className="d-flex align-items-center">
                     <i className="bi bi-person-circle me-md-2"></i>
-                    <span className="d-none d-md-inline">Profile</span>
+                    <span>Profile</span>
                   </Button>
                   <Button variant="primary" onClick={handleLogout} className="d-flex align-items-center">
                     <i className="bi bi-box-arrow-right me-md-2"></i>
-                    <span className="d-none d-md-inline">Logout</span>
+                    <span>Logout</span>
                   </Button>
+                </div>
+                
+                {/* Dropdown menu for Mobile */}
+                <div className="d-md-none">
+                  <Dropdown>
+                    <Dropdown.Toggle variant="primary" id="nav-dropdown">
+                      <i className="bi bi-three-dots"></i>
+                    </Dropdown.Toggle>
+                    <Dropdown.Menu align="end">
+                      <Dropdown.Item onClick={() => navigate('/dashboard')}>
+                        <i className="bi bi-speedometer2 me-2"></i> Dashboard
+                      </Dropdown.Item>
+                      <Dropdown.Item onClick={() => navigate('/profile')}>
+                        <i className="bi bi-person-circle me-2"></i> Profile
+                      </Dropdown.Item>
+                      <Dropdown.Item onClick={handleLogout}>
+                        <i className="bi bi-box-arrow-right me-2"></i> Logout
+                      </Dropdown.Item>
+                    </Dropdown.Menu>
+                  </Dropdown>
                 </div>
               </div>
             </Col>

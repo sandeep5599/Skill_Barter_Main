@@ -16,15 +16,12 @@ const AssessmentList = ({ skillId, isSkillSharer }) => {
       try {
         setLoading(true);
         setError('');
-        
-        // Only fetch assessments if user is not a skill sharer for this skill
-        // or if they're accessing their own created assessments
+
         if (!isSkillSharer) {
-          // Fetch assessments
-          const endpoint = skillId 
-            ? `/api/skills/${skillId}/assessments` 
+          const endpoint = skillId
+            ? `/api/skills/${skillId}/assessments`
             : '/api/assessments';
-          
+
           const assessmentResponse = await fetch(endpoint, {
             method: 'GET',
             headers: {
@@ -33,14 +30,13 @@ const AssessmentList = ({ skillId, isSkillSharer }) => {
             },
             cache: 'no-store'
           });
-          
+
           if (!assessmentResponse.ok) {
             throw new Error(`Failed to fetch assessments: ${assessmentResponse.status}`);
           }
-          
+
           const assessmentData = await assessmentResponse.json();
-          // console.log("Fetched assessments:", assessmentData);
-          
+
           let assessmentList = [];
           if (assessmentData.success && Array.isArray(assessmentData.assessments)) {
             assessmentList = assessmentData.assessments;
@@ -50,10 +46,9 @@ const AssessmentList = ({ skillId, isSkillSharer }) => {
             console.error('Unexpected data format:', assessmentData);
             assessmentList = [];
           }
-          
+
           setAssessments(assessmentList);
-          
-          // Fetch user's submissions for these assessments
+
           const submissionsResponse = await fetch('/api/assessments/submissions/learner', {
             method: 'GET',
             headers: {
@@ -61,17 +56,15 @@ const AssessmentList = ({ skillId, isSkillSharer }) => {
               'Authorization': `Bearer ${localStorage.getItem('token')}`,
             }
           });
-          
+
           if (submissionsResponse.ok) {
             const submissionsData = await submissionsResponse.json();
-            // console.log("Fetched submissions:", submissionsData);
-            
+
             if (submissionsData.success && Array.isArray(submissionsData.submissions)) {
               setSubmissions(submissionsData.submissions);
             }
           }
         } else {
-          // If user is a skill sharer, set assessments to empty
           setAssessments([]);
         }
       } catch (err) {
@@ -81,18 +74,21 @@ const AssessmentList = ({ skillId, isSkillSharer }) => {
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, [skillId, isSkillSharer]);
 
-  // Helper function to find submission for an assessment
   const getSubmissionForAssessment = (assessmentId) => {
     return submissions.find(submission => {
-      // Check if assessmentId is an object with _id or a string
-      const submissionAssessmentId = typeof submission.assessmentId === 'object' 
-        ? submission.assessmentId._id 
-        : submission.assessmentId;
+      // Check if submission.assessmentId exists
+      if (!submission.assessmentId) {
+        return false;
+      }
       
+      const submissionAssessmentId = typeof submission.assessmentId === 'object' && submission.assessmentId !== null
+        ? submission.assessmentId._id
+        : submission.assessmentId;
+
       return submissionAssessmentId === assessmentId;
     });
   };
@@ -105,7 +101,6 @@ const AssessmentList = ({ skillId, isSkillSharer }) => {
     return <ErrorMessage message={error} />;
   }
 
-  // If user is a skill sharer, show them a different view
   if (isSkillSharer) {
     return (
       <div className="text-center py-5">
@@ -114,7 +109,7 @@ const AssessmentList = ({ skillId, isSkillSharer }) => {
         </div>
         <h5 className="fw-bold">Assessment Management</h5>
         <p className="text-muted">As a skill sharer, you can create and manage assessments for your skills.</p>
-        <button 
+        <button
           className="btn btn-primary rounded-pill mt-3"
           onClick={() => navigate(skillId ? `/skills/${skillId}/assessments/completed-sessions` : '/assessments/completed-sessions')}
         >
@@ -124,7 +119,12 @@ const AssessmentList = ({ skillId, isSkillSharer }) => {
     );
   }
 
-  if (assessments.length === 0) {
+  const filteredAssessments = assessments.filter(assessment => {
+    const submission = getSubmissionForAssessment(assessment._id);
+    return !submission; // Only include assessments without submissions
+  });
+
+  if (filteredAssessments.length === 0) {
     return (
       <div className="text-center py-5">
         <div className="mb-3">
@@ -136,63 +136,26 @@ const AssessmentList = ({ skillId, isSkillSharer }) => {
     );
   }
 
-  // Helper function to get card action based on assessment status
   const getCardAction = (assessment) => {
-    const submission = getSubmissionForAssessment(assessment._id);
-    const status = submission?.status;
-    
-    switch (status) {
-      case 'submitted':
-        return (
-          <div className="d-flex align-items-center justify-content-center p-2 bg-light rounded-3">
-            <CheckCircle className="text-info me-2" />
-            <span className="fw-medium">Pending Evaluation</span>
-          </div>
-        );
-      case 'evaluated':
-        return (
-          <Link 
-            to={`/assessment/${assessment._id}/results`}
-            className="btn btn-outline-primary rounded-pill py-2 d-flex align-items-center justify-content-center"
-          >
-            <span>View Results</span>
-            <ArrowRight className="ms-2" />
-          </Link>
-        );
-      default:
-        return (
-          <Link 
-            to={`/assessment/${assessment._id}/submit`}
-            className="btn btn-primary rounded-pill py-2 d-flex align-items-center justify-content-center"
-          >
-            <span>Start Assessment</span>
-            <ArrowRight className="ms-2" />
-          </Link>
-        );
-    }
+    return (
+      <Link
+        to={`/assessment/${assessment._id}/submit`}
+        className="btn btn-primary rounded-pill py-2 d-flex align-items-center justify-content-center"
+      >
+        <span>Start Assessment</span>
+        <ArrowRight className="ms-2" />
+      </Link>
+    );
   };
 
-  // Helper function to get the status badge
   const getStatusBadge = (assessment) => {
-    const submission = getSubmissionForAssessment(assessment._id);
-    const status = submission?.status;
     const dueDate = assessment.dueDate ? new Date(assessment.dueDate) : null;
-    
-    // If assessment is already submitted or evaluated
-    if (status === 'submitted') {
-      return <span className="badge bg-info">Pending Evaluation</span>;
-    } else if (status === 'evaluated') {
-      return <span className="badge bg-success">Completed</span>;
-    } else if (status === 'late') {
-      return <span className="badge bg-warning">Submitted Late</span>;
-    }
-    
-    // For assessments not submitted yet, show deadline status
+
     if (dueDate) {
       const today = new Date();
       const diffTime = dueDate - today;
       const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
+
       if (daysRemaining <= 0) {
         return <span className="badge bg-danger">Due today</span>;
       } else if (daysRemaining <= 3) {
@@ -201,14 +164,14 @@ const AssessmentList = ({ skillId, isSkillSharer }) => {
         return <span className="badge bg-success">{daysRemaining} days remaining</span>;
       }
     }
-    
+
     return null;
   };
 
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h5 className="fw-bold mb-0">Available Assessments ({assessments.length})</h5>
+        <h5 className="fw-bold mb-0">Available Assessments ({filteredAssessments.length})</h5>
         <div className="dropdown">
           <button className="btn btn-outline-secondary dropdown-toggle rounded-pill btn-sm" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
             Sort By
@@ -220,62 +183,43 @@ const AssessmentList = ({ skillId, isSkillSharer }) => {
           </ul>
         </div>
       </div>
-      
+
       <div className="row g-4">
-        {assessments.map(assessment => {
-          // Format due date
+        {filteredAssessments.map(assessment => {
           const dueDate = assessment.dueDate ? new Date(assessment.dueDate) : null;
           const formattedDueDate = dueDate ? dueDate.toLocaleDateString() : 'No deadline';
-          const submission = getSubmissionForAssessment(assessment._id);
-          
+
           return (
             <div key={assessment._id} className="col-md-6 col-lg-4">
               <div className="card h-100 border-0 shadow-sm rounded-3">
                 <div className="card-body p-4">
                   <div className="d-flex align-items-center mb-3">
-                    <div className={`rounded-circle p-2 me-3 ${submission ? 'bg-info bg-opacity-10' : 'bg-primary bg-opacity-10'}`}>
-                      {submission ? (
-                        <CheckCircle className={submission.status === 'evaluated' ? 'text-success' : 'text-info'} />
-                      ) : (
-                        <FileEarmarkPdf className="text-primary" />
-                      )}
+                    <div className="rounded-circle p-2 me-3 bg-primary bg-opacity-10">
+                      <FileEarmarkPdf className="text-primary" />
                     </div>
                     <div>
                       <h5 className="mb-0 fw-bold">{assessment.title}</h5>
                       <p className="text-muted mb-0 small">
-                        {assessment.skillId && typeof assessment.skillId === 'object' 
-                          ? assessment.skillId.title 
+                        {assessment.skillId && typeof assessment.skillId === 'object'
+                          ? assessment.skillId.title
                           : 'Skill Assessment'}
                       </p>
                     </div>
                   </div>
-                  
+
                   <p className="mb-3">
                     {assessment.description || 'Complete this assessment to demonstrate your skills.'}
                   </p>
-                  
+
                   <div className="d-flex justify-content-between mb-3">
                     <div className="d-flex align-items-center">
-                      {submission ? (
-                        <>
-                          <ClockHistory className="text-muted me-2" />
-                          <span className="text-muted small">
-                            {submission.submittedAt 
-                              ? `Submitted: ${new Date(submission.submittedAt).toLocaleDateString()}` 
-                              : 'Submitted'}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <Calendar className="text-muted me-2" />
-                          <span className="text-muted small">Due: {formattedDueDate}</span>
-                        </>
-                      )}
+                      <Calendar className="text-muted me-2" />
+                      <span className="text-muted small">Due: {formattedDueDate}</span>
                     </div>
-                    
+
                     {getStatusBadge(assessment)}
                   </div>
-                  
+
                   <div className="d-grid">
                     {getCardAction(assessment)}
                   </div>

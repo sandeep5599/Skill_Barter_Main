@@ -74,9 +74,6 @@ router.get('/user/:userId', reviewController.getReviewsByUserId);
 router.post(
   '/:sessionId/teacher-feedback', 
   auth,
-  [
-    check('feedback', 'Feedback is required').not().isEmpty().trim()
-  ],
   reviewController.submitTeacherFeedback
 );
 

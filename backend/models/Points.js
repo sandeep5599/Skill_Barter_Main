@@ -1,9 +1,42 @@
-// Points Schema (MongoDB model)
 const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
-const PointsSchema = new mongoose.Schema({
+const PointHistorySchema = new Schema({
+  points: {
+    type: Number,
+    required: true
+  },
+  reason: {
+    type: String,
+    required: true,
+    enum: ['Check-in', 'Session Completion', 'Assessment Score', 'Achievement', 'Other']
+  },
+  assessmentId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Assessment',
+    required: false
+  },
+  sessionId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Session',
+    required: false
+  },
+  date: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+const CheckInHistorySchema = new Schema({
+  date: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+const PointsSchema = new Schema({
   userId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: Schema.Types.ObjectId,
     ref: 'User',
     required: true,
     unique: true
@@ -17,19 +50,10 @@ const PointsSchema = new mongoose.Schema({
     default: 0
   },
   lastCheckIn: {
-    type: Date,
-    default: null
+    type: Date
   },
-  // Optional: Track check-in history
-  checkInHistory: [{
-    date: {
-      type: Date,
-      default: Date.now
-    }
-  }]
+  checkInHistory: [CheckInHistorySchema],
+  pointHistory: [PointHistorySchema]
 }, { timestamps: true });
-
-// Add index for leaderboard queries
-PointsSchema.index({ points: -1 });
 
 module.exports = mongoose.model('Points', PointsSchema);

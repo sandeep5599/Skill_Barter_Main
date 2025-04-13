@@ -28,7 +28,7 @@ const matchSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['not_requested', 'pending', 'accepted', 'rejected', 'completed', 'rescheduled'],
+    enum: ['not_requested', 'pending', 'accepted', 'rejected', 'completed', 'rescheduled' , 'canceled'],
     default: 'not_requested'
   },
   // Add rejection reason field

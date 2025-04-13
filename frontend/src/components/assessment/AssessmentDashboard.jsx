@@ -11,7 +11,7 @@ import SubmissionsList from './SubmissionsList';
 import LearnerSubmissionsList from './LearnerSubmissionsList';
 import SubmitAssessment from './SubmitAssessment';
 import EvaluateSubmission from './EvaluateSubmission';
-import SubmissionSuccess from './SubmissionSuccess'; // Fixed typo in import
+import SubmissionSuccess from './SubmissionSuccess'; 
 import Loading from '../common/Loading';
 import Error from '../common/Error';
 
@@ -26,7 +26,8 @@ import {
   ArrowLeftCircle,
   House,
   Calendar,
-  CheckCircle
+  CheckCircle,
+  Mortarboard 
 } from 'react-bootstrap-icons';
 
 const AssessmentDashboard = () => {
@@ -59,6 +60,8 @@ const AssessmentDashboard = () => {
       setActiveTab('create');
     } else if (location.pathname.includes('/my-submissions')) {
       setActiveTab('my-submissions');
+    } else if (location.pathname.includes('/evaluate')) {
+      setActiveTab('evaluate');
     } else {
       setActiveTab('available');
     }
@@ -72,10 +75,10 @@ const AssessmentDashboard = () => {
         
         let userIsSkillSharer = false; // Initialize flag
         
-        console.log("About to check skillId:", skillId);
+        // console.log("About to check skillId:", skillId);
         // Fetch skill data if skillId is provided
         if (skillId) {
-          console.log("SkillId exists, making first API call");
+          // console.log("SkillId exists, making first API call");
           const skillResponse = await fetch(`/api/skills/${skillId}`, {
             method: 'GET',
             headers: {
@@ -97,7 +100,7 @@ const AssessmentDashboard = () => {
             userIsSkillSharer = true;
           }
 
-          console.log("About to fetch stats for skillId:", skillId);
+          // console.log("About to fetch stats for skillId:", skillId);
           // Fetch assessment stats
           const statsResponse = await fetch(`/api/assessments/${skillId}/assessment-stats`, {
             method: 'GET',
@@ -108,7 +111,7 @@ const AssessmentDashboard = () => {
             cache: 'no-store'
           });
           
-          console.log("Stats response status:", statsResponse.status);
+          // console.log("Stats response status:", statsResponse.status);
 
           if (statsResponse.ok) {
             const statsData = await statsResponse.json();
@@ -143,7 +146,7 @@ const AssessmentDashboard = () => {
             }
             
             const sessionsData = await sessionsResponse.json();
-            console.log("Sessions data:", sessionsData);
+            // console.log("Sessions data:", sessionsData);
             
             // Filter sessions where user is the teacher (using teacherId)
             // Include both 'completed' and 'scheduled' sessions
@@ -207,6 +210,8 @@ const AssessmentDashboard = () => {
       navigate(skillId ? `/skills/${skillId}/assessments/my-submissions` : '/assessments/my-submissions');
     } else if (tab === 'completed-sessions') {
       navigate(skillId ? `/skills/${skillId}/assessments/completed-sessions` : '/assessments/completed-sessions');
+    } else if (tab === 'evaluate') {
+      navigate(skillId ? `/skills/${skillId}/assessments/evaluate` : '/assessments/evaluate');
     }
   };
 
@@ -273,7 +278,6 @@ const AssessmentDashboard = () => {
                   <span className="ms-2 badge bg-primary rounded-pill">{completedSessions.length}</span>
                 )}
               </div>
-            
               
               <div 
                 className={`px-4 py-3 cursor-pointer border-end d-flex align-items-center ${activeTab === 'create-session' ? 'bg-white border-bottom-0 fw-bold text-primary' : 'text-muted'}`}
@@ -292,6 +296,14 @@ const AssessmentDashboard = () => {
                 {stats.pendingSubmissions > 0 && (
                   <span className="ms-2 badge bg-warning rounded-pill">{stats.pendingSubmissions}</span>
                 )}
+              </div>
+              
+              <div 
+                className={`px-4 py-3 cursor-pointer border-end d-flex align-items-center ${activeTab === 'evaluate' ? 'bg-white border-bottom-0 fw-bold text-primary' : 'text-muted'}`}
+                onClick={() => handleTabChange('evaluate')}
+                style={{ cursor: 'pointer' }}
+              >
+                <Mortarboard  className="me-2" /> Evaluate Learners
               </div>
             </>
           )}
@@ -527,6 +539,8 @@ const AssessmentDashboard = () => {
           return <div className="alert alert-danger">Unable to load submissions. Component error.</div>;
         }
         return <LearnerSubmissionsList userId={user?._id} />;
+      } else if (activeTab === 'evaluate') {
+        return <EvaluateSubmission skillId={skillId} userId={user?._id} />;
       } else {
         // Default to assessment list if no match
         return <AssessmentList skillId={skillId} isSkillSharer={isSkillSharer} />;
@@ -574,16 +588,26 @@ const AssessmentDashboard = () => {
                     </button>
                     
                     {isSkillSharer && (
-                      <button 
-                        className="btn primary rounded-pill py-2 d-flex align-items-center justify-content-center"
-                        onClick={() => handleTabChange('completed-sessions')}
-                      >
-                        <CheckCircle className="me-2" />
-                        <span>View Teaching Sessions</span>
-                        {completedSessions.length > 0 && (
-                          <span className="ms-2 badge bg-primary rounded-pill">{completedSessions.length}</span>
-                        )}
-                      </button>
+                      <>
+                        <button 
+                          className="btn primary rounded-pill py-2 d-flex align-items-center justify-content-center"
+                          onClick={() => handleTabChange('completed-sessions')}
+                        >
+                          <CheckCircle className="me-2" />
+                          <span>View Teaching Sessions</span>
+                          {completedSessions.length > 0 && (
+                            <span className="ms-2 badge bg-primary rounded-pill">{completedSessions.length}</span>
+                          )}
+                        </button>
+                        
+                        <button 
+                          className="btn btn-primary rounded-pill py-2 d-flex align-items-center justify-content-center"
+                          onClick={() => handleTabChange('evaluate')}
+                        >
+                          <Mortarboard  className="me-2" />
+                          <span>Evaluate Learner Submissions</span>
+                        </button>
+                      </>
                     )}
                     
                     {/* Back to Dashboard Button */}

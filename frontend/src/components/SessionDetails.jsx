@@ -255,29 +255,37 @@ const SessionDetails = () => {
         sendNotification('SESSION_JOINABLE', sessionData);
       }
       
-      // Calculate time remaining
-      let timeRemaining = '';
-      if (sessionData.session.status === 'cancelled') {
-        timeRemaining = 'Cancelled';
-      } else if (sessionStart > now) {
-        const timeDiff = sessionStart - now;
-        const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
-        
-        if (days > 0) {
-          timeRemaining = `${days}d ${hours}h remaining`;
-        } else if (hours > 0) {
-          timeRemaining = `${hours}h ${minutes}m remaining`;
-        } else {
-          timeRemaining = `${minutes}m remaining`;
-        }
-      } else if (now <= sessionEnd) {
-        timeRemaining = 'In progress';
-      } else {
-        timeRemaining = 'Completed';
-      }
-      
+     // Calculate time remaining with proper status handling
+let timeRemaining = '';
+
+// First check explicit status values that override time calculations
+if (sessionData.session.status === 'cancelled') {
+  timeRemaining = 'Cancelled';
+} else if (sessionData.session.status === 'completed') {
+  // Explicitly check for completed status first, regardless of time
+  timeRemaining = 'Completed';
+} else if (sessionStart > now) {
+  // Session hasn't started yet - show countdown
+  const timeDiff = sessionStart - now;
+  const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+  
+  if (days > 0) {
+    timeRemaining = `${days}d ${hours}h remaining`;
+  } else if (hours > 0) {
+    timeRemaining = `${hours}h ${minutes}m remaining`;
+  } else {
+    timeRemaining = `${minutes}m remaining`;
+  }
+} else if (now <= sessionEnd) {
+  // Session is currently happening
+  timeRemaining = 'In progress';
+} else {
+  // Session has ended by time but wasn't explicitly marked as completed
+  timeRemaining = 'Completed';
+}
+
       setSessionData(prev => ({
         ...prev,
         isUpcoming,
@@ -598,97 +606,109 @@ const apiActions = useMemo(() => ({
     }
   },
   // Cancel session
-  cancelSession: async () => {
-    if (!formData.cancellationReason.trim()) {
-      toast.warning('Please provide a reason for cancellation');
-      return;
-    }
+  // Cancel session - updated version
+cancelSession: async () => {
+  if (!formData.cancellationReason.trim()) {
+    toast.warning('Please provide a reason for cancellation');
+    return;
+  }
+  
+  setIsSubmitting(true);
+  
+  try {
+    // Determine recipient ID (the other person in the session)
+    const recipientId = sessionData.isTeacher 
+      ? sessionData.session.studentId 
+      : sessionData.session.teacherId;
     
-    setIsSubmitting(true);
-    
-    try {
-      const response = await axios.put(
-        `${BACKEND_URL}/api/sessions/${sessionId}/cancel`,
-        { reason: formData.cancellationReason },
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
-          }
+    // Send cancellation request with notification data
+    const response = await axios.put(
+      `${BACKEND_URL}/api/sessions/${sessionId}/cancel`,
+      { 
+        reason: formData.cancellationReason,
+        message: formData.cancellationReason, // For notifications
+        notificationType: 'session_cancelled', // To trigger notification
+        recipientId: recipientId // Specify who gets the notification
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
         }
-      );
-      
-      if (response.status === 200) {
-        const updatedSession = { 
-          ...sessionData.session, 
-          status: 'cancelled', 
-          cancellationReason: formData.cancellationReason,
-          updatedAt: new Date().toISOString()
-        };
-        
-        setSessionData(prev => ({
-          ...prev,
-          session: updatedSession
-        }));
-        
-        // Send notification for session cancellation
-        await sendNotification('SESSION_CANCELLED', {
-          ...sessionData,
-          session: updatedSession
-        }, {
-          reason: formData.cancellationReason
-        });
-        
-        toast.success('Session has been cancelled');
-        toggleModal('showCancelModal', false);
       }
-    } catch (err) {
-      console.error('Error cancelling session:', err);
-      toast.error(err.response?.data?.message || 'Failed to cancel session');
-    } finally {
-      setIsSubmitting(false);
+    );
+    
+    if (response.status === 200) {
+      const updatedSession = { 
+        ...sessionData.session, 
+        status: 'cancelled', 
+        cancellationReason: formData.cancellationReason,
+        updatedAt: new Date().toISOString()
+      };
+      
+      setSessionData(prev => ({
+        ...prev,
+        session: updatedSession
+      }));
+      
+      // Send notification for session cancellation
+      await sendNotification('SESSION_CANCELLED', {
+        ...sessionData,
+        session: updatedSession
+      }, {
+        reason: formData.cancellationReason
+      });
+      
+      toast.success('Session has been cancelled');
+      toggleModal('showCancelModal', false);
     }
-  },
+  } catch (err) {
+    console.error('Error cancelling session:', err);
+    toast.error(err.response?.data?.message || 'Failed to cancel session');
+  } finally {
+    setIsSubmitting(false);
+  }
+},
 
-  updateMatchStatus: async (matchId, status) => {
-    setIsSubmitting(true);
-    
-    try {
-      const response = await axios.put(
-        `${BACKEND_URL}/api/matches/${matchId}/status`,
-        { status },
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
-          }
+updateMatchStatus: async (matchId, status) => {
+  setIsSubmitting(true);
+  
+  try {
+    const response = await axios.put(
+      `${BACKEND_URL}/api/matches/${matchId}/status`,
+      { status },
+      {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
         }
-      );
-      
-      if (response.status === 200) {
-        // Optional: Update local state if needed
-        setSessionData(prev => ({
-          ...prev,
-          match: response.data.match
-        }));
-        
-        // Send notification for match status update
-        await sendNotification('MATCH_STATUS_UPDATED', {
-          ...sessionData,
-          match: response.data.match
-        });
-        
-        toast.success(`Match status updated to ${status}`);
-        return response.data.match;
       }
-    } catch (err) {
-      console.error('Error updating match status:', err);
-      toast.error(err.response?.data?.message || 'Failed to update match status');
-      throw err;
-    } finally {
-      setIsSubmitting(false);
+    );
+    
+    if (response.status === 200) {
+      // Optional: Update local state if needed
+      setSessionData(prev => ({
+        ...prev,
+        match: response.data.match
+      }));
+      
+      // Send notification for match status update
+      await sendNotification('MATCH_STATUS_UPDATED', {
+        ...sessionData,
+        match: response.data.match
+      });
+      
+      toast.success(`Match status updated to ${status}`);
+      return response.data.match;
     }
-  },
+  } catch (err) {
+    console.error('Error updating match status:', err);
+    toast.error(err.response?.data?.message || 'Failed to update match status');
+    throw err;
+  } finally {
+    setIsSubmitting(false);
+  }
+},
 
 
 }), [sessionId, formData, toggleModal, toggleInlineEditing, sessionData]);
@@ -697,113 +717,112 @@ const apiActions = useMemo(() => ({
    * Retrieves the current user ID from localStorage
    * @returns {string|null} The user ID if found, null otherwise
    */
-  const getCurrentUserId = () => {
-    try {
-      // Get the user object from localStorage
-      const userString = localStorage.getItem('user');
-      
-      // If user data exists, parse it and return the _id
-      if (userString) {
-        const userData = JSON.parse(userString);
-        return userData._id || null;
-      }
-      
-      // Return null if no user data found
-      return null;
-    } catch (error) {
-      console.error('Error retrieving user ID from localStorage:', error);
-      return null;
+const getCurrentUserId = () => {
+  try {
+    // Get the user object from localStorage
+    const userString = localStorage.getItem('user');
+    
+    // If user data exists, parse it and return the _id
+    if (userString) {
+      const userData = JSON.parse(userString);
+      return userData._id || null;
     }
-  };
+    
+    // Return null if no user data found
+    return null;
+  } catch (error) {
+    console.error('Error retrieving user ID from localStorage:', error);
+    return null;
+  }
+};
 
   // Inside your component
 const currentUserId = getCurrentUserId();
 
-
   // Helper functions
-  const helpers = useMemo(() => ({
-    // Calculate session duration in minutes
-    getSessionDuration: () => {
-      if (!sessionData.session) return '0';
-      
-      const startTime = new Date(sessionData.session.startTime);
-      const endTime = new Date(sessionData.session.endTime);
-      const durationMs = endTime - startTime;
-      return Math.round(durationMs / (1000 * 60));
-    },
+const helpers = useMemo(() => ({
+  // Calculate session duration in minutes
+  getSessionDuration: () => {
+    if (!sessionData.session) return '0';
     
-    // Format date and time
-    formatDateTime: (dateString) => {
-      if (!dateString) return '';
-      const date = new Date(dateString);
-      return date.toLocaleString('en-US', { 
-        weekday: 'long',
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    },
+    const startTime = new Date(sessionData.session.startTime);
+    const endTime = new Date(sessionData.session.endTime);
+    const durationMs = endTime - startTime;
+    return Math.round(durationMs / (1000 * 60));
+  },
+  
+  // Format date and time
+  formatDateTime: (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', { 
+      weekday: 'long',
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  },
+  
+  // Navigate back to dashboard
+  returnToDashboard: () => {
+    navigate('/dashboard');
+  },
+  
+  // Get status display properties
+  getStatusDisplay: () => {
+    let statusText, statusVariant;
     
-    // Navigate back to dashboard
-    returnToDashboard: () => {
-      navigate('/dashboard');
-    },
-    
-    // Get status display properties
-    getStatusDisplay: () => {
-      let statusText, statusVariant;
-      
-      if (sessionData.session.status === 'cancelled') {
-        statusText = 'Cancelled';
-        statusVariant = STATUS_VARIANTS.cancelled;
-      } else if (sessionData.session.status === 'completed') {
-        statusText = 'Completed';
-        statusVariant = STATUS_VARIANTS.completed;
-      } else if (sessionData.isJoinable) {
-        statusText = 'Active';
-        statusVariant = STATUS_VARIANTS.active;
-      } else {
-        statusText = 'Scheduled';
-        statusVariant = STATUS_VARIANTS.scheduled;
-      }
-      
-      return { statusText, statusVariant };
-    },
-    
-    // Handle Enter key for inline editing
-    handleInlineKeyDown: (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        apiActions.updateMeetingLink(true);
-      } else if (e.key === 'Escape') {
-        toggleInlineEditing('inlineEditingMeetingLink', false);
-      }
-    },
-    
-    // Validate URL
-    isValidUrl: (url) => {
-      try {
-        new URL(url);
-        return true;
-      } catch (e) {
-        return false;
-      }
+    if (sessionData.session.status === 'cancelled') {
+      statusText = 'Cancelled';
+      statusVariant = STATUS_VARIANTS.cancelled;
+    } else if (sessionData.session.status === 'completed') {
+      statusText = 'Completed';
+      statusVariant = STATUS_VARIANTS.completed;
+    } else if (sessionData.isJoinable) {
+      statusText = 'Active';
+      statusVariant = STATUS_VARIANTS.active;
+    } else {
+      statusText = 'Scheduled';
+      statusVariant = STATUS_VARIANTS.scheduled;
     }
-  }), [navigate, sessionData, apiActions, toggleInlineEditing]);
+    
+    return { statusText, statusVariant };
+  },
+  
+  // Handle Enter key for inline editing
+  handleInlineKeyDown: (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      apiActions.updateMeetingLink(true);
+    } else if (e.key === 'Escape') {
+      toggleInlineEditing('inlineEditingMeetingLink', false);
+    }
+  },
+  
+  // Validate URL
+  isValidUrl: (url) => {
+    try {
+      new URL(url);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+}), [navigate, sessionData, apiActions, toggleInlineEditing]);
   
   // Render loading state
-  if (sessionData.loading) {
-    return (
-      <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
-        <div className="text-center">
-          <Spinner animation="border" variant="primary" className="mb-3" />
-          <p className="text-muted">Loading session details...</p>
-        </div>
-      </Container>
-    );
-  }
+if (sessionData.loading) {
+  return (
+    <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+      <div className="text-center">
+        <Spinner animation="border" variant="primary" className="mb-3" />
+        <p className="text-muted">Loading session details...</p>
+      </div>
+    </Container>
+  );
+}
   
   // Render error state
   if (sessionData.error) {
@@ -1136,7 +1155,7 @@ const currentUserId = getCurrentUserId();
         onClick={() => toggleModal('showFeedbackModal', true)}
         className="feedback-button"
       > 
-        Provide Feedback
+        Provide Rating
       </button>
     )}
     
@@ -1267,7 +1286,7 @@ const currentUserId = getCurrentUserId();
       disabled={isSubmitting || formData.rating < 1}
     >
       {isSubmitting ? <Spinner size="sm" animation="border" className="me-2" /> : null}
-      Submit Feedback
+      Submit Rating
     </Button>
   </Modal.Footer>
 </Modal>
@@ -1308,7 +1327,7 @@ const currentUserId = getCurrentUserId();
     <Button 
       variant="success" 
       onClick={apiActions.completeSession}
-      disabled={isSubmitting || new Date() < new Date(sessionData.session.endTime)}
+      disabled={isSubmitting}
     >
       {isSubmitting ? <Spinner size="sm" animation="border" className="me-2" /> : null}
       Mark as Completed

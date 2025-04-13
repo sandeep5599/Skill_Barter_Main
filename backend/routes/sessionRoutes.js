@@ -25,7 +25,8 @@ router.get('/:sessionId', auth, sessionController.getSessionById);
 // router.get('/match/:matchId', auth, sessionController.getSessionByMatchId);
 router.put('/:sessionId/meeting-link', auth, sessionController.updateSessionLink);
 router.post('/sessions/:sessionId/feedback', auth, sessionController.submitFeedback);
-
+// Add this new route for session cancellation
+router.put('/:sessionId/cancel', auth, sessionController.cancelSession);
 router.post(
   '/:id/teacher-feedback',
   [

@@ -1,9 +1,36 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Row, Col, Card, Button, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { PersonFill, ArrowRepeat, CalendarCheck, Award } from 'react-bootstrap-icons';
 import { isSessionJoinable, getTimeUntilSession } from './dashboardUtils';
 
-const OverviewTab = ({ stats, navigate, handleFindLearningMatches, user }) => {
+const OverviewTab = ({ 
+  stats, 
+  navigate, 
+  handleFindLearningMatches, 
+  user, 
+  triggerRefresh, 
+  isLoading, 
+  handleDailyCheckIn 
+}) => {
+  console.log(stats, 'stats in OverviewTab');
+  
+  // Filter out duplicate sessions based on session ID
+  const uniqueUpcomingSessions = useMemo(() => {
+    if (!stats.upcomingSessions || !Array.isArray(stats.upcomingSessions)) {
+      return [];
+    }
+    
+    // Use a Map to track sessions by ID
+    const sessionMap = new Map();
+    stats.upcomingSessions.forEach(session => {
+      if (!sessionMap.has(session._id)) {
+        sessionMap.set(session._id, session);
+      }
+    });
+    
+    return Array.from(sessionMap.values());
+  }, [stats.upcomingSessions]);
+
   return (
     <Row>
       <Col lg={8}>
@@ -13,13 +40,13 @@ const OverviewTab = ({ stats, navigate, handleFindLearningMatches, user }) => {
               <Card.Header className="bg-primary text-white d-flex justify-content-between align-items-center">
                 <h5 className="mb-0">Upcoming Sessions</h5>
                 <Badge bg="light" text="primary" pill>
-                  {stats.upcomingSessions.length}
+                  {uniqueUpcomingSessions.length}
                 </Badge>
               </Card.Header>
               <Card.Body className="p-0">
-                {stats.upcomingSessions && stats.upcomingSessions.length > 0 ? (
+                {uniqueUpcomingSessions && uniqueUpcomingSessions.length > 0 ? (
                   <div className="list-group list-group-flush">
-                    {stats.upcomingSessions.map((session, i) => {
+                    {uniqueUpcomingSessions.map((session, i) => {
                       const sessionStart = new Date(session.startTime);
                       const isJoinable = isSessionJoinable(session.startTime);
                       
@@ -52,7 +79,7 @@ const OverviewTab = ({ stats, navigate, handleFindLearningMatches, user }) => {
                       }
 
                       return (
-                        <div key={i} className="list-group-item p-3">
+                        <div key={session._id || i} className="list-group-item p-3">
                           <div className="d-flex justify-content-between">
                             <div>
                               <h6 className="mb-0 fw-bold">{skillName}</h6>
@@ -78,7 +105,7 @@ const OverviewTab = ({ stats, navigate, handleFindLearningMatches, user }) => {
                               <OverlayTrigger
                                 placement="top"
                                 overlay={
-                                  <Tooltip id={`tooltip-${session._id}`}>
+                                  <Tooltip id={`tooltip-${session._id || i}`}>
                                     {isJoinable ? 'Click to join the session' : tooltipText || 'This button will be enabled 5 minutes before the session starts'}
                                   </Tooltip>
                                 }
@@ -120,7 +147,7 @@ const OverviewTab = ({ stats, navigate, handleFindLearningMatches, user }) => {
               <Card.Header className="bg-success text-white d-flex justify-content-between align-items-center">
                 <h5 className="mb-0">Recent Matches</h5>
                 <Badge bg="light" text="success" pill>
-                  {stats.recentMatches.length}
+                  {stats.recentMatches?.length || 0}
                 </Badge>
               </Card.Header>
               <Card.Body className="p-0">
@@ -132,7 +159,7 @@ const OverviewTab = ({ stats, navigate, handleFindLearningMatches, user }) => {
                       const roleLabel = isTeacher ? "Learner" : "Skill Sharer";
                       
                       return (
-                        <div key={i} className="list-group-item p-3">
+                        <div key={match._id || i} className="list-group-item p-3">
                           <div className="d-flex justify-content-between align-items-center">
                             <div>
                               <h6 className="mb-0 fw-bold">{match.skillName}</h6>
@@ -190,6 +217,10 @@ const OverviewTab = ({ stats, navigate, handleFindLearningMatches, user }) => {
               <Button variant="primary" className="d-flex justify-content-between align-items-center" onClick={() => navigate('/sessions')}>
                 <span>View Session History</span>
                 <Award />
+              </Button>
+              <Button variant="success" className="d-flex justify-content-between align-items-center" onClick={handleDailyCheckIn}>
+                <span>Daily Check-in</span>
+                <Badge bg="light" text="success">+1</Badge>
               </Button>
             </div>
           </Card.Body>

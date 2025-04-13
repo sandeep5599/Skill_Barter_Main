@@ -10,116 +10,150 @@
 endobj
 4 0 obj
 <<
-/Length 1919
+/Length 2719
 >>
 stream
 0.5670000000000001 w
 0 G
 BT
-/F2 16 Tf
+/F1 16 Tf
 18.3999999999999986 TL
 0 g
 56.6929133858267775 785.1970866141732586 Td
-(Scan Results Report) Tj
+(Scan Results) Tj
 ET
 BT
 /F1 16 Tf
 18.3999999999999986 TL
 0 g
 56.6929133858267775 756.8506299212598378 Td
-(Generated on: 2/9/2025 1:29:30 PM) Tj
+(URL: http://testphp.vulnweb.com) Tj
 ET
 BT
-/F2 16 Tf
+/F1 16 Tf
 18.3999999999999986 TL
 0 g
 56.6929133858267775 728.5041732283464171 Td
-(Scanned URL:) Tj
+(Vulnerabilities Found: 0) Tj
 ET
 BT
 /F1 16 Tf
 18.3999999999999986 TL
 0 g
 56.6929133858267775 700.15771653543311 Td
-(http://www.itsecgames.com/) Tj
+(No Vulnerabilities Found) Tj
 ET
 BT
-/F2 16 Tf
+/F1 16 Tf
 18.3999999999999986 TL
 0 g
 56.6929133858267775 671.8112598425196893 Td
-(Detected Vulnerabilities:) Tj
-ET
-BT
-/F1 16 Tf
-18.3999999999999986 TL
-0 g
-56.6929133858267775 643.4648031496062686 Td
-(sensitive_data_exposure) Tj
-ET
-BT
-/F1 16 Tf
-18.3999999999999986 TL
-0 g
-56.6929133858267775 615.1183464566928478 Td
-(security_misconfiguration) Tj
-ET
-BT
-/F1 16 Tf
-18.3999999999999986 TL
-0 g
-56.6929133858267775 586.7718897637794271 Td
-(csrf) Tj
-ET
-BT
-/F2 16 Tf
-18.3999999999999986 TL
-0 g
-56.6929133858267775 558.42543307086612 Td
 (Recommendations:) Tj
 ET
 BT
 /F1 16 Tf
 18.3999999999999986 TL
 0 g
+56.6929133858267775 643.4648031496062686 Td
+(- sensitive_data_exposure:) Tj
+ET
+BT
+/F1 16 Tf
+18.3999999999999986 TL
+0 g
+56.6929133858267775 615.1183464566928478 Td
+(  Message: Detected Vulnerability : sensitive_data_exposure) Tj
+ET
+BT
+/F1 16 Tf
+18.3999999999999986 TL
+0 g
+56.6929133858267775 586.7718897637794271 Td
+(  Remediation: Disable sensitive headers and use secure configurations.) Tj
+ET
+BT
+/F1 16 Tf
+18.3999999999999986 TL
+0 g
+56.6929133858267775 558.42543307086612 Td
+(- insecure_deserialization:) Tj
+ET
+BT
+/F1 16 Tf
+18.3999999999999986 TL
+0 g
 56.6929133858267775 530.0789763779526993 Td
-(Detected Vulnerability: sensitive_data_exposure) Tj
+(  Message: Detected Vulnerability : insecure_deserialization) Tj
 ET
 BT
 /F1 16 Tf
 18.3999999999999986 TL
 0 g
 56.6929133858267775 501.7325196850393354 Td
-(Remediation: Disable sensitive headers and use secure) Tj
-T* (configurations.) Tj
+(  Remediation: Validate serialized data and use integrity checks.) Tj
+ET
+BT
+/F1 16 Tf
+18.3999999999999986 TL
+0 g
+56.6929133858267775 473.3860629921259147 Td
+(- security_misconfiguration:) Tj
 ET
 BT
 /F1 16 Tf
 18.3999999999999986 TL
 0 g
 56.6929133858267775 445.0396062992125508 Td
-(Detected Vulnerability: security_misconfiguration) Tj
+(  Message: Detected Vulnerability : security_misconfiguration) Tj
 ET
 BT
 /F1 16 Tf
 18.3999999999999986 TL
 0 g
 56.6929133858267775 416.69314960629913 Td
-(Remediation: Add security headers to harden application defenses.) Tj
+(  Remediation: Add security headers to harden application defenses.) Tj
 ET
 BT
 /F1 16 Tf
 18.3999999999999986 TL
 0 g
 56.6929133858267775 388.3466929133857661 Td
-(Detected Vulnerability: csrf) Tj
+(- access_control_issues:) Tj
 ET
 BT
 /F1 16 Tf
 18.3999999999999986 TL
 0 g
 56.6929133858267775 360.0002362204724022 Td
-(Remediation: Use CSRF tokens and validate origin headers.) Tj
+(  Message: Detected Vulnerability : access_control_issues) Tj
+ET
+BT
+/F1 16 Tf
+18.3999999999999986 TL
+0 g
+56.6929133858267775 331.6537795275589815 Td
+(  Remediation: Implement role-based access control and enforce strict authorization.) Tj
+ET
+BT
+/F1 16 Tf
+18.3999999999999986 TL
+0 g
+56.6929133858267775 303.3073228346455608 Td
+(- csrf:) Tj
+ET
+BT
+/F1 16 Tf
+18.3999999999999986 TL
+0 g
+56.6929133858267775 274.9608661417322537 Td
+(  Message: Detected Vulnerability : csrf) Tj
+ET
+BT
+/F1 16 Tf
+18.3999999999999986 TL
+0 g
+56.6929133858267775 246.614409448818833 Td
+(  Remediation: Use CSRF tokens and validate origin headers.) Tj
 ET
 endstream
 endobj
@@ -293,7 +327,7 @@ endobj
 19 0 obj
 <<
 /Producer (jsPDF 2.5.2)
-/CreationDate (D:20250209132930+05'30')
+/CreationDate (D:20250115201813+05'30')
 >>
 endobj
 20 0 obj
@@ -307,33 +341,33 @@ endobj
 xref
 0 21
 0000000000 65535 f 
-0000002123 00000 n 
-0000003940 00000 n 
+0000002923 00000 n 
+0000004740 00000 n 
 0000000015 00000 n 
 0000000152 00000 n 
-0000002180 00000 n 
-0000002305 00000 n 
-0000002435 00000 n 
-0000002568 00000 n 
-0000002705 00000 n 
-0000002828 00000 n 
-0000002957 00000 n 
-0000003089 00000 n 
-0000003225 00000 n 
-0000003353 00000 n 
-0000003480 00000 n 
-0000003609 00000 n 
-0000003742 00000 n 
-0000003844 00000 n 
-0000004188 00000 n 
-0000004274 00000 n 
+0000002980 00000 n 
+0000003105 00000 n 
+0000003235 00000 n 
+0000003368 00000 n 
+0000003505 00000 n 
+0000003628 00000 n 
+0000003757 00000 n 
+0000003889 00000 n 
+0000004025 00000 n 
+0000004153 00000 n 
+0000004280 00000 n 
+0000004409 00000 n 
+0000004542 00000 n 
+0000004644 00000 n 
+0000004988 00000 n 
+0000005074 00000 n 
 trailer
 <<
 /Size 21
 /Root 20 0 R
 /Info 19 0 R
-/ID [ <BAC4E7622D5B67F50C62BF34EF6B654D> <BAC4E7622D5B67F50C62BF34EF6B654D> ]
+/ID [ <72FCF66A0DC520F057209B2FC258AB08> <72FCF66A0DC520F057209B2FC258AB08> ]
 >>
 startxref
-4378
+5178
 %%EOF

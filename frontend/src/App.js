@@ -21,9 +21,11 @@ import GlobalStyles from "./styles/GlobalStyles";
 import { ThemeProvider } from 'styled-components';
 import { theme } from './styles/theme';
 import AssessmentDashboard from "./components/assessment/AssessmentDashboard";
-import Leaderboard from "./components/Leaderboard";
+import Leaderboard from "./components/LeaderboardOld";
 import SearchPage from "./pages/SearchPage";
 import PasswordReset from "./components/PasswordReset";
+import TeacherProfilePage from './pages/TeacherProfilePage';
+import EvaluateSubmission from "./components/assessment/EvaluateSubmission";  
 
 function App() {
   return (
@@ -48,6 +50,11 @@ function App() {
             <Route path="/search" element={<SearchPage />} />
             <Route path="/forgot-password" element={<PasswordReset />} />
             <Route path="/leaderboard" element={<PrivateRoute><Leaderboard /></PrivateRoute>} />
+            <Route path="/teacher/:teacherId" element={<TeacherProfilePage />} />
+            // Route for the list of submissions to evaluate
+            <Route path="/assessments/evaluate" element={<PrivateRoute><EvaluateSubmission /></PrivateRoute>} />
+            // Route for evaluating a specific submission
+            <Route path="/assessments/evaluate/:submissionId" element={<PrivateRoute><EvaluateSubmission /></PrivateRoute>} />
           </Routes>
         </NotificationProvider>
       </AuthProvider>

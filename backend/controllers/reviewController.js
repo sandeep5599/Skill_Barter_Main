@@ -3,10 +3,159 @@ const Session = require('../models/Session');
 const User = require('../models/User');
 const mongoose = require('mongoose');
 const { validationResult } = require('express-validator');
+const Points = require('../models/Points'); // Assuming you have a Points model
 
 // @desc    Create a new review
 // @route   POST /api/reviews
 // @access  Private (Students only)
+// exports.createReview = async (req, res) => {
+//   console.log('createReview called', req.body);
+//   // Skip validation for now since we don't have validators in the route
+//   const errors = validationResult(req);
+//   if (!errors.isEmpty()) {
+//     return res.status(400).json({ success: false, errors: errors.array() });
+//   }
+
+//   try {
+//     const { sessionId, teacherId, skillId, rating, reviewText } = req.body;
+//     console.log('Processing review submission with data:', { sessionId, teacherId, skillId, rating });
+    
+//     // Check if user is authenticated
+//     if (!req.user || !req.user.id) {
+//       console.log('Authentication failed - no user ID');
+//       return res.status(401).json({
+//         success: false,
+//         message: 'User not authenticated or invalid authentication'
+//       });
+//     }
+    
+//     console.log('Authentication passed, user ID:', req.user.id);
+//     const studentId = req.user.id;
+    
+//     // Check if sessionId is valid
+//     if (!mongoose.Types.ObjectId.isValid(sessionId)) {
+//       console.log('Invalid session ID format:', sessionId);
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Invalid session ID format'
+//       });
+//     }
+
+//     // Check if session exists
+//     console.log('Finding session with ID:', sessionId);
+//     const session = await Session.findById(sessionId);
+//     if (!session) {
+//       console.log('Session not found with ID:', sessionId);
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Session not found'
+//       });
+//     }
+//     console.log('Session found:', session._id);
+
+//     // Verify session status is completed
+//     console.log('Session status:', session.status);
+//     if (session.status !== 'completed') {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Reviews can only be submitted for completed sessions'
+//       });
+//     }
+
+//     // Verify the requesting user is the student of this session
+//     console.log('Comparing student IDs:', session.studentId.toString(), studentId);
+//     if (session.studentId.toString() !== studentId) {
+//       return res.status(403).json({
+//         success: false,
+//         message: 'You are not authorized to review this session'
+//       });
+//     }
+
+//     // Check if student has already reviewed this session
+//     console.log('Checking for existing review');
+//     const existingReview = await Review.findOne({ sessionId, studentId });
+//     if (existingReview) {
+//       console.log('Existing review found');
+//       return res.status(400).json({
+//         success: false,
+//         message: 'You have already reviewed this session'
+//       });
+//     }
+
+//     // Verify the teacherId matches session's teacherId
+//     console.log('Comparing teacher IDs:', session.teacherId.toString(), teacherId);
+//     if (session.teacherId.toString() !== teacherId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Teacher ID does not match session teacher'
+//       });
+//     }
+
+//     // Create review
+//     console.log('Creating new review');
+//     const review = new Review({
+//       sessionId,
+//       teacherId,
+//       studentId,
+//       skillId,
+//       rating,
+//       reviewText: reviewText || '',
+//       teacherName: session.teacherName || req.body.teacherName
+//     });
+
+//     console.log('Saving review');
+//     await review.save();
+//     console.log('Review saved successfully');
+
+//     // Update the session to indicate student feedback submitted
+//     console.log('Updating session feedback status');
+//     session.studentFeedback = true;
+//     await session.updateOne({ studentFeedback: true });
+//     console.log('Session updated successfully');
+
+//    // Update teacher average rating
+// console.log('Updating teacher average rating');
+// try {
+//   const teacherRatingData = await Review.getAverageRating(teacherId);
+//   console.log('Teacher rating data:', teacherRatingData);
+
+//   const updatedTeacher = await User.findByIdAndUpdate(
+//     teacherId, 
+//     {
+//       averageRating: teacherRatingData.averageRating,
+//       reviewCount: teacherRatingData.reviewCount
+//     },
+//     { new: true } // Return the updated document
+//   );
+
+//   console.log('Updated teacher:', updatedTeacher);
+// } catch (ratingErr) {
+//   console.error('Comprehensive error updating teacher rating:', ratingErr);
+//   // Optionally, you might want to send an error notification or log to a monitoring service
+// }
+
+//     console.log('About to send final success response');
+//     return res.status(201).json({
+//       success: true,
+//       data: review
+//     });
+//   } catch (err) {
+//     console.error('Error creating review:', err);
+//     if (err.name === 'ValidationError') {
+//       const messages = Object.values(err.errors).map(val => val.message);
+//       return res.status(400).json({
+//         success: false,
+//         message: messages.join(', ')
+//       });
+//     }
+//     return res.status(500).json({
+//       success: false,
+//       message: 'Server error',
+//       error: err.message
+//     });
+//   }
+// };
+
 exports.createReview = async (req, res) => {
   console.log('createReview called', req.body);
   // Skip validation for now since we don't have validators in the route
@@ -42,7 +191,7 @@ exports.createReview = async (req, res) => {
 
     // Check if session exists
     console.log('Finding session with ID:', sessionId);
-    const session = await Session.findById(sessionId);
+    const session = await Session.findOne({ matchId: sessionId });
     if (!session) {
       console.log('Session not found with ID:', sessionId);
       return res.status(404).json({
@@ -112,26 +261,50 @@ exports.createReview = async (req, res) => {
     await session.updateOne({ studentFeedback: true });
     console.log('Session updated successfully');
 
-   // Update teacher average rating
-console.log('Updating teacher average rating');
-try {
-  const teacherRatingData = await Review.getAverageRating(teacherId);
-  console.log('Teacher rating data:', teacherRatingData);
+    // Update teacher average rating
+    console.log('Updating teacher average rating');
+    try {
+      const teacherRatingData = await Review.getAverageRating(teacherId);
+      console.log('Teacher rating data:', teacherRatingData);
 
-  const updatedTeacher = await User.findByIdAndUpdate(
-    teacherId, 
-    {
-      averageRating: teacherRatingData.averageRating,
-      reviewCount: teacherRatingData.reviewCount
-    },
-    { new: true } // Return the updated document
-  );
+      // Calculate points based on rating
+      // For example: 5 stars = 5 points, 4 stars = 4 points, etc.
+      const feedbackPoints = rating;
+      console.log(`Awarding ${feedbackPoints} points for ${rating} star feedback`);
 
-  console.log('Updated teacher:', updatedTeacher);
-} catch (ratingErr) {
-  console.error('Comprehensive error updating teacher rating:', ratingErr);
-  // Optionally, you might want to send an error notification or log to a monitoring service
-}
+      // Find or create points document for this teacher
+      let pointsDoc = await Points.findOne({ userId: teacherId });
+      
+      if (!pointsDoc) {
+        // Create a new points document if one doesn't exist
+        console.log('Creating new points document for teacher');
+        pointsDoc = new Points({
+          userId: teacherId,
+          points: feedbackPoints,
+          pointHistory: [{
+            points: feedbackPoints,
+            reason: 'Other',
+            sessionId: sessionId
+          }]
+        });
+      } else {
+        // Update existing points document
+        console.log('Updating existing points document for teacher');
+        pointsDoc.points += feedbackPoints;
+        pointsDoc.pointHistory.push({
+          points: feedbackPoints,
+          reason: 'Other',
+          sessionId: sessionId
+        });
+      }
+      
+      await pointsDoc.save();
+      console.log('Points document updated successfully:', pointsDoc);
+      
+    } catch (ratingErr) {
+      console.error('Comprehensive error updating teacher rating and points:', ratingErr);
+      // Optionally, you might want to send an error notification or log to a monitoring service
+    }
 
     console.log('About to send final success response');
     return res.status(201).json({
@@ -155,49 +328,6 @@ try {
   }
 };
 
-// exports.createReview = async (req, res) => {
-//   try {
-//     console.log('1. Starting createReview');
-    
-//     // Skip validation for now
-//     // const errors = validationResult(req);
-//     // if (!errors.isEmpty()) {
-//     //   return res.status(400).json({ success: false, errors: errors.array() });
-//     // }
-    
-//     const { sessionId, teacherId, skillId, rating, reviewText } = req.body;
-//     console.log('2. Extracted request body', { sessionId, teacherId, skillId, rating });
-    
-//     // Check if user is authenticated
-//     if (!req.user || !req.user.id) {
-//       console.log('3. Authentication failed - no user ID');
-//       return res.status(401).json({
-//         success: false,
-//         message: 'User not authenticated or invalid authentication'
-//       });
-//     }
-    
-//     console.log('3. Authentication passed, user ID:', req.user.id);
-//     const studentId = req.user.id;
-    
-//     // Create a simple response for testing
-//     console.log('4. Sending test response');
-//     return res.status(201).json({
-//       success: true,
-//       message: 'Test response - request received',
-//       data: { sessionId, teacherId, skillId, rating, reviewText, studentId }
-//     });
-    
-//     // Original code would continue here...
-//   } catch (err) {
-//     console.error('ERROR in createReview:', err);
-//     return res.status(500).json({
-//       success: false,
-//       message: 'Server error',
-//       error: err.message
-//     });
-//   }
-// };
 
 // @desc    Get all reviews for a teacher
 // @route   GET /api/reviews/teacher/:teacherId
@@ -717,6 +847,8 @@ exports.getReviewsByUserId = async (req, res) => {
 exports.submitTeacherFeedback = async (req, res) => {
   try {
     // Validation from express-validator
+
+    console.log('submitTeacherFeedback called', req.body);
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ 
@@ -745,7 +877,7 @@ exports.submitTeacherFeedback = async (req, res) => {
     }
 
     // check if sessionId is valid by findById only
-    const session = await Session.findBy(sessionId);
+    const session = await Session.findOne({ matchId: sessionId });
     if (!session) {
       return res.status(404).json({
         success: false,
@@ -767,6 +899,7 @@ exports.submitTeacherFeedback = async (req, res) => {
     
     await session.save();
 
+    console.log('Teacher feedback submitted successfully:', session.teacherFeedback);
     return res.status(200).json({
       success: true,
       message: 'Teacher feedback submitted successfully',
