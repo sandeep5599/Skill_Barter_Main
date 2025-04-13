@@ -18,6 +18,9 @@ const MatchingInterface = () => {
   const [submitting, setSubmitting] = useState(false);
 
   const [teacherStats, setTeacherStats] = useState({});
+  
+  // Store all session data separately to analyze
+  const [allSessions, setAllSessions] = useState([]);
 
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -27,8 +30,30 @@ const MatchingInterface = () => {
     navigate('/');
   };
 
-  const fetchTeacherStats = useCallback(async () => {
-    if (!learningMatches.length) return;
+  // Fetch all sessions first, then filter by teacher
+  const fetchAllSessions = useCallback(async () => {
+    if (!user?._id) return;
+    
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/sessions?userId=${user._id}&status=completed`, {
+        headers: { 
+          'Authorization': `Bearer ${localStorage.getItem('token')}` 
+        }
+      });
+      
+      if (!response.ok) throw new Error('Failed to fetch sessions');
+      const sessionsData = await response.json();
+      setAllSessions(sessionsData);
+      return sessionsData;
+    } catch (error) {
+      console.error('Error fetching all sessions:', error);
+      return [];
+    }
+  }, [user]);
+
+  // Calculate teacher stats based on all sessions
+  const calculateTeacherStats = useCallback(async () => {
+    if (!learningMatches.length || !allSessions.length) return;
     
     const statsPromises = learningMatches.map(async (match) => {
       const teacherId = match.teacherId;
@@ -38,23 +63,19 @@ const MatchingInterface = () => {
         // Get ratings
         const ratings = await fetchTeacherRatings(teacherId);
         
-        // Get completed sessions count
-        const sessionsResponse = await fetch(`${BACKEND_URL}/api/sessions?teacherId=${teacherId}&status=completed&userId=${user._id}`, {
-          headers: { 
-            'Authorization': `Bearer ${localStorage.getItem('token')}` 
-          }
-        });
-        
-        if (!sessionsResponse.ok) throw new Error('Failed to fetch sessions');
-        const sessionsData = await sessionsResponse.json();
+        // Filter sessions for this specific teacher
+        const teacherSessions = allSessions.filter(session => 
+          session.teacherId === teacherId && 
+          session.status === 'completed'
+        );
         
         return {
           teacherId,
           ratings: ratings?.overall || { averageRating: 0, totalReviews: 0 },
-          completedSessions: sessionsData.length || 0
+          completedSessions: teacherSessions.length
         };
       } catch (error) {
-        console.error(`Error fetching stats for teacher ${teacherId}:`, error);
+        console.error(`Error calculating stats for teacher ${teacherId}:`, error);
         return {
           teacherId,
           ratings: { averageRating: 0, totalReviews: 0 },
@@ -75,14 +96,21 @@ const MatchingInterface = () => {
     }, {});
     
     setTeacherStats(statsObj);
-  }, [learningMatches, user]);
+  }, [learningMatches, allSessions]);
 
-  // Call this in useEffect after fetchLearningMatches
+  // First fetch sessions, then calculate stats
   useEffect(() => {
-    if (user?._id && learningMatches.length > 0) {
-      fetchTeacherStats();
+    if (user?._id) {
+      fetchAllSessions();
     }
-  }, [fetchTeacherStats, learningMatches, user]);
+  }, [fetchAllSessions, user]);
+
+  // When matches or sessions change, recalculate stats
+  useEffect(() => {
+    if (learningMatches.length > 0 && allSessions.length > 0) {
+      calculateTeacherStats();
+    }
+  }, [calculateTeacherStats, learningMatches, allSessions]);
 
   const fetchLearningMatches = useCallback(async () => {
     setLoading(true);
@@ -111,6 +139,9 @@ const MatchingInterface = () => {
       );
       
       setLearningMatches(onlyUnrequestedMatches);
+      
+      // After getting matches, fetch all sessions again to ensure we have the latest data
+      fetchAllSessions();
     } catch (err) {
       console.error("Error fetching matches:", err);
       setError('Failed to fetch learning matches. Please try again.');
@@ -118,7 +149,7 @@ const MatchingInterface = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, fetchAllSessions]);
 
   useEffect(() => {
     if (user?._id) {
@@ -363,11 +394,11 @@ const MatchingInterface = () => {
                             }
                           </Badge>
 
-                          {/* Only show Completed Sessions badge if this specific match has completed sessions */}
-                          {match.status === 'completed' && teacherStats[match.teacherId]?.completedSessions > 0 && (
+                          {/* Only show Completed Sessions badge if this specific teacher has completed sessions with the user */}
+                          {teacherStats[match.teacherId]?.completedSessions > 0 && (
                             <Badge bg="success" className="px-3 py-2">
                               <i className="bi bi-check-circle-fill me-2"></i>
-                              <strong>Completed Sessions:</strong> {teacherStats[match.teacherId].completedSessions}
+                              <strong>Completed Sessions:</strong> {teacherStats[match.teacherId]?.completedSessions || 0}
                             </Badge>
                           )}
                         </div>
