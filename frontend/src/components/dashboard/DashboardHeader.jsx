@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Card, Button, Spinner, Dropdown, Nav } from 'react-bootstrap';
-import { PersonFill, BoxArrowRight, ArrowClockwise, ThreeDotsVertical } from 'react-bootstrap-icons';
+import React from 'react';
+import { Card, Button, Dropdown, Nav } from 'react-bootstrap';
+import { PersonFill, BoxArrowRight, ThreeDotsVertical } from 'react-bootstrap-icons';
 import NotificationCenter from '../NotificationCenter';
 import useResponsive from '../../hooks/useResponsive';
 import styled from 'styled-components';
@@ -23,76 +23,79 @@ const ResponsiveHeader = styled(Card)`
     }
   }
 
-  .actions-container {
+  .desktop-actions {
+    display: flex;
+    gap: 2px;
+    
     @media (max-width: ${breakpoints.md}px) {
-      display: none;
+      display: none !important;
     }
   }
 
   .mobile-menu {
     display: none;
+    
     @media (max-width: ${breakpoints.md}px) {
-      display: block;
+      display: flex !important;
+    }
+  }
+
+  .search-notification-container {
+    display: flex;
+    align-items: center;
+    
+    @media (max-width: ${breakpoints.sm}px) {
+      width: 100%;
+      justify-content: flex-end;
+    }
+  }
+
+  .right-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    
+    @media (max-width: ${breakpoints.sm}px) {
+      width: 100%;
+      justify-content: space-between;
+    }
+  }
+  
+  .search-icon-mobile {
+    @media (max-width: ${breakpoints.md}px) {
+      padding: 0.375rem 0.5rem;
+      
+      .dropdown-toggle::after {
+        display: none;
+      }
     }
   }
 `;
 
-const DashboardHeader = ({ handleLogout, navigate, triggerRefresh }) => {
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const { isMobile, isTablet } = useResponsive();
+const DashboardHeader = ({ handleLogout, navigate }) => {
+  const { isMobile } = useResponsive();
 
-  const handleRefresh = async () => {
-    try {
-      setIsRefreshing(true);
-      await triggerRefresh();
-    } catch (error) {
-      console.error('Refresh failed:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const renderActions = () => (
-    <>
-      <Button 
-        variant="primary" 
-        className="d-flex align-items-center gap-2" 
-        onClick={handleRefresh}
-        disabled={isRefreshing}
-      >
-        {isRefreshing ? (
-          <>
-            <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" className="me-1" />
-            {!isMobile && 'Refreshing...'}
-          </>
-        ) : (
-          <>
-            <ArrowClockwise /> {!isMobile && 'Refresh'}
-          </>
-        )}
-      </Button>
+  const renderDesktopActions = () => (
+    <div className="desktop-actions">
       <Button variant="primary" className="d-flex align-items-center gap-2" onClick={() => navigate('/profile')}>
         <PersonFill /> {!isMobile && 'Profile'}
       </Button>
       <Button variant="danger" className="d-flex align-items-center gap-2" onClick={handleLogout}>
         <BoxArrowRight /> {!isMobile && 'Logout'}
       </Button>
-    </>
+    </div>
   );
 
   const renderMobileMenu = () => (
-    <Dropdown align="end">
-      <Dropdown.Toggle variant="primary" id="mobile-menu">
-        <ThreeDotsVertical />
+    <Dropdown align="end" className="mobile-menu">
+      <Dropdown.Toggle variant="light" id="mobile-menu" className="border-0 bg-transparent">
+        <ThreeDotsVertical size={24} />
       </Dropdown.Toggle>
       <Dropdown.Menu>
-        <Dropdown.Item onClick={handleRefresh}>
-          <ArrowClockwise className="me-2" /> Refresh
-        </Dropdown.Item>
         <Dropdown.Item onClick={() => navigate('/profile')}>
           <PersonFill className="me-2" /> Profile
         </Dropdown.Item>
-        <Dropdown.Item onClick={handleLogout}>
+        <Dropdown.Item onClick={handleLogout} className="text-danger">
           <BoxArrowRight className="me-2" /> Logout
         </Dropdown.Item>
       </Dropdown.Menu>
@@ -110,18 +113,17 @@ const DashboardHeader = ({ handleLogout, navigate, triggerRefresh }) => {
               </span>
             </h1>
           </div>
-          <div className="d-flex align-items-center gap-3">
-            {/* Added NavbarSearchDropdown here */}
-            <Nav.Item className="mx-2">
-              <NavbarSearchDropdown />
-            </Nav.Item>
-            <NotificationCenter />
-            <div className="d-flex gap-2 actions-container">
-              {renderActions()}
+          
+          <div className="right-container">
+            <div className="search-notification-container">
+              <Nav.Item className="mx-2 search-icon-mobile">
+                <NavbarSearchDropdown />
+              </Nav.Item>
+              <NotificationCenter />
             </div>
-            <div className="mobile-menu">
-              {renderMobileMenu()}
-            </div>
+            
+            {renderDesktopActions()}
+            {renderMobileMenu()}
           </div>
         </div>
       </Card.Body>

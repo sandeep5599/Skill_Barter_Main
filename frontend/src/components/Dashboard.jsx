@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Container, Card, Button, Spinner, Nav, Row, Col } from 'react-bootstrap';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Container, Card, Button, Spinner, Nav, Row, Col, Alert } from 'react-bootstrap';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
+import styled from 'styled-components';
 
 // Import subcomponents
 import DashboardHeader from './dashboard/DashboardHeader';
@@ -15,6 +16,81 @@ import SkillsTab from './dashboard/SkillsTab';
 import { fetchUserProfile, fetchCompletedSessionsCount } from './dashboard/dashboardUtils';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
+
+// Styled components for responsive design
+const FullScreenContainer = styled(Container)`
+  min-height: 100vh;
+  padding: 0;
+  margin: 0;
+  max-width: 100%;
+`;
+
+const DashboardContent = styled.div`
+  padding: 0 1rem;
+  
+  @media (min-width: 992px) {
+    padding: 0 2rem;
+  }
+  
+  @media (min-width: 1200px) {
+    padding: 0 3rem;
+    max-width: 1800px;
+    margin: 0 auto;
+  }
+`;
+
+const TabNavigation = styled(Nav)`
+  border-bottom: 1px solid #dee2e6;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .nav-link {
+    white-space: nowrap;
+    font-weight: 600;
+    padding: 1rem 1.5rem;
+    color: #6c757d;
+    border: none;
+    
+    &.active {
+      color: #0d6efd;
+      border-bottom: 3px solid #0d6efd;
+      background-color: transparent;
+    }
+    
+    &:hover:not(.active) {
+      color: #0d6efd;
+      border-bottom: 3px solid #e9ecef;
+    }
+  }
+`;
+
+const LoadingOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(to right, transparent, #0d6efd, transparent);
+  animation: progress 1.5s infinite;
+  z-index: 1100;
+  
+  @keyframes progress {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+`;
+
+const ErrorAlert = styled(Alert)`
+  margin: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+`;
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -39,62 +115,97 @@ const Dashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const refreshTimeoutRef = useRef(null);
+
+  // Auto-refresh mechanism when child components trigger updates
+  const handleChildUpdate = useCallback(() => {
+    // Clear any existing timeout to prevent multiple refreshes
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+    
+    // Set a small delay before refreshing to batch potential multiple updates
+    refreshTimeoutRef.current = setTimeout(() => {
+      triggerRefresh();
+    }, 300);
+  }, []);
 
   // Create a memoized refresh function with forced updates
   const triggerRefresh = useCallback(async () => {
     // First update the refresh trigger
     setRefreshTrigger(prev => prev + 1);
     
-    // Then force a direct leaderboard fetch with no delay
+    // Then force a direct data fetch with no delay
     if (user?._id) {
       try {
-        // Force fetch leaderboard directly
-        const leaderboardResponse = await fetch(`${BACKEND_URL}/api/points/leaderboard`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-          cache: 'no-store'
-        });
+        setIsLoading(true);
         
+        // Force fetch all critical data in parallel
+        const [leaderboardResponse, pointsResponse] = await Promise.all([
+          // Force fetch leaderboard directly
+          fetch(`${BACKEND_URL}/api/points/leaderboard`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+            cache: 'no-store',
+            credentials: 'include' // Include credentials for potential CORS situations
+          }),
+          
+          // Force fetch user points directly
+          fetch(`${BACKEND_URL}/api/points/user-points`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+            cache: 'no-store',
+            credentials: 'include'
+          })
+        ]);
+        
+        // Handle potential API errors
         if (!leaderboardResponse.ok) {
-          throw new Error(`Failed to fetch leaderboard: ${leaderboardResponse.status}`);
+          console.warn(`Leaderboard fetch failed: ${leaderboardResponse.status}`);
         }
-        
-        const leaderboardData = await leaderboardResponse.json();
-        
-        // Force fetch user points directly
-        const pointsResponse = await fetch(`${BACKEND_URL}/api/points/user-points`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-          cache: 'no-store'
-        });
         
         if (!pointsResponse.ok) {
-          throw new Error(`Failed to fetch user points: ${pointsResponse.status}`);
+          console.warn(`Points fetch failed: ${pointsResponse.status}`);
         }
         
-        const pointsData = await pointsResponse.json();
+        // Parse responses
+        const [leaderboardData, pointsData] = await Promise.all([
+          leaderboardResponse.ok ? leaderboardResponse.json() : { userRank: null, leaderboard: [] },
+          pointsResponse.ok ? pointsResponse.json() : { points: 0, streak: 0 }
+        ]);
         
         // Immediate state update with latest data
         setStats(prevStats => ({
           ...prevStats,
-          points: pointsData.points || prevStats.points,
-          streak: pointsData.streak || prevStats.streak,
-          userRank: leaderboardData.userRank,
-          leaderboard: leaderboardData.leaderboard
+          points: pointsData.points !== undefined ? pointsData.points : prevStats.points,
+          streak: pointsData.streak !== undefined ? pointsData.streak : prevStats.streak,
+          userRank: leaderboardData.userRank !== undefined ? leaderboardData.userRank : prevStats.userRank,
+          leaderboard: leaderboardData.leaderboard || prevStats.leaderboard
         }));
       } catch (error) {
         console.error('Error in forced refresh:', error);
         setError('Failed to refresh data. Please try again.');
         safeToast('Failed to refresh data. Please try again.', { type: 'error' });
+      } finally {
+        setIsLoading(false);
       }
     }
-  }, [user, BACKEND_URL]);
+  }, [user]);
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Check if user just logged in
   useEffect(() => {
@@ -122,7 +233,12 @@ const Dashboard = () => {
       setIsLoading(true);
       setError(null);
       loadUserProfile()
-        .finally(() => setIsLoading(false));
+        .finally(() => {
+          setIsLoading(false);
+          if (isFirstLoad) {
+            setIsFirstLoad(false);
+          }
+        });
     } else {
       setIsLoading(false);
     }
@@ -132,7 +248,7 @@ const Dashboard = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!user && !isLoading) {
-        navigate('/login', { state: { from: location } });
+        navigate('/login', { state: { from: location }, replace: true });
       }
     }, 1000);
     
@@ -141,7 +257,7 @@ const Dashboard = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    navigate('/', { replace: true });
   };
 
   // Improved toast display function to address "cannot set properties of undefined" error
@@ -160,6 +276,10 @@ const Dashboard = () => {
       return toast(content, {
         closeOnClick: true,
         autoClose: 5000,
+        pauseOnHover: true,
+        draggable: true,
+        position: "top-right",
+        hideProgressBar: false,
         ...safeOptions,
       });
     } catch (error) {
@@ -173,7 +293,7 @@ const Dashboard = () => {
   const showFuturisticCheckInToast = (pointsEarned = 1, streak = 1) => {
     // Create streak display with fire emoji for each 5 days of streak
     const getStreakDisplay = () => {
-      const fireEmojis = '🔥'.repeat(Math.floor(streak / 5));
+      const fireEmojis = '🔥'.repeat(Math.floor(streak / 5) || 1);
       return `${streak} day${streak !== 1 ? 's' : ''} ${fireEmojis}`;
     };
 
@@ -203,56 +323,57 @@ const Dashboard = () => {
   };
 
   // Handle daily check-in and show toast notification
-const handleDailyCheckIn = async () => {
-  try {
-    const response = await fetch(`${BACKEND_URL}/api/points/checkin`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      }
-    });
-    
-    // Parse the response json regardless of status code
-    const data = await response.json();
-    
-    if (response.ok && data.success) {
-      // Show the updated toast message with streak information
-      showFuturisticCheckInToast(data.pointsEarned || 1, data.streak || 1);
+  const handleDailyCheckIn = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/points/checkin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        credentials: 'include'
+      });
       
-      // Force immediate refresh of leaderboard data
-      await triggerRefresh();
-    } else {
-      // Check specifically for the already checked in message
-      if (data.message === 'Already checked in today') {
-        // Show a friendly reminder toast instead of an error
-        safeToast(`You've already checked in today! Current streak: ${data.streak || 0} days`, {
-          type: 'info',
-          style: {
-            background: 'linear-gradient(to right, #3498db, #2980b9)',
-            color: '#fff',
-            borderRadius: '8px',
-            textAlign: 'center',
-            fontSize: '16px',
-            lineHeight: '1.6',
-            fontWeight: 'bold',
-            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)'
-          }
-        });
+      // Parse the response json regardless of status code
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        // Show the updated toast message with streak information
+        showFuturisticCheckInToast(data.pointsEarned || 1, data.streak || 1);
+        
+        // Force immediate refresh of leaderboard data
+        await triggerRefresh();
       } else {
-        // Handle other error cases
-        safeToast(data.message || 'Unable to process check-in', {
-          type: 'warning'
-        });
+        // Check specifically for the already checked in message
+        if (data.message === 'Already checked in today') {
+          // Show a friendly reminder toast instead of an error
+          safeToast(`You've already checked in today! Current streak: ${data.streak || 0} days`, {
+            type: 'info',
+            style: {
+              background: 'linear-gradient(to right, #3498db, #2980b9)',
+              color: '#fff',
+              borderRadius: '8px',
+              textAlign: 'center',
+              fontSize: '16px',
+              lineHeight: '1.6',
+              fontWeight: 'bold',
+              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)'
+            }
+          });
+        } else {
+          // Handle other error cases
+          safeToast(data.message || 'Unable to process check-in', {
+            type: 'warning'
+          });
+        }
       }
+    } catch (error) {
+      console.error('Check-in error:', error);
+      safeToast('Failed to process daily check-in. Please try again later.', {
+        type: 'error'
+      });
     }
-  } catch (error) {
-    console.error('Check-in error:', error);
-    safeToast('Failed to process daily check-in. Please try again later.', {
-      type: 'error'
-    });
-  }
-};
+  };
 
   const handleFindLearningMatches = async () => {
     try {
@@ -264,6 +385,7 @@ const handleDailyCheckIn = async () => {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify({ userId: user._id }),
+        credentials: 'include'
       });
   
       if (!response.ok) {
@@ -329,7 +451,8 @@ const handleDailyCheckIn = async () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
-        cache: 'no-store' // Prevent caching
+        cache: 'no-store', // Prevent caching
+        credentials: 'include'
       });
   
       if (!response.ok) {
@@ -387,7 +510,8 @@ const handleDailyCheckIn = async () => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
-          cache: 'no-store' // Prevent caching
+          cache: 'no-store', // Prevent caching
+          credentials: 'include'
         })
         .then(res => {
           if (!res.ok) throw new Error(`Failed to fetch leaderboard: ${res.status}`);
@@ -417,6 +541,7 @@ const handleDailyCheckIn = async () => {
       safeToast('Error fetching user profile', {
         type: 'error'
       });
+      throw error; // Re-throw to be handled by the caller
     }
   };
 
@@ -429,37 +554,42 @@ const handleDailyCheckIn = async () => {
 
   if (isLoading && isFirstLoad) {
     return (
-      <Container fluid className="vh-100 d-flex justify-content-center align-items-center">
+      <FullScreenContainer fluid className="vh-100 d-flex justify-content-center align-items-center bg-light">
         <div className="text-center">
-          <Spinner animation="border" variant="primary" className="mb-3" />
-          <p className="text-muted">Loading your dashboard...</p>
+          <Spinner animation="border" variant="primary" style={{ width: "3rem", height: "3rem" }} className="mb-4" />
+          <h4 className="text-primary">Loading your dashboard...</h4>
+          <p className="text-muted">Please wait while we prepare your experience</p>
         </div>
-      </Container>
+      </FullScreenContainer>
     );
   }
 
   if (error && !user) {
     return (
-      <Container fluid className="vh-100 d-flex justify-content-center align-items-center">
-        <Card className="shadow-sm border-0 p-4 text-center">
+      <FullScreenContainer fluid className="vh-100 d-flex justify-content-center align-items-center bg-light">
+        <Card className="shadow-lg border-0 p-4 text-center" style={{ maxWidth: "500px" }}>
           <Card.Body>
-            <h4 className="text-danger mb-3">Authentication Error</h4>
-            <p>{error}</p>
+            <h3 className="text-danger mb-3">Authentication Error</h3>
+            <p className="mb-4">{error}</p>
             <Button 
               variant="primary" 
-              onClick={() => navigate('/login')} 
-              className="mt-3"
+              onClick={() => navigate('/login', { replace: true })} 
+              className="px-4 py-2"
+              size="lg"
             >
               Go to Login
             </Button>
           </Card.Body>
         </Card>
-      </Container>
+      </FullScreenContainer>
     );
   }
 
   return (
-    <Container fluid className="py-4 dashboard-container">
+    <FullScreenContainer fluid className="dashboard-wrapper bg-light">
+      {/* Loading indicator */}
+      {isLoading && <LoadingOverlay />}
+      
       {/* Toast Container with fixed configuration to avoid errors */}
       <ToastContainer
         position="top-right"
@@ -478,196 +608,120 @@ const handleDailyCheckIn = async () => {
       <DashboardHeader 
         handleLogout={handleLogout} 
         navigate={navigate} 
-        triggerRefresh={triggerRefresh}
+        onUpdate={handleChildUpdate}
       />
 
-      {/* Loading indicator for subsequent loads */}
-      {isLoading && !isFirstLoad && (
-        <div className="position-fixed top-0 start-0 w-100 bg-primary" style={{ height: '3px', zIndex: 1100 }}>
-          <div className="loading-bar"></div>
+      <DashboardContent>
+        {/* Error alert */}
+        {error && (
+          <ErrorAlert variant="danger" dismissible onClose={() => setError(null)}>
+            <Alert.Heading>Error</Alert.Heading>
+            <p className="mb-0">{error}</p>
+          </ErrorAlert>
+        )}
+
+        {/* User Welcome Card */}
+        <UserWelcomeCard 
+          user={user}
+          stats={stats}
+          handleFindLearningMatches={handleFindLearningMatches}
+          isGeneratingMatches={isGeneratingMatches}
+          teachingPercentage={teachingPercentage}
+          learningPercentage={learningPercentage}
+          handleDailyCheckIn={handleDailyCheckIn}
+          navigate={navigate}
+          onUpdate={handleChildUpdate}
+        />
+
+        {/* Tab Navigation - Responsive */}
+        <div className="dashboard-tabs mb-4">
+          <TabNavigation className="mb-4">
+            <Nav.Item>
+              <Nav.Link 
+                onClick={() => setActiveTab('overview')}
+                active={activeTab === 'overview'}
+              >
+                <i className="bi bi-grid me-2"></i>
+                Overview
+              </Nav.Link>
+            </Nav.Item>
+            <Nav.Item>
+              <Nav.Link 
+                onClick={() => setActiveTab('sessions')}
+                active={activeTab === 'sessions'}
+              >
+                <i className="bi bi-calendar-check me-2"></i>
+                Sessions
+              </Nav.Link>
+            </Nav.Item>
+            <Nav.Item>
+              <Nav.Link 
+                onClick={() => setActiveTab('matches')}
+                active={activeTab === 'matches'}
+              >
+                <i className="bi bi-people me-2"></i>
+                Matches
+              </Nav.Link>
+            </Nav.Item>
+            <Nav.Item>
+              <Nav.Link 
+                onClick={() => setActiveTab('skills')}
+                active={activeTab === 'skills'}
+              >
+                <i className="bi bi-star me-2"></i>
+                Skills
+              </Nav.Link>
+            </Nav.Item>
+          </TabNavigation>
         </div>
-      )}
-      
-      {/* Error alert */}
-      {error && (
-        <div className="alert alert-danger alert-dismissible fade show mb-4" role="alert">
-          <strong>Error:</strong> {error}
-          <button type="button" className="btn-close" onClick={() => setError(null)} aria-label="Close"></button>
+
+        {/* Tab Content */}
+        <div className="tab-content pb-5">
+          {activeTab === 'overview' && (
+            <OverviewTab 
+              stats={stats} 
+              navigate={navigate} 
+              handleFindLearningMatches={handleFindLearningMatches}
+              handleDailyCheckIn={handleDailyCheckIn}
+              user={user}
+              onUpdate={handleChildUpdate}
+              isLoading={isLoading}
+            />
+          )}
+
+          {activeTab === 'sessions' && (
+            <SessionsTab 
+              sessions={stats.upcomingSessions} 
+              matches={stats.recentMatches} 
+              navigate={navigate} 
+              onUpdate={handleChildUpdate}
+              isLoading={isLoading}
+            />
+          )}
+
+          {activeTab === 'matches' && (
+            <MatchesTab 
+              matches={stats.recentMatches} 
+              navigate={navigate} 
+              handleFindLearningMatches={handleFindLearningMatches} 
+              onUpdate={handleChildUpdate}
+              isLoading={isLoading}
+            />
+          )}
+
+          {activeTab === 'skills' && (
+            <SkillsTab 
+              teachingSkills={stats.teachingSkills} 
+              learningSkills={stats.learningSkills} 
+              navigate={navigate} 
+              onUpdate={handleChildUpdate}
+              isLoading={isLoading}
+            />
+          )}
         </div>
-      )}
-
-      {/* User Welcome Card */}
-      <UserWelcomeCard 
-        user={user}
-        stats={stats}
-        handleFindLearningMatches={handleFindLearningMatches}
-        isGeneratingMatches={isGeneratingMatches}
-        teachingPercentage={teachingPercentage}
-        learningPercentage={learningPercentage}
-        handleDailyCheckIn={handleDailyCheckIn}
-        navigate={navigate}
-        triggerRefresh={triggerRefresh}
-      />
-
-      {/* Tab Navigation - Responsive */}
-      <div className="dashboard-tabs mb-4">
-        <Nav 
-          variant="tabs" 
-          className="border-0 flex-nowrap overflow-auto hide-scrollbar"
-          style={{ 
-            scrollbarWidth: 'none', 
-            msOverflowStyle: 'none' 
-          }}
-        >
-          <Nav.Item>
-            <Nav.Link 
-              className={`fw-bold py-3 px-4 ${activeTab === 'overview' ? 'text-primary border-primary border-bottom-0' : 'text-muted'}`}
-              onClick={() => setActiveTab('overview')}
-              active={activeTab === 'overview'}
-            >
-              <i className="bi bi-grid me-2"></i>
-              <span className="d-none d-sm-inline">Overview</span>
-              <span className="d-sm-none">Overview</span>
-            </Nav.Link>
-          </Nav.Item>
-          <Nav.Item>
-            <Nav.Link 
-              className={`fw-bold py-3 px-4 ${activeTab === 'sessions' ? 'text-primary border-primary border-bottom-0' : 'text-muted'}`}
-              onClick={() => setActiveTab('sessions')}
-              active={activeTab === 'sessions'}
-            >
-              <i className="bi bi-calendar-check me-2"></i>
-              <span className="d-none d-sm-inline">Sessions</span>
-              <span className="d-sm-none">Sessions</span>
-            </Nav.Link>
-          </Nav.Item>
-          <Nav.Item>
-            <Nav.Link 
-              className={`fw-bold py-3 px-4 ${activeTab === 'matches' ? 'text-primary border-primary border-bottom-0' : 'text-muted'}`}
-              onClick={() => setActiveTab('matches')}
-              active={activeTab === 'matches'}
-            >
-              <i className="bi bi-people me-2"></i>
-              <span className="d-none d-sm-inline">Matches</span>
-              <span className="d-sm-none">Matches</span>
-            </Nav.Link>
-          </Nav.Item>
-          <Nav.Item>
-            <Nav.Link 
-              className={`fw-bold py-3 px-4 ${activeTab === 'skills' ? 'text-primary border-primary border-bottom-0' : 'text-muted'}`}
-              onClick={() => setActiveTab('skills')}
-              active={activeTab === 'skills'}
-            >
-              <i className="bi bi-star me-2"></i>
-              <span className="d-none d-sm-inline">Skills</span>
-              <span className="d-sm-none">Skills</span>
-            </Nav.Link>
-          </Nav.Item>
-        </Nav>
-      </div>
-
-      {/* Tab Content */}
-      <div className="tab-content">
-        {activeTab === 'overview' && (
-          <OverviewTab 
-            stats={stats} 
-            navigate={navigate} 
-            handleFindLearningMatches={handleFindLearningMatches}
-            handleDailyCheckIn={handleDailyCheckIn}
-            user={user}
-            triggerRefresh={triggerRefresh}
-            isLoading={isLoading}
-          />
-        )}
-
-        {activeTab === 'sessions' && (
-          <SessionsTab 
-            sessions={stats.upcomingSessions} 
-            matches={stats.recentMatches} 
-            navigate={navigate} 
-            triggerRefresh={triggerRefresh}
-            isLoading={isLoading}
-          />
-        )}
-
-        {activeTab === 'matches' && (
-          <MatchesTab 
-            matches={stats.recentMatches} 
-            navigate={navigate} 
-            handleFindLearningMatches={handleFindLearningMatches} 
-            triggerRefresh={triggerRefresh}
-            isLoading={isLoading}
-          />
-        )}
-
-        {activeTab === 'skills' && (
-          <SkillsTab 
-            teachingSkills={stats.teachingSkills} 
-            learningSkills={stats.learningSkills} 
-            navigate={navigate} 
-            triggerRefresh={triggerRefresh}
-            isLoading={isLoading}
-          />
-        )}
-      </div>
-    </Container>
+      </DashboardContent>
+    </FullScreenContainer>
   );
 };
-
-// Add CSS for responsive styling
-const styles = `
-  /* Global responsive adjustments */
-  .dashboard-container {
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-
-  /* Hide scrollbar but allow scrolling */
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Loading bar animation */
-  .loading-bar {
-    height: 3px;
-    background: linear-gradient(90deg, transparent, #ffffff, transparent);
-    animation: loading 1.5s infinite;
-    width: 50%;
-  }
-
-  @keyframes loading {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(200%); }
-  }
-
-  /* Responsive tabs */
-  @media (max-width: 768px) {
-    .dashboard-tabs .nav-link {
-      padding: 0.75rem 1rem !important;
-      font-size: 0.9rem;
-    }
-  }
-
-  @media (max-width: 576px) {
-    .dashboard-tabs .nav-link {
-      padding: 0.5rem 0.75rem !important;
-      font-size: 0.8rem;
-    }
-  }
-
-  /* Improve toast responsiveness */
-  @media (max-width: 576px) {
-    .Toastify__toast-container {
-      width: 90vw !important;
-      padding: 0 !important;
-      left: 5vw !important;
-    }
-  }
-`;
-
-// Add the styles to the document
-const styleEl = document.createElement('style');
-styleEl.innerHTML = styles;
-document.head.appendChild(styleEl);
 
 export default Dashboard;

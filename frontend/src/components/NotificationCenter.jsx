@@ -1,7 +1,6 @@
-import React, { useState, useCallback, memo, useMemo } from "react";
+import React, { useState, useCallback, memo, useMemo, useEffect } from "react";
 import { Dropdown, Badge, Button, Card, ListGroup } from "react-bootstrap";
 import { 
-  BellFill, 
   Trash, 
   TrashFill,
   Check2All, 
@@ -9,7 +8,13 @@ import {
   ThreeDots,
   ExclamationTriangle,
   InfoCircle,
-  CheckCircle
+  CheckCircle,
+  BellSlashFill,
+  EnvelopeFill,
+  ChatDotsFill,
+  ChatLeftTextFill,
+  ChatSquareTextFill,
+  ChatLeftDotsFill
 } from "react-bootstrap-icons";
 import { useNotifications } from "../context/NotificationContext";
 import { formatDistanceToNow } from "date-fns";
@@ -25,6 +30,35 @@ const NotificationCenter = () => {
   } = useNotifications();
 
   const [show, setShow] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [pulseRipple, setPulseRipple] = useState(false);
+
+  // Check for mobile view
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile(); // Initial check
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Enhanced animation effects when new notifications arrive
+  useEffect(() => {
+    if (unreadCount > 0) {
+      setIsAnimating(true);
+      setPulseRipple(true);
+      const animationTimer = setTimeout(() => setIsAnimating(false), 2000);
+      const pulseTimer = setTimeout(() => setPulseRipple(false), 3000);
+      return () => {
+        clearTimeout(animationTimer);
+        clearTimeout(pulseTimer);
+      };
+    }
+  }, [unreadCount]);
 
   const handleNotificationClick = useCallback((notification) => {
     if (!notification.read) {
@@ -92,34 +126,92 @@ const NotificationCenter = () => {
     };
   }, [notifications]);
 
+  // Advanced notification icon with dynamic styling (using Chat icon instead of Bell)
+  const renderNotificationIcon = () => {
+    // Base icon selection
+    const baseIcon = isMobile ? (
+      unreadCount > 0 ? (
+        <ChatLeftDotsFill size={isMobile ? 16 : 18} className="text-white position-relative z-1" />
+      ) : (
+        <ChatSquareTextFill size={isMobile ? 16 : 18} className="text-white position-relative z-1" />
+      )
+    ) : (
+      <ChatDotsFill 
+        size={isMobile ? 18 : 20} 
+        className={`text-white position-relative z-1 ${isAnimating ? 'animate__animated animate__headShake' : ''}`} 
+      />
+    );
+    
+    return (
+      <div className="notification-icon-container position-relative d-flex align-items-center justify-content-center">
+        {baseIcon}
+        
+        {/* Notification icon glow effect */}
+        {unreadCount > 0 && (
+          <>
+            <span 
+              className="position-absolute notification-dot"
+              style={{
+                top: '-2px',
+                right: '-2px',
+                width: isMobile ? '8px' : '10px',
+                height: isMobile ? '8px' : '10px',
+                borderRadius: '50%',
+                background: 'rgb(255, 45, 85)',
+                boxShadow: '0 0 5px 2px rgba(255, 45, 85, 0.6)',
+                zIndex: 2,
+                animation: isAnimating ? 'pulse-dot 1.5s infinite' : 'none'
+              }}
+            />
+            
+            {/* Ripple effect for unread notifications */}
+            {pulseRipple && (
+              <>
+                <span className="ripple-effect ripple-1"></span>
+                <span className="ripple-effect ripple-2"></span>
+              </>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
     <Dropdown show={show} onToggle={setShow} align="end">
       <Dropdown.Toggle 
         as={Button} 
         variant="primary" 
         id="notification-dropdown" 
-        className="position-relative d-flex align-items-center justify-content-center p-2 rounded-circle"
+        className={`position-relative d-flex align-items-center justify-content-center p-2 rounded-circle notification-toggle ${isAnimating ? 'pulse' : ''}`}
         style={{ 
-          width: "42px",
-          height: "42px",
-          transition: "all 0.2s ease",
-          boxShadow: unreadCount > 0 ? "0 0 0 4px rgba(13, 110, 253, 0.15)" : "none"
+          width: isMobile ? "38px" : "42px",
+          height: isMobile ? "38px" : "42px",
+          transition: "all 0.3s ease",
+          background: unreadCount > 0 
+            ? 'linear-gradient(145deg, #4267B2, #1877F2)' 
+            : 'linear-gradient(145deg, #3b5998, #4267B2)',
+          boxShadow: unreadCount > 0 
+            ? "0 0 0 4px rgba(19, 119, 242, 0.2), 0 4px 12px rgba(19, 119, 242, 0.3)" 
+            : "0 2px 8px rgba(0, 0, 0, 0.15)"
         }}
       >
-        <BellFill size={20} className="text-white" />
+        {renderNotificationIcon()}
         {unreadCount > 0 && (
           <Badge 
             pill 
             bg="danger" 
-            className="position-absolute d-flex align-items-center justify-content-center animate__animated animate__pulse animate__infinite"
+            className="position-absolute d-flex align-items-center justify-content-center animate__animated animate__pulse animate__infinite notification-badge"
             style={{ 
               top: "0", 
               right: "0", 
               fontSize: "0.65rem",
-              minWidth: "18px",
-              height: "18px",
+              minWidth: isMobile ? "16px" : "18px",
+              height: isMobile ? "16px" : "18px",
               transform: "translate(25%, -25%)",
-              boxShadow: "0 0 0 2px white"
+              boxShadow: "0 0 0 2px white",
+              fontWeight: "bold",
+              background: "linear-gradient(45deg, #FF3B30, #FF2D55)"
             }}
           >
             {unreadCount > 99 ? "99+" : unreadCount}
@@ -130,18 +222,18 @@ const NotificationCenter = () => {
       <Dropdown.Menu 
         className="shadow notification-menu p-0 border-0"
         style={{ 
-          width: "380px", 
+          width: isMobile ? "100vw" : "380px", 
           maxWidth: "100vw",
           borderRadius: "0.75rem",
           marginTop: "0.75rem",
           overflow: "hidden",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
+          boxShadow: "0 10px 30px rgba(0,0,0,0.15)"
         }}
       >
         <Card className="border-0">
           <Card.Header className="d-flex justify-content-between align-items-center py-3 bg-white border-bottom">
             <h6 className="m-0 fw-bold d-flex align-items-center">
-              <BellFill size={16} className="me-2 text-primary" />
+              <ChatLeftTextFill size={16} className="me-2 text-primary" />
               Notifications
               {unreadCount > 0 && (
                 <Badge pill bg="primary" className="ms-2">{unreadCount}</Badge>
@@ -175,10 +267,16 @@ const NotificationCenter = () => {
             </div>
           </Card.Header>
 
-          <div style={{ maxHeight: "450px", overflowY: "auto" }} className="notification-scrollbar">
+          <div 
+            style={{ 
+              maxHeight: isMobile ? "70vh" : "450px", 
+              overflowY: "auto" 
+            }} 
+            className="notification-scrollbar"
+          >
             {notifications.length === 0 ? (
               <div className="text-center text-muted py-5">
-                <BellFill size={36} className="mb-3 text-secondary opacity-50" />
+                <ChatSquareTextFill size={36} className="mb-3 text-secondary opacity-50" />
                 <p className="mb-1">No notifications</p>
                 <small className="text-muted">You're all caught up!</small>
               </div>
@@ -211,8 +309,8 @@ const NotificationCenter = () => {
                               <div 
                                 className={`rounded-circle bg-${getNotificationTypeColor(notification.type)} d-flex align-items-center justify-content-center`}
                                 style={{ 
-                                  width: "36px", 
-                                  height: "36px",
+                                  width: isMobile ? "32px" : "36px", 
+                                  height: isMobile ? "32px" : "36px",
                                   boxShadow: `0 2px 6px rgba(var(--bs-${getNotificationTypeColor(notification.type)}-rgb), 0.3)`
                                 }}
                               >
@@ -241,8 +339,8 @@ const NotificationCenter = () => {
                                 right: "12px", 
                                 background: "rgba(255,255,255,0.9)",
                                 borderRadius: "50%",
-                                width: "28px",
-                                height: "28px",
+                                width: isMobile ? "24px" : "28px",
+                                height: isMobile ? "24px" : "28px",
                                 boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                                 opacity: 0.9,
                                 transition: "all 0.2s ease"
@@ -250,7 +348,7 @@ const NotificationCenter = () => {
                               onClick={(e) => handleDeleteNotification(e, notification._id)}
                               title="Delete notification"
                             >
-                              <TrashFill size={14} className="text-danger" />
+                              <TrashFill size={isMobile ? 12 : 14} className="text-danger" />
                             </div>
                           </div>
                         </ListGroup.Item>
@@ -258,29 +356,122 @@ const NotificationCenter = () => {
                     </React.Fragment>
                   );
                 })}
-                
-                {notifications.length > 7 && (
-                  <div className="text-center py-3 border-top bg-light">
-                    <Button variant="link" className="text-decoration-none">
-                      View all notifications
-                      <ThreeDots size={16} className="ms-1" />
-                    </Button>
-                  </div>
-                )}
               </ListGroup>
             )}
           </div>
         </Card>
       </Dropdown.Menu>
+
+      <style jsx>{`
+        @keyframes pulse-dot {
+          0% {
+            transform: scale(0.8);
+            opacity: 0.5;
+          }
+          50% {
+            transform: scale(1.5);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(0.8);
+            opacity: 0.5;
+          }
+        }
+        
+        .pulse {
+          animation: pulse-effect 1.5s ease infinite;
+        }
+        
+        @keyframes pulse-effect {
+          0% {
+            box-shadow: 0 0 0 0 rgba(19, 119, 242, 0.4);
+          }
+          70% {
+            box-shadow: 0 0 0 10px rgba(19, 119, 242, 0);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(19, 119, 242, 0);
+          }
+        }
+        
+        .notification-toggle {
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .notification-toggle:after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: radial-gradient(circle at center, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%);
+          border-radius: 50%;
+          opacity: 0.8;
+          z-index: 0;
+        }
+        
+        .notification-icon-container {
+          position: relative;
+          width: 100%;
+          height: 100%;
+        }
+        
+        .ripple-effect {
+          position: absolute;
+          border-radius: 50%;
+          background-color: rgba(255, 45, 85, 0.4);
+          width: 100%;
+          height: 100%;
+          opacity: 0;
+          z-index: 0;
+        }
+        
+        .ripple-1 {
+          animation: ripple 2s ease-out infinite;
+        }
+        
+        .ripple-2 {
+          animation: ripple 2s ease-out 0.5s infinite;
+        }
+        
+        @keyframes ripple {
+          0% {
+            transform: scale(0.1);
+            opacity: 0.4;
+          }
+          100% {
+            transform: scale(2.5);
+            opacity: 0;
+          }
+        }
+        
+        .notification-badge {
+          z-index: 3;
+        }
+        
+        .notification-action {
+          z-index: 2;
+        }
+        
+        .notification-action:hover {
+          background: rgba(255,255,255,1) !important;
+          transform: scale(1.1);
+        }
+        
+        @media (max-width: 768px) {
+          .notification-item {
+            padding: 0.5rem 0;
+          }
+          
+          .notification-toggle:after {
+            opacity: 0.5;
+          }
+        }
+      `}</style>
     </Dropdown>
   );
 };
-
-// Add this to your CSS for better scrollbar styling
-// .notification-scrollbar::-webkit-scrollbar { width: 8px; }
-// .notification-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
-// .notification-scrollbar::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
-// .notification-scrollbar::-webkit-scrollbar-thumb:hover { background: #999; }
-// .notification-item:hover .notification-action { opacity: 1 !important; }
 
 export default memo(NotificationCenter);
