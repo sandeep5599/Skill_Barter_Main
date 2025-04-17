@@ -14,7 +14,7 @@ const sessionController = require('../controllers/sessionController');
 // ...
 
 // Session-related routes (expanded)
-router.get('/', auth, matchingController.getSessions);
+router.get('/', auth, sessionController.getSessions);
 router.get('/user/:userId', auth, sessionController.getUserSessions);
 router.post('/', auth, sessionController.createSession);
 router.put('/:sessionId/complete', auth, sessionController.completeSession);

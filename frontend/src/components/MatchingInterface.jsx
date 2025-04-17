@@ -31,86 +31,148 @@ const MatchingInterface = () => {
   };
 
   // Fetch all sessions first, then filter by teacher
-  const fetchAllSessions = useCallback(async () => {
-    if (!user?._id) return;
-    
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/sessions?userId=${user._id}&status=completed`, {
-        headers: { 
-          'Authorization': `Bearer ${localStorage.getItem('token')}` 
-        }
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch sessions');
-      const sessionsData = await response.json();
-      setAllSessions(sessionsData);
-      return sessionsData;
-    } catch (error) {
-      console.error('Error fetching all sessions:', error);
-      return [];
-    }
-  }, [user]);
-
-  // Calculate teacher stats based on all sessions
-  const calculateTeacherStats = useCallback(async () => {
-    if (!learningMatches.length || !allSessions.length) return;
-    
-    const statsPromises = learningMatches.map(async (match) => {
-      const teacherId = match.teacherId;
-      if (!teacherId) return null;
-      
-      try {
-        // Get ratings
-        const ratings = await fetchTeacherRatings(teacherId);
-        
-        // Filter sessions for this specific teacher
-        const teacherSessions = allSessions.filter(session => 
-          session.teacherId === teacherId && 
-          session.status === 'completed'
-        );
-        
-        return {
-          teacherId,
-          ratings: ratings?.overall || { averageRating: 0, totalReviews: 0 },
-          completedSessions: teacherSessions.length
-        };
-      } catch (error) {
-        console.error(`Error calculating stats for teacher ${teacherId}:`, error);
-        return {
-          teacherId,
-          ratings: { averageRating: 0, totalReviews: 0 },
-          completedSessions: 0,
-          error: true
-        };
+// Fix the fetchAllSessions function to properly extract the sessions array
+const fetchAllSessions = useCallback(async () => {
+  if (!user?._id) {
+    setAllSessions([]);  // Initialize with empty array when no user
+    return [];
+  }
+  
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/sessions?userId=${user._id}&status=completed`, {
+      headers: { 
+        'Authorization': `Bearer ${localStorage.getItem('token')}` 
       }
     });
     
-    const results = await Promise.all(statsPromises);
+    if (!response.ok) throw new Error('Failed to fetch sessions');
+    
+    const responseData = await response.json();
+    console.log("Sessions API response:", responseData);
+    
+    // Extract the sessions array from the response object
+    const sessionsData = responseData.sessions || [];
+    console.log(`Found ${sessionsData.length} completed sessions`);
+    
+    setAllSessions(sessionsData);
+    return sessionsData;
+  } catch (error) {
+    console.error('Error fetching all sessions:', error);
+    setAllSessions([]);  // Set to empty array on error
+    return [];
+  }
+}, [user]);
 
+// Then modify the calculateTeacherStats function to be more defensive
+const calculateTeacherStats = useCallback(async () => {
+  console.log("Calculating teacher stats with:", { 
+    matchesCount: learningMatches?.length || 0, 
+    sessionsCount: allSessions?.length || 0 
+  });
+  
+  // Guard against empty arrays more defensively
+  if (!Array.isArray(learningMatches) || learningMatches.length === 0) {
+    console.log("No learning matches found, skipping stats calculation");
+    return;
+  }
+  
+  if (!Array.isArray(allSessions)) {
+    console.log("Sessions is not an array, initializing as empty");
+    setAllSessions([]);
+    return;
+  }
+  
+  const statsPromises = learningMatches.map(async (match) => {
+    const teacherId = match.teacherId;
+    if (!teacherId) {
+      console.log("No teacherId found for match:", match);
+      return null;
+    }
+    
+    try {
+      // Add more logging
+      console.log(`Fetching ratings for teacher ${teacherId}`);
+      const ratings = await fetchTeacherRatings(teacherId);
+      console.log(`Teacher ${teacherId} ratings:`, ratings);
+      
+      // Filter sessions for this specific teacher
+      const teacherSessions = allSessions.filter(session => 
+        session && session.teacherId === teacherId && 
+        session.status === 'completed'
+      );
+      
+      console.log(`Teacher ${teacherId} has ${teacherSessions.length} completed sessions`);
+      
+      return {
+        teacherId,
+        ratings: ratings?.overall || { averageRating: 0, totalReviews: 0 },
+        completedSessions: teacherSessions.length
+      };
+    } catch (error) {
+      console.error(`Error calculating stats for teacher ${teacherId}:`, error);
+      return {
+        teacherId,
+        ratings: { averageRating: 0, totalReviews: 0 },
+        completedSessions: 0,
+        error: true
+      };
+    }
+  });
+  
+  try {
+    console.log("About to resolve stats promises");
+    const results = await Promise.all(statsPromises);
+    console.log("Stats results:", results);
+    
+    // Filter out null values
+    const validResults = results.filter(result => result !== null);
+    
     // Convert array to object with teacherId as keys
-    const statsObj = results.reduce((acc, stat) => {
+    const statsObj = validResults.reduce((acc, stat) => {
       if (stat && stat.teacherId) {
         acc[stat.teacherId] = stat;
       }
       return acc;
     }, {});
     
+    console.log("Final teacher stats:", statsObj);
     setTeacherStats(statsObj);
-  }, [learningMatches, allSessions]);
+  } catch (error) {
+    console.error("Error calculating teacher stats:", error);
+  }
+}, [learningMatches, allSessions, fetchTeacherRatings]);
 
-  // First fetch sessions, then calculate stats
-  useEffect(() => {
-    if (user?._id) {
-      fetchAllSessions();
-    }
-  }, [fetchAllSessions, user]);
+// Fix the useEffect to properly initialize allSessions
+useEffect(() => {
+  // Initialize allSessions to an empty array
+  if (!allSessions) {
+    setAllSessions([]);
+  }
+  
+  if (user?._id) {
+    fetchAllSessions();
+  }
+}, [fetchAllSessions, user]);
 
-  // When matches or sessions change, recalculate stats
-  useEffect(() => {
-    if (learningMatches.length > 0 && allSessions.length > 0) {
-      calculateTeacherStats();
-    }
-  }, [calculateTeacherStats, learningMatches, allSessions]);
+// Update the useEffect that triggers stats calculation
+useEffect(() => {
+  console.log("Effect running with:", { 
+    matchesCount: learningMatches?.length || 0, 
+    sessionsCount: allSessions?.length || 0,
+    allSessionsIsArray: Array.isArray(allSessions)
+  });
+
+  // Make sure we have matches and allSessions is at least an empty array
+  if (
+    Array.isArray(learningMatches) && 
+    learningMatches.length > 0 && 
+    Array.isArray(allSessions)
+  ) {
+    calculateTeacherStats();
+  } else {
+    console.log("Skipping stats calculation - prerequisites not met");
+  }
+}, [calculateTeacherStats, learningMatches, allSessions]);
 
   const fetchLearningMatches = useCallback(async () => {
     setLoading(true);

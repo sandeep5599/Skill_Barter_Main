@@ -35,7 +35,8 @@ const SessionsList = () => {
       }
       
       const data = await response.json();
-      setSessions(data);
+      console.log('Fetched session:', data.sessions);
+      setSessions(data.sessions);
       
     } catch (err) {
       console.error('Error fetching sessions:', err);
@@ -93,8 +94,9 @@ const SessionsList = () => {
     }
   }, [user]);
   
-  // Navigate to session details
+  // Navigate to session details - explicitly using session._id
   const handleViewSession = useCallback((sessionId) => {
+    console.log("Navigating to session with ID:", sessionId);
     navigate(`/sessions/${sessionId}`);
   }, [navigate]);
   
@@ -109,7 +111,7 @@ const SessionsList = () => {
       const { status, variant } = getSessionStatus(session);
       const role = getUserRole(session);
       const otherPerson = role === 'Teacher' ? session.studentName : session.teacherName;
-      
+      console.log("Session Ids from Session List : " , session._id);
       return {
         ...session,
         statusInfo: { status, variant },
@@ -157,7 +159,7 @@ const SessionsList = () => {
     <Container className="py-5">
       <Row className="mb-4">
         <Col>
-          <Button variant="outline-primary" onClick={handleReturnToDashboard}>
+          <Button variant="primary" onClick={handleReturnToDashboard}>
             &larr; Back to Dashboard
           </Button>
         </Col>
@@ -205,7 +207,7 @@ const SessionsList = () => {
                     <Button 
                       variant="success" 
                       className="py-1 px-3" 
-                      onClick={() => navigate(`/sessions/${session._id}`)}
+                      onClick={() => handleViewSession(session._id)}
                     >
                       View Details
                     </Button>

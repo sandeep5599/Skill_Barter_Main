@@ -191,7 +191,7 @@ exports.createReview = async (req, res) => {
 
     // Check if session exists
     console.log('Finding session with ID:', sessionId);
-    const session = await Session.findOne({ matchId: sessionId });
+    const session = await Session.findById(sessionId);
     if (!session) {
       console.log('Session not found with ID:', sessionId);
       return res.status(404).json({
@@ -877,7 +877,7 @@ exports.submitTeacherFeedback = async (req, res) => {
     }
 
     // check if sessionId is valid by findById only
-    const session = await Session.findOne({ matchId: sessionId });
+       const session = await Session.findById(sessionId);
     if (!session) {
       return res.status(404).json({
         success: false,

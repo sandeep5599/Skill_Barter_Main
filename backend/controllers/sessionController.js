@@ -6,13 +6,146 @@ const Notification = require('../models/Notification');
 
 
 const sessionController = {
+  // createSession: async (req, res) => {
+  //   try {
+  //     // Check authentication
+  //     if (!req.user || !req.user.id) {
+  //       return res.status(401).json({ error: 'Unauthorized access' });
+  //     }
+   
+  //     const { 
+  //       matchId, 
+  //       selectedTimeSlot, 
+  //       title,
+  //       description,
+  //       meetingLink,
+  //       prerequisites,
+  //       notes
+  //     } = req.body;
+      
+  //     const userId = req.user.id;
+  
+  //     // Validate required fields
+  //     if (!matchId || !selectedTimeSlot || !selectedTimeSlot.startTime || !selectedTimeSlot.endTime) {
+  //       return res.status(400).json({ 
+  //         error: 'Missing required fields',
+  //         required: ['matchId', 'selectedTimeSlot (with startTime and endTime)'] 
+  //       });
+  //     }
+  
+  //     // Verify match exists and user is part of it
+  //     const match = await Match.findById(matchId).populate('skillId', 'name');
+  //     if (!match) {
+  //       return res.status(404).json({ error: 'Match not found' });
+  //     }
+  
+  //     // Check authorization
+  //     if (match.requesterId.toString() !== userId && match.teacherId.toString() !== userId) {
+  //       return res.status(403).json({ error: 'Not authorized to create a session for this match' });
+  //     }
+  
+  //     // Only teacher should be able to create sessions
+  //     if (match.teacherId.toString() !== userId) {
+  //       return res.status(403).json({ error: 'Only the teacher can create sessions' });
+  //     }
+  
+  //     // Check if there's already a current session
+  //     if (match.currentSessionId) {
+  //       // Check if the current session is completed
+  //       const currentSession = await Session.findById(match.currentSessionId);
+        
+  //       if (currentSession && currentSession.status === 'completed') {
+  //         // Move current session to previous sessions if completed
+  //         if (!match.previousSessionIds) {
+  //           match.previousSessionIds = [];
+  //         }
+          
+  //         // Add to previousSessionIds if not already there
+  //         if (!match.previousSessionIds.includes(match.currentSessionId)) {
+  //           match.previousSessionIds.push(match.currentSessionId);
+  //         }
+          
+  //         // Set previouslyMatched flag
+  //         match.previouslyMatched = true;
+          
+  //         // Clear currentSessionId to prepare for the new session
+  //         match.currentSessionId = null;
+  //       } else if (currentSession && currentSession.status !== 'completed') {
+  //         // If current session exists and is not completed, don't create a new one
+  //         return res.status(409).json({ 
+  //           error: 'There is already an active session for this match',
+  //           currentSession
+  //         });
+  //       }
+  //     }
+  
+  //     // Update match status
+  //     match.status = 'accepted';
+      
+  //     // Fetch teacher and student names
+  //     const teacher = await User.findById(match.teacherId);
+  //     const student = await User.findById(match.requesterId);
+  
+  //     if (!teacher || !student) {
+  //       return res.status(404).json({ error: 'Teacher or student not found' });
+  //     }
+  
+  //     // Create session record using match data
+  //     const session = new Session({
+  //       title: title || `${match.skillId.name} Session`,
+  //       matchId: match._id,
+  //       skillId: match.skillId._id,
+  //       teacherId: match.teacherId,
+  //       teacherName: teacher.name,
+  //       studentId: match.requesterId,
+  //       studentName: student.name,
+  //       startTime: new Date(selectedTimeSlot.startTime),
+  //       endTime: new Date(selectedTimeSlot.endTime),
+  //       meetingLink: meetingLink || null,
+  //       description: description || '',
+  //       prerequisites: prerequisites || '',
+  //       notes: notes || '',
+  //       status: 'scheduled'
+  //     });
+  
+  //     await session.save();
+      
+  //     // Update match with the new session ID
+  //     match.currentSessionId = session._id;
+      
+  //     // Save the updated match
+  //     await match.save();
+      
+  //     // Create notification for student
+  //     const notification = await Notification.create({
+  //       userId: student._id,
+  //       title: 'New Session Scheduled',
+  //       message: `${teacher.name} has scheduled a session for ${match.skillId.name}`,
+  //       type: 'session_created',
+  //       relatedId: session._id,
+  //       isRead: false
+  //     });
+  
+  //     return res.status(201).json({ 
+  //       session,
+  //       match,
+  //       message: meetingLink ? 'Session created successfully with meeting link' : 'Session created without meeting link'
+  //     });
+  //   } catch (error) {
+  //     console.error("Error creating session:", error);
+  //     return res.status(500).json({ 
+  //       error: 'Failed to create session',
+  //       message: error.message
+  //     });
+  //   }
+  // },
   createSession: async (req, res) => {
     try {
       // Check authentication
       if (!req.user || !req.user.id) {
         return res.status(401).json({ error: 'Unauthorized access' });
       }
-  
+   
       const { 
         matchId, 
         selectedTimeSlot, 
@@ -40,18 +173,9 @@ const sessionController = {
       }
   
       // Check authorization
-      if (match.requesterId.toString() !== userId && match.teacherId.toString() !== userId) {
-        return res.status(403).json({ error: 'Not authorized to create a session for this match' });
-      }
-  
-      // Only teacher should be able to create sessions
       if (match.teacherId.toString() !== userId) {
         return res.status(403).json({ error: 'Only the teacher can create sessions' });
       }
-  
-      // Update match status
-      match.status = 'accepted';
-      await match.save();
   
       // Fetch teacher and student names
       const teacher = await User.findById(match.teacherId);
@@ -61,6 +185,65 @@ const sessionController = {
         return res.status(404).json({ error: 'Teacher or student not found' });
       }
   
+      // Handle current session
+      if (match.currentSessionId) {
+        const currentSession = await Session.findById(match.currentSessionId);
+        
+        if (currentSession) {
+          console.log("Current session status:", currentSession.status);
+          console.log("Teacher feedback exists:", !!currentSession.teacherFeedback);
+          console.log("Student feedback exists:", !!currentSession.studentFeedback);
+          
+          // Consider a session complete if it has feedback, even if status wasn't updated
+          const isEffectivelyComplete = 
+            currentSession.status === 'completed' || 
+            currentSession.status === 'canceled' ||
+            (currentSession.teacherFeedback && currentSession.studentFeedback);
+          
+          if (isEffectivelyComplete) {
+            console.log("Session is effectively complete, moving to previous sessions");
+            
+            // Update the status to completed if it's not already
+            if (currentSession.status !== 'completed' && currentSession.status !== 'canceled') {
+              currentSession.status = 'completed';
+              await currentSession.save();
+              console.log("Updated session status to completed");
+            }
+            
+            // Ensure previousSessionIds array exists
+            if (!match.previousSessionIds) {
+              match.previousSessionIds = [];
+            }
+            
+            // Add to previous sessions if not already there
+            if (!match.previousSessionIds.includes(match.currentSessionId.toString())) {
+              match.previousSessionIds.push(match.currentSessionId);
+            }
+            
+            match.previouslyMatched = true;
+            match.currentSessionId = null; // Clear for new session
+            
+            // Save these changes right away
+            await match.save();
+            console.log("Match updated, removed current session ID");
+          } else {
+            // If session is still active, don't allow creating a new one
+            return res.status(409).json({ 
+              error: 'There is already an active session for this match. Complete or cancel it before creating a new one.',
+              currentSession
+            });
+          }
+        } else {
+          // Session ID exists but session doesn't - clear it
+          console.log("Clearing invalid session reference");
+          match.currentSessionId = null;
+          await match.save();
+        }
+      }
+  
+      // Set match status to accepted for new session
+      match.status = 'accepted';
+      
       // Create session record using match data
       const session = new Session({
         title: title || `${match.skillId.name} Session`,
@@ -81,18 +264,28 @@ const sessionController = {
   
       await session.save();
       
-      // Create notification for student
-      const notification = await Notification.create({
-        userId: student._id,
-        title: 'New Session Scheduled',
-        message: `${teacher.name} has scheduled a session for ${match.skillId.name}`,
-        type: 'session_created',
-        relatedId: session._id,
-        isRead: false
-      });
-
+      // Update match with the new session ID
+      match.currentSessionId = session._id;
       
-
+      // Save the updated match
+      await match.save();
+      
+      // Create notification with proper error handling
+      try {
+        await Notification.create({
+          userId: student._id,
+          title: 'New Session Scheduled',
+          message: `${teacher.name} has scheduled a session for ${match.skillId.name}`,
+          type: 'session_created',
+          relatedId: session._id,
+          isRead: false
+        });
+        console.log("Notification created successfully");
+      } catch (notificationError) {
+        console.error("Error creating notification:", notificationError);
+        // Continue execution even if notification fails
+      }
+  
       return res.status(201).json({ 
         session,
         match,
@@ -106,7 +299,7 @@ const sessionController = {
       });
     }
   },
-  
+
   getSessionById: async (req, res) => {
     try {
       const { sessionId } = req.params;
@@ -150,6 +343,106 @@ const sessionController = {
         message: error.message
       });
     }
+  },
+
+  getSessions: async (req, res) => {
+  try {
+    // Input validation
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'Unauthorized access' });
+    }
+    
+    const userId = req.user.id;
+    
+    // Get query parameters for filtering
+    const status = req.query.status ? 
+      (Array.isArray(req.query.status) ? req.query.status : [req.query.status]) : 
+      ['scheduled', 'completed', 'canceled'];
+    
+    const limit = req.query.limit ? parseInt(req.query.limit) : 0;
+    const skip = req.query.page ? (parseInt(req.query.page) - 1) * limit : 0;
+    
+    // Find sessions where user is either teacher or student
+    const sessions = await Session.find({
+      $or: [
+        { teacherId: userId },
+        { studentId: userId }
+      ],
+      status: { $in: status }
+    })
+    .populate('skillId', 'name description category')
+    .populate('teacherId', 'name avatar email')
+    .populate('studentId', 'name avatar email')
+    .populate({
+      path: 'matchId',
+      populate: [
+        { path: 'skillId', select: 'name description category' }
+      ]
+    })
+    .sort({ startTime: -1 })
+    .skip(skip)
+    .limit(limit)
+    .lean();
+    
+    // Count total sessions for pagination
+    const totalSessions = await Session.countDocuments({
+      $or: [
+        { teacherId: userId },
+        { studentId: userId }
+      ],
+      status: { $in: status }
+    });
+    
+    // Transform the data to ensure all IDs are properly stringified
+    const transformedSessions = sessions.map(session => ({
+      ...session,
+      _id: session._id.toString(),
+      matchId: session.matchId ? 
+        (typeof session.matchId === 'object' ? 
+          session.matchId._id ? session.matchId._id.toString() : session.matchId.toString() 
+          : session.matchId) 
+        : null,
+      teacherId: session.teacherId ? 
+        (typeof session.teacherId === 'object' ? 
+          session.teacherId._id ? session.teacherId._id.toString() : session.teacherId.toString() 
+          : session.teacherId) 
+        : null,
+      studentId: session.studentId ? 
+        (typeof session.studentId === 'object' ? 
+          session.studentId._id ? session.studentId._id.toString() : session.studentId.toString() 
+          : session.studentId)
+        : null,
+      skillId: session.skillId ? 
+        (typeof session.skillId === 'object' ? 
+          session.skillId._id ? session.skillId._id.toString() : session.skillId.toString()
+          : session.skillId)
+        : null
+    }));
+    
+    // Add role information for easier frontend handling
+    const sessionsWithRole = transformedSessions.map(session => ({
+      ...session,
+      role: session.teacherId === userId ? 'teacher' : 'student'
+    }));
+    
+    return res.status(200).json({
+      success: true,
+      count: sessionsWithRole.length,
+      total: totalSessions,
+      sessions: sessionsWithRole,
+      pagination: {
+        page: req.query.page ? parseInt(req.query.page) : 1,
+        limit,
+        totalPages: limit > 0 ? Math.ceil(totalSessions / limit) : 1
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching sessions:", error);
+    return res.status(500).json({ 
+      error: 'Failed to fetch sessions',
+      message: error.message
+    });
+  }
   },
 
   getUserSessions: async (req, res) => {
@@ -226,7 +519,8 @@ const sessionController = {
       const userId = req.user.id;
 
       // Find session
-     const session = await Session.findOne({matchId : sessionId});
+    //  const session = await Session.findOne({matchId : sessionId});
+    const session = await Session.findById(sessionId);
       if (!session) {
         return res.status(404).json({ error: 'Session not found' });
       }
@@ -273,16 +567,20 @@ const sessionController = {
   completeSession: async (req, res) => {
     try {
       // Check authentication
+     
       console.log("User ID from request:", req.user ? req.user.id : "No user found");
       if (!req.user || !req.user.id) {
         return res.status(401).json({ error: 'Unauthorized access' });
       }
 
       const { sessionId } = req.params;
+
+      console.log("Complete Session called with sessionId" , sessionId);
       const userId = req.user.id;
 
       // Find session
-      const session = await Session.findOne({matchId : sessionId});
+      // const session = await Session.findOne({matchId : sessionId});
+      const session = await Session.findById(sessionId);
       if (!session) {
         return res.status(404).json({ error: 'Session not found' });
       }
@@ -338,7 +636,8 @@ const sessionController = {
       const userId = req.user.id;
 
       // Find session
-      const session = await Session.findOne({matchId : sessionId});
+      // const session = await Session.findOne({matchId : sessionId});
+      const session = await Session.findById(sessionId);
       if (!session) {
         return res.status(404).json({ error: 'Session not found' });
       }
@@ -498,7 +797,8 @@ const sessionController = {
       }
 
       // Find session
-      const session = await Session.findOne({matchId : sessionId});
+      // const session = await Session.findOne({matchId : sessionId});
+      const session = await Session.findById(sessionId);
       if (!session) {
         return res.status(404).json({ error: 'Session not found' });
       }

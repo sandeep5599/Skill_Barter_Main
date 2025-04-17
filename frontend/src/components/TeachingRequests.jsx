@@ -346,6 +346,9 @@ const getEffectiveStatus = useCallback((request) => {
       const effectiveStatus = getEffectiveStatus(selectedRequest);
       const isRescheduledSessionAccepted = effectiveStatus === 'reschedule_accepted';
       const isRegularReschedule = selectedRequest.status === 'rescheduled' && !isRescheduledSessionAccepted;
+      
+      // Check if the session exists and is completed
+      const isCompletedSession = selectedRequest.status === 'completed';
               
       // First, update the match status
       await updateMatchStatus(selectedRequest._id || selectedRequest.id, {
@@ -361,8 +364,33 @@ const getEffectiveStatus = useCallback((request) => {
       
       let updatedSessionId;
       
-      // Then, create a new session or update existing session
-      if ((isRescheduledSessionAccepted || isRegularReschedule) && selectedRequest.sessionId) {
+      // If the session is completed, always create a new session
+      if (isCompletedSession) {
+        // Create a new session instead of updating the completed one
+        const sessionResponse = await createSession({
+          matchId: selectedRequest._id || selectedRequest.id,
+          selectedTimeSlot: sessionDetails.selectedTimeSlot,
+          title: sessionDetails.title,
+          description: sessionDetails.description,
+          meetingLink: sessionDetails.meetingLink,
+          prerequisites: sessionDetails.prerequisites,
+          notes: sessionDetails.notes,
+          notificationType: 'session_created'
+        });
+        
+        console.log('New follow-up session created:', sessionResponse);
+        updatedSessionId = sessionResponse.session && (sessionResponse.session._id || sessionResponse.session.id);
+        
+        if (!updatedSessionId) {
+          console.error('No session ID returned from API:', sessionResponse);
+          toast.warning('Session created but ID not returned. Refreshing data...');
+        } else {
+          console.log('New session ID:', updatedSessionId);
+          toast.success('Follow-up session created successfully!');
+        }
+      } 
+      // Handle non-completed sessions as before
+      else if ((isRescheduledSessionAccepted || isRegularReschedule) && selectedRequest.sessionId) {
         // Update existing session with new time
         const updateResponse = await updateSession(selectedRequest.sessionId, {
           selectedTimeSlot: sessionDetails.selectedTimeSlot,

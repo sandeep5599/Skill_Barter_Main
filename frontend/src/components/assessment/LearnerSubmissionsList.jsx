@@ -100,21 +100,10 @@ const LearnerSubmissionsList = ({ userId }) => {
     }
   };
 
+  // Modified function to not show score badges
   const getScore = (submission) => {
-    if (submission.status !== 'evaluated' || submission.marks === undefined) {
-      return null;
-    }
-    
-    return (
-      <div className="score-badge position-absolute top-0 end-0 m-3 shadow-sm">
-        <div 
-          className={`rounded-circle d-flex align-items-center justify-content-center ${getScoreColorClass(submission.marks)}`} 
-          style={{ width: '52px', height: '52px' }}
-        >
-          <span className="text-white fw-bold">{submission.marks}%</span>
-        </div>
-      </div>
-    );
+    // Return null for all submissions to remove the score badge
+    return null;
   };
 
   const getScoreColorClass = (score) => {
@@ -333,7 +322,7 @@ const LearnerSubmissionsList = ({ userId }) => {
                     'bg-primary'
                   }`} style={{ height: '4px' }}></div>
                   
-                  {/* Score badge */}
+                  {/* Score badge is removed by modifying getScore function */}
                   {getScore(submission)}
                   
                   <div className="card-body p-4 pt-5">

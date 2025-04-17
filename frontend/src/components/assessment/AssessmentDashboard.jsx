@@ -75,60 +75,91 @@ const AssessmentDashboard = () => {
         
         let userIsSkillSharer = false; // Initialize flag
         
-        // console.log("About to check skillId:", skillId);
-        // Fetch skill data if skillId is provided
-        if (skillId) {
-          // console.log("SkillId exists, making first API call");
-          const skillResponse = await fetch(`/api/skills/${skillId}`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            },
-            cache: 'no-store' // Prevent caching
-          });
-          
-          if (!skillResponse.ok) {
-            throw new Error(`Failed to fetch skill data: ${skillResponse.status}`);
-          }
-          
-          const skillData = await skillResponse.json();
-          setSkillData(skillData.skill);
-          
-          // Check if user is a skill sharer from skill data
-          if (skillData.skill.isTeaching === true) {
-            userIsSkillSharer = true;
-          }
+// Inside the fetchData function in AssessmentDashboard.jsx
 
-          // console.log("About to fetch stats for skillId:", skillId);
-          // Fetch assessment stats
-          const statsResponse = await fetch(`/api/assessments/${skillId}/assessment-stats`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            },
-            cache: 'no-store'
-          });
-          
-          // console.log("Stats response status:", statsResponse.status);
+// Replace the stats fetch block with this improved version
+console.log("About to fetch stats for skillId:", skillId);
+// Fetch assessment stats
+if (skillId) {
+  try {
+    const statsResponse = await fetch(`/api/assessments/${skillId}/assessment-stats`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+      cache: 'no-store'
+    });
+    
+    console.log("Assessment dashboard stats response: ", statsResponse.status);
 
-          if (statsResponse.ok) {
-            const statsData = await statsResponse.json();
+    if (statsResponse.ok) {
+      const statsData = await statsResponse.json();
+      console.log("Stats Data from Assessment Dashboard: ", statsData);
+      
+      if (statsData && statsData.success && statsData.stats) {
+        setStats({
+          totalAssessments: statsData.stats.totalAssessments || 0,
+          pendingSubmissions: statsData.stats.pendingSubmissions || 0,
+          completedSubmissions: statsData.stats.completedSubmissions || 0,
+          averageScore: statsData.stats.averageScore || 0,
+          totalCompletedSessions: completedSessions.length // Set this after fetching sessions
+        });
+        
+        console.log("Updated stats:", statsData.stats);
+      } else {
+        console.warn("Stats data format unexpected:", statsData);
+      }
+    } else {
+      console.warn("Failed to fetch stats:", statsResponse.status);
+    }
+  } catch (statsError) {
+    console.error("Error fetching stats:", statsError);
+    // Don't fail the entire component load if stats fetch fails
+  }
+}
 
-           
-            if (statsData.success) {
-              setStats(prev => ({
-                ...prev,
-                totalAssessments: statsData.stats.totalAssessments,
-                pendingSubmissions: statsData.stats.pendingSubmissions,
-                completedSubmissions: statsData.stats.completedSubmissions,
-                averageScore: statsData.stats.averageScore
-              }));
-            }
-          }
-        }
-  
+// Add this to the AssessmentDashboard component's fetchData function
+
+// If no skillId is present, fetch general stats
+if (!skillId) {
+  console.log("No skillId present, fetching general stats");
+  try {
+    const generalStatsResponse = await fetch(`/api/assessments/general-stats`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+      cache: 'no-store'
+    });
+    
+    if (generalStatsResponse.ok) {
+      const generalStatsData = await generalStatsResponse.json();
+      
+      if (generalStatsData && generalStatsData.success && generalStatsData.stats) {
+        setStats({
+          totalAssessments: generalStatsData.stats.totalAssessments || 0,
+          pendingSubmissions: generalStatsData.stats.pendingSubmissions || 0,
+          completedSubmissions: generalStatsData.stats.completedSubmissions || 0,
+          averageScore: generalStatsData.stats.averageScore || 0,
+          totalCompletedSessions: completedSessions.length // Set this after fetching sessions
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching general stats:", error);
+    // Use default stats values
+    setStats({
+      totalAssessments: 0,
+      pendingSubmissions: 0,
+      completedSubmissions: 0,
+      averageScore: 0,
+      totalCompletedSessions: completedSessions.length
+    });
+  }
+}
+
         // Fetch completed sessions where user was the teacher
         if (user?._id) {
           try {
@@ -146,7 +177,6 @@ const AssessmentDashboard = () => {
             }
             
             const sessionsData = await sessionsResponse.json();
-            // console.log("Sessions data:", sessionsData);
             
             // Filter sessions where user is the teacher (using teacherId)
             // Include both 'completed' and 'scheduled' sessions
@@ -169,10 +199,13 @@ const AssessmentDashboard = () => {
                 userIsSkillSharer = true;
               }
               
-              setStats(prev => ({
-                ...prev,
+              // Update the total completed sessions count in stats
+              setStats(prevStats => ({
+                ...prevStats,
                 totalCompletedSessions: teachingSessions.length
               }));
+              
+              console.log("Total completed sessions updated:", teachingSessions.length);
             } else {
               console.error('Sessions data is not in expected format:', sessionsData);
               setCompletedSessions([]);
@@ -505,6 +538,16 @@ const AssessmentDashboard = () => {
     return <Error message={error} />;
   }
 
+  // Function to format stats safely
+  const formatStat = (value, isPercentage = false) => {
+    if (value === null || value === undefined) return isPercentage ? '0%' : '0';
+    if (isPercentage) {
+      // Format as percentage with one decimal place
+      return `${parseFloat(value).toFixed(1)}%`;
+    }
+    return value.toString();
+  };
+
   // Render content based on active tab instead of using Routes component directly
   const renderContent = () => {
     try {
@@ -628,7 +671,7 @@ const AssessmentDashboard = () => {
                   <h5 className="fw-bold mb-3">Assessment Statistics</h5>
                   
                   <div className="row g-3">
-                    {/* Stat Card 1 */}
+                    {/* Stat Card 1 - Total Assessments */}
                     <div className="col-md-6 col-lg-3">
                       <div className="card h-100 border-0 shadow-sm rounded-3">
                         <div className="card-body p-3">
@@ -638,12 +681,12 @@ const AssessmentDashboard = () => {
                             </div>
                             <span className="text-muted small">Total Assessments</span>
                           </div>
-                          <h3 className="fw-bold mb-0 text-primary">{stats.totalAssessments}</h3>
+                          <h3 className="fw-bold mb-0 text-primary">{formatStat(stats.totalAssessments)}</h3>
                         </div>
                       </div>
                     </div>
                     
-                    {/* Stat Card 2 */}
+                    {/* Stat Card 2 - Pending Review */}
                     <div className="col-md-6 col-lg-3">
                       <div className="card h-100 border-0 shadow-sm rounded-3">
                         <div className="card-body p-3">
@@ -653,12 +696,12 @@ const AssessmentDashboard = () => {
                             </div>
                             <span className="text-muted small">Pending Review</span>
                           </div>
-                          <h3 className="fw-bold mb-0 text-warning">{stats.pendingSubmissions}</h3>
+                          <h3 className="fw-bold mb-0 text-warning">{formatStat(stats.pendingSubmissions)}</h3>
                         </div>
                       </div>
                     </div>
                     
-                    {/* Stat Card 3 */}
+                    {/* Stat Card 3 - Teaching Sessions */}
                     <div className="col-md-6 col-lg-3">
                       <div className="card h-100 border-0 shadow-sm rounded-3">
                         <div className="card-body p-3">
@@ -668,22 +711,22 @@ const AssessmentDashboard = () => {
                             </div>
                             <span className="text-muted small">Teaching Sessions</span>
                           </div>
-                          <h3 className="fw-bold mb-0 text-success">{stats.totalCompletedSessions}</h3>
+                          <h3 className="fw-bold mb-0 text-success">{formatStat(stats.totalCompletedSessions)}</h3>
                         </div>
                       </div>
                     </div>
                     
-                    {/* Stat Card 4 */}
+                    {/* Stat Card 4 - Average Score */}
                     <div className="col-md-6 col-lg-3">
                       <div className="card h-100 border-0 shadow-sm rounded-3">
                         <div className="card-body p-3">
                           <div className="d-flex align-items-center mb-2">
-                            <div className="rounded-circle bg-info bg-opacity-10 p-2 me-2">
+                          <div className="rounded-circle bg-info bg-opacity-10 p-2 me-2">
                               <ArrowRight className="text-info" />
                             </div>
                             <span className="text-muted small">Avg. Score</span>
                           </div>
-                          <h3 className="fw-bold mb-0 text-info">{stats.averageScore}%</h3>
+                          <h3 className="fw-bold mb-0 text-info">{formatStat(stats.averageScore, true)}</h3>
                         </div>
                       </div>
                     </div>

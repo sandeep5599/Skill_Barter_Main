@@ -45,7 +45,21 @@ router.get(
   auth,
   assessmentController.getAssessmentsBySkill
 );
+// routes/assessmentRoutes.js
 
+// Add this route to your existing assessment routes
+router.get(
+  '/general-stats',
+  auth,
+  assessmentController.getGeneralStats
+);
+
+
+router.get(
+  '/:skillId/assessment-stats',
+  auth,
+  assessmentController.getAssessmentStats
+);
 
 router.get('/pending-submissions', auth, async (req, res) => {
   try {

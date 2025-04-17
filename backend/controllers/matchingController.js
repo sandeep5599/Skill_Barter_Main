@@ -284,7 +284,11 @@ generateMatches: async (req, res) => {
         teacherId,
         skillId,
         skillName,
-        proposedTimeSlots: formattedTimeSlots
+        proposedTimeSlots: formattedTimeSlots,
+        // Initialize new fields
+        previouslyMatched: false,
+        previousSessionIds: [],
+        currentSessionId: null
       });
       
       await match.save();
@@ -297,7 +301,7 @@ generateMatches: async (req, res) => {
         message: error.message
       });
     }
-  },    
+  },
 
   
 
@@ -1087,6 +1091,589 @@ getMatches: async (req, res) => {
 
 // },
 
+// updateMatchStatus: async (req, res) => {
+//   try {
+//     // Input validation
+//     if (!req.user || !req.user.id) {
+//       return res.status(401).json({ error: 'Unauthorized access' });
+//     }
+    
+//     const { matchId } = req.params;
+//     const { status, proposedTimeSlots, selectedTimeSlot, message } = req.body;
+    
+//     if (!matchId || !mongoose.Types.ObjectId.isValid(matchId)) {
+//       return res.status(400).json({ error: 'Invalid match ID' });
+//     }
+    
+//     if (!status || !['pending', 'accepted', 'rejected', 'completed', 'rescheduled'].includes(status)) {
+//       return res.status(400).json({ error: 'Invalid status value' });
+//     }
+    
+//     // Find match with rich information
+//     const match = await Match.findById(matchId)
+//       .populate('requesterId', 'name email profilePicture preferredLanguage timezone')
+//       .populate('teacherId', 'name email profilePicture preferredLanguage timezone');
+      
+//     if (!match) {
+//       return res.status(404).json({ error: 'Match not found' });
+//     }
+    
+//     // Verify user is authorized to update this match
+//     const userId = req.user.id;
+//     if (match.requesterId._id.toString() !== userId && match.teacherId._id.toString() !== userId) {
+//       return res.status(403).json({ error: 'Not authorized to update this match' });
+//     }
+    
+//     // Determine if the current user is the requester or teacher
+//     const isRequester = match.requesterId._id.toString() === userId;
+    
+//     // The user who should receive the notification (other party)
+//     const recipientId = isRequester ? match.teacherId._id : match.requesterId._id;
+//     const recipientName = isRequester ? match.teacherId.name : match.requesterId.name;
+//     const recipientEmail = isRequester ? match.teacherId.email : match.requesterId.email;
+//     const recipientTimezone = isRequester ? match.teacherId.timezone : match.requesterId.timezone;
+    
+//     const senderId = isRequester ? match.requesterId._id : match.teacherId._id;
+//     const senderName = isRequester ? match.requesterId.name : match.teacherId.name;
+//     const senderEmail = isRequester ? match.requesterId.email : match.teacherId.email;
+//     const senderRole = isRequester ? 'Student' : 'Teacher';
+    
+//     // Store previous status to check for state changes
+//     const previousStatus = match.status;
+    
+//     // Update match status
+//     match.status = status;
+    
+//     // Add rejection reason if status is rejected
+//     if (status === 'rejected' && message) {
+//       match.rejectionReason = message;
+//     }
+    
+//     // Add custom message if provided
+//     if (message) {
+//       match.statusMessages = match.statusMessages || [];
+//       match.statusMessages.push({
+//         userId: senderId,
+//         message: message,
+//         timestamp: new Date()
+//       });
+//     }
+    
+//     // Update proposed time slots if provided
+//     if (proposedTimeSlots && Array.isArray(proposedTimeSlots) && proposedTimeSlots.length > 0) {
+//       console.log("Updating proposed time slots:", proposedTimeSlots);
+//       match.proposedTimeSlots = proposedTimeSlots.map(slot => ({
+//         startTime: new Date(slot.startTime),
+//         endTime: new Date(slot.endTime),
+//         proposedBy: senderId
+//       }));
+      
+//       // Track time slot proposal history
+//       match.timeSlotHistory = match.timeSlotHistory || [];
+//       match.timeSlotHistory.push({
+//         proposedBy: senderId,
+//         proposedAt: new Date(),
+//         slots: proposedTimeSlots.map(slot => ({
+//           startTime: new Date(slot.startTime),
+//           endTime: new Date(slot.endTime)
+//         }))
+//       });
+//     }
+    
+//     // If selecting a time slot
+//     if (selectedTimeSlot) {
+//       match.selectedTimeSlot = {
+//         startTime: new Date(selectedTimeSlot.startTime),
+//         endTime: new Date(selectedTimeSlot.endTime),
+//         selectedBy: senderId,
+//         selectedAt: new Date()
+//       };
+//     }
+    
+//     // Update requesterName and teacherName if they don't exist (will be handled by pre-save middleware)
+//     if (!match.requesterName && match.requesterId.name) {
+//       match.requesterName = match.requesterId.name;
+//     }
+    
+//     if (!match.teacherName && match.teacherId.name) {
+//       match.teacherName = match.teacherId.name;
+//     }
+    
+//     await match.save();
+    
+//     // Format time slots for notification - more compact format
+//     const formatTimeSlot = (slot, timezone) => {
+//       const options = { 
+//         weekday: 'short', 
+//         month: 'short', 
+//         day: 'numeric',
+//         hour: 'numeric', 
+//         minute: '2-digit',
+//         timeZoneName: 'short'
+//       };
+      
+//       // Format based on recipient's timezone if available
+//       const startDate = new Date(slot.startTime);
+//       const endDate = new Date(slot.endTime);
+      
+//       const startFormatted = startDate.toLocaleString(recipientTimezone ? 'en-US' : 'en-US', options);
+//       const endTimeOptions = {
+//         hour: 'numeric', 
+//         minute: '2-digit',
+//         timeZoneName: 'short'
+//       };
+//       const endFormatted = endDate.toLocaleString(recipientTimezone ? 'en-US' : 'en-US', endTimeOptions);
+      
+//       // Calculate duration
+//       const durationMs = endDate - startDate;
+//       const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+//       const durationMins = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+//       const durationText = durationHours > 0 
+//         ? `${durationHours}h${durationMins > 0 ? ` ${durationMins}m` : ''}`
+//         : `${durationMins}m`;
+      
+//       return `${startFormatted} to ${endFormatted} (${durationText})`;
+//     };
+    
+//     // Get class/course name (fallback to "session" if not available)
+//     const courseName = match.subject?.name || match.courseName || match.className || match.skillName || "session";
+    
+//     // Generate unique identifier for notification to prevent duplicates
+//     const generateNotificationKey = (type, matchId, timestamp) => {
+//       return `${type}_${matchId}_${timestamp}`;
+//     };
+    
+//     // Define valid notification types
+//     const VALID_NOTIFICATION_TYPES = {
+//       PROPOSED: 'session_proposed',
+//       ACCEPTED: 'match_accepted',
+//       REJECTED: 'match_rejected',
+//       COMPLETED: 'session_completed',
+//       MESSAGE: 'session_message',
+//       SCHEDULED: 'session_scheduled',
+//       RESCHEDULED: 'session_rescheduled'
+//     };
+    
+//     // Create notification based on status change
+//     let notificationType, notificationTitle, notificationMessage, notificationDetails;
+//     let notificationKey = null;
+    
+//     const now = new Date();
+//     const timestampForKey = now.toISOString().split('T')[0]; // Use date part only for duplicate prevention
+    
+//     // Handle rescheduling scenario explicitly with the new status value
+//     const isRescheduling = (status === 'rescheduled' || (selectedTimeSlot && previousStatus === 'accepted' && status === 'accepted'));
+    
+//     if (previousStatus !== status || (proposedTimeSlots && proposedTimeSlots.length > 0) || selectedTimeSlot) {
+//       switch (status) {
+//         case 'pending':
+//           if (proposedTimeSlots && proposedTimeSlots.length > 0) {
+//             notificationType = VALID_NOTIFICATION_TYPES.PROPOSED;
+//             notificationTitle = `${senderRole} ${senderName}: New Times for ${courseName}`;
+            
+//             // More concise message with course name and time options count
+//             notificationMessage = `${senderName} proposed ${proposedTimeSlots.length} time${proposedTimeSlots.length > 1 ? 's' : ''} for ${courseName}. ${message ? `Note: "${message.substring(0, 30)}${message.length > 30 ? '...' : ''}"` : ''}`;
+            
+//             notificationDetails = {
+//               senderRole,
+//               senderName,
+//               course: courseName,
+//               timeSlots: proposedTimeSlots.map(slot => ({
+//                 startTime: slot.startTime,
+//                 endTime: slot.endTime,
+//                 formatted: formatTimeSlot(slot, recipientTimezone)
+//               })),
+//               message: message || null
+//             };
+            
+//             notificationKey = generateNotificationKey('proposed', matchId, timestampForKey);
+//           }
+//           break;
+          
+//         case 'accepted':
+//           if (isRescheduling) {
+//             // Handle rescheduling
+//             notificationType = VALID_NOTIFICATION_TYPES.RESCHEDULED;
+            
+//             const timeInfo = selectedTimeSlot 
+//               ? formatTimeSlot(selectedTimeSlot, recipientTimezone)
+//               : '';
+            
+//             notificationTitle = `${senderRole} ${senderName}: Rescheduled ${courseName}`;
+//             notificationMessage = `${senderName} rescheduled your ${courseName} to ${timeInfo}.`;
+            
+//             notificationDetails = {
+//               senderRole,
+//               senderName,
+//               course: courseName,
+//               selectedTime: formatTimeSlot(selectedTimeSlot, recipientTimezone),
+//               message: message || null
+//             };
+            
+//             notificationKey = generateNotificationKey('rescheduled', matchId, timestampForKey);
+//           } else {
+//             // Normal accept flow
+//             notificationType = VALID_NOTIFICATION_TYPES.ACCEPTED;
+            
+//             const timeInfo = selectedTimeSlot 
+//               ? formatTimeSlot(selectedTimeSlot, recipientTimezone)
+//               : '';
+            
+//             notificationTitle = `${senderRole} ${senderName}: Accepted ${courseName}`;
+//             notificationMessage = `${senderName} accepted your ${courseName}${timeInfo ? ` for ${timeInfo}` : ''}.`;
+            
+//             notificationDetails = {
+//               senderRole,
+//               senderName,
+//               course: courseName,
+//               selectedTime: selectedTimeSlot ? formatTimeSlot(selectedTimeSlot, recipientTimezone) : null,
+//               message: message || null
+//             };
+            
+//             notificationKey = generateNotificationKey('accepted', matchId, timestampForKey);
+//           }
+//           break;
+          
+//         case 'rescheduled':
+//           // Handle explicit rescheduled status
+//           notificationType = VALID_NOTIFICATION_TYPES.RESCHEDULED;
+          
+//           const rescheduledTimeInfo = selectedTimeSlot 
+//             ? formatTimeSlot(selectedTimeSlot, recipientTimezone)
+//             : '';
+          
+//           notificationTitle = `${senderRole} ${senderName}: Rescheduled ${courseName}`;
+//           notificationMessage = `${senderName} rescheduled your ${courseName} to ${rescheduledTimeInfo}.`;
+          
+//           notificationDetails = {
+//             senderRole,
+//             senderName,
+//             course: courseName,
+//             selectedTime: formatTimeSlot(selectedTimeSlot, recipientTimezone),
+//             message: message || null
+//           };
+          
+//           notificationKey = generateNotificationKey('rescheduled', matchId, timestampForKey);
+//           break;
+          
+//           case 'completed':
+//             notificationType = VALID_NOTIFICATION_TYPES.COMPLETED;
+//             notificationTitle = `${senderRole} ${senderName}: Completed ${courseName}`;
+//             notificationMessage = `${senderName} marked your ${courseName} as completed${message ? ` with feedback` : ''}.`;
+            
+//             // Explicitly set the match status to 'completed' as well
+//             match.status = 'completed';
+            
+//             notificationDetails = {
+//               senderRole,
+//               senderName,
+//               course: courseName,
+//               feedback: message || null
+//             };
+            
+//             notificationKey = generateNotificationKey('completed', matchId, timestampForKey);
+//           break;
+          
+//         case 'rejected':
+//           notificationType = VALID_NOTIFICATION_TYPES.REJECTED;
+//           notificationTitle = `${senderRole} ${senderName}: Declined ${courseName}`;
+//           notificationMessage = `${senderName} declined your ${courseName}${message ? `: "${message.substring(0, 30)}${message.length > 30 ? '...' : ''}"` : ''}.`;
+          
+//           notificationDetails = {
+//             senderRole,
+//             senderName,
+//             course: courseName,
+//             reason: message || null
+//           };
+          
+//           notificationKey = generateNotificationKey('rejected', matchId, timestampForKey);
+//           break;
+          
+//         case 'completed':
+//           notificationType = VALID_NOTIFICATION_TYPES.COMPLETED;
+//           notificationTitle = `${senderRole} ${senderName}: Completed ${courseName}`;
+//           notificationMessage = `${senderName} marked your ${courseName} as completed${message ? ` with feedback` : ''}.`;
+          
+//           notificationDetails = {
+//             senderRole,
+//             senderName,
+//             course: courseName,
+//             feedback: message || null
+//           };
+          
+//           notificationKey = generateNotificationKey('completed', matchId, timestampForKey);
+//           break;
+//       }
+//     } else if (message) {
+//       // If only a message was added
+//       notificationType = VALID_NOTIFICATION_TYPES.MESSAGE;
+//       notificationTitle = `${senderRole} ${senderName}: Message about ${courseName}`;
+//       notificationMessage = `${senderName}: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`;
+      
+//       notificationDetails = {
+//         senderRole,
+//         senderName,
+//         course: courseName,
+//         message: message
+//       };
+      
+//       notificationKey = generateNotificationKey('message', matchId, timestampForKey);
+//     }
+    
+//     // Check if a similar notification already exists for today
+//     let notification = null;
+//     if (notificationType && notificationKey) {
+//       try {
+//         // Try to find existing notification with the same key that was created today
+//         const startOfDay = new Date(now);
+//         startOfDay.setHours(0, 0, 0, 0);
+        
+//         const existingNotification = await Notification.findOne({
+//           userId: recipientId,
+//           type: notificationType,
+//           relatedId: match._id,
+//           key: notificationKey,
+//           createdAt: { $gte: startOfDay }
+//         });
+        
+//         if (existingNotification) {
+//           // Update existing notification instead of creating a new one
+//           existingNotification.title = notificationTitle;
+//           existingNotification.message = notificationMessage;
+//           existingNotification.details = notificationDetails;
+//           existingNotification.read = false; // Mark as unread again
+//           existingNotification.updatedAt = now;
+//           existingNotification.count = (existingNotification.count || 1) + 1;
+          
+//           await existingNotification.save();
+//           notification = existingNotification;
+          
+//           console.log(`Updated existing notification: ${notificationKey}`);
+//         } else {
+//           // Create new notification
+//           notification = new Notification({
+//             userId: recipientId,
+//             type: notificationType,
+//             title: notificationTitle,
+//             message: notificationMessage,
+//             details: notificationDetails,
+//             relatedId: match._id,
+//             relatedModel: 'Match',
+//             key: notificationKey,
+//             read: false,
+//             count: 1,
+//             createdAt: now,
+//             updatedAt: now
+//           });
+          
+//           await notification.save();
+//           console.log(`Created new notification: ${notificationKey}`);
+//         }
+//       } catch (notificationError) {
+//         console.error("Error creating/updating notification:", notificationError);
+//         // Continue with the match update even if notification fails
+//         // This prevents the entire operation from failing due to notification issues
+//       }
+      
+//       // Emit the notification through socket.io if available
+//       try {
+//         const io = req.app.get('io');
+//         if (io && notification) {
+//           io.to(recipientId.toString()).emit('notification', notification);
+//         }
+//       } catch (socketError) {
+//         console.error("Error emitting socket notification:", socketError);
+//       }
+      
+//       // Send notification using the notification service if available
+//       try {
+//         await sendNotification({
+//           userId: recipientId,
+//           title: notificationTitle,
+//           body: notificationMessage,
+//           data: {
+//             type: notificationType,
+//             matchId: match._id.toString()
+//           }
+//         });
+//       } catch (notificationError) {
+//         console.error("Error sending notification:", notificationError);
+//       }
+//     }
+    
+//     // Create or update session if match is accepted or rescheduled
+//     if ((status === 'accepted' && selectedTimeSlot) || status === 'rescheduled' || isRescheduling) {
+//       try {
+//         // Check if session already exists for this match to prevent duplicates
+//         let session = await Session.findOne({ matchId: match._id });
+        
+//         if (!session) {
+//           // Create new session record
+//           session = new Session({
+//             matchId: match._id,
+//             requesterId: match.requesterId._id,
+//             teacherId: match.teacherId._id,
+//             subject: match.subject,
+//             courseName: courseName,
+//             startTime: new Date(selectedTimeSlot.startTime),
+//             endTime: new Date(selectedTimeSlot.endTime),
+//             status: 'scheduled',
+//             meetLink: null,
+//             createdBy: senderId,
+//             createdAt: now
+//           });
+//           await session.save();
+//         } else {
+//           // Update existing session
+//           session.startTime = new Date(selectedTimeSlot.startTime);
+//           session.endTime = new Date(selectedTimeSlot.endTime);
+//           session.status = 'scheduled';
+//           session.updatedBy = senderId;
+//           session.updatedAt = now;
+//           await session.save();
+//         }
+        
+//         // Determine notification type based on whether it's a new session or rescheduling
+//         const sessionNotificationType = (status === 'rescheduled' || isRescheduling) ? 
+//           VALID_NOTIFICATION_TYPES.RESCHEDULED : 
+//           VALID_NOTIFICATION_TYPES.SCHEDULED;
+        
+//         // Unique key for session notification
+//         const sessionNotificationKey = generateNotificationKey(
+//           (status === 'rescheduled' || isRescheduling) ? 'rescheduled' : 'scheduled', 
+//           session._id, 
+//           timestampForKey
+//         );
+        
+//         // Check if session notification already exists
+//         let sessionNotification = null;
+//         try {
+//           sessionNotification = await Notification.findOne({
+//             userId: recipientId,
+//             type: sessionNotificationType,
+//             relatedId: session._id,
+//             key: sessionNotificationKey
+//           });
+          
+//           const sessionTitle = (status === 'rescheduled' || isRescheduling) ?
+//             `${courseName} Rescheduled with ${senderName}` :
+//             `${courseName} with ${senderName}`;
+            
+//           const sessionMessage = (status === 'rescheduled' || isRescheduling) ?
+//             `${courseName} rescheduled with ${senderName} for ${formatTimeSlot(selectedTimeSlot, recipientTimezone)}.` :
+//             `${courseName} scheduled with ${senderName} for ${formatTimeSlot(selectedTimeSlot, recipientTimezone)}.`;
+          
+//           if (sessionNotification) {
+//             // Update existing notification
+//             sessionNotification.title = sessionTitle;
+//             sessionNotification.message = sessionMessage;
+//             sessionNotification.details = {
+//               senderRole,
+//               senderName,
+//               course: courseName,
+//               sessionId: session._id,
+//               time: formatTimeSlot(selectedTimeSlot, recipientTimezone),
+//               meetLink: session.meetLink,
+//               message: message || null
+//             };
+//             sessionNotification.read = false;
+//             sessionNotification.updatedAt = now;
+            
+//             await sessionNotification.save();
+//           } else {
+//             // Create new session notification
+//             sessionNotification = new Notification({
+//               userId: recipientId,
+//               type: sessionNotificationType,
+//               title: sessionTitle,
+//               message: sessionMessage,
+//               details: {
+//                 senderRole,
+//                 senderName,
+//                 course: courseName,
+//                 sessionId: session._id,
+//                 time: formatTimeSlot(selectedTimeSlot, recipientTimezone),
+//                 meetLink: session.meetLink,
+//                 message: message || null
+//               },
+//               relatedId: session._id,
+//               relatedModel: 'Session',
+//               key: sessionNotificationKey,
+//               read: false,
+//               count: 1,
+//               createdAt: now,
+//               updatedAt: now
+//             });
+            
+//             await sessionNotification.save();
+//           }
+//         } catch (sessionNotifError) {
+//           console.error("Error creating session notification:", sessionNotifError);
+//           // Continue even if notification fails
+//         }
+        
+//         // Emit the notification through socket.io if available
+//         try {
+//           const io = req.app.get('io');
+//           if (io && sessionNotification) {
+//             io.to(recipientId.toString()).emit('notification', sessionNotification);
+//           }
+//         } catch (socketError) {
+//           console.error("Error emitting socket notification:", socketError);
+//         }
+        
+//         // Send calendar invite if service is available
+//         try {
+//           if (calendarService) {
+//             await calendarService.createCalendarEvent({
+//               title: `${courseName}: ${match.requesterName || match.requesterId.name} and ${match.teacherName || match.teacherId.name}`,
+//               description: `${courseName} session${message ? '\n\nNote: ' + message : ''}`,
+//               startTime: new Date(selectedTimeSlot.startTime),
+//               endTime: new Date(selectedTimeSlot.endTime),
+//               attendees: [
+//                 { email: match.requesterId.email, name: match.requesterName || match.requesterId.name },
+//                 { email: match.teacherId.email, name: match.teacherName || match.teacherId.name }
+//               ],
+//               sessionId: session._id
+//             });
+//           }
+//         } catch (calendarError) {
+//           console.error("Error creating calendar event:", calendarError);
+//         }
+        
+//         return res.status(200).json({ 
+//           match, 
+//           session,
+//           notification: sessionNotification 
+//         });
+//       } catch (sessionError) {
+//         console.error("Error with session:", sessionError);
+//         return res.status(200).json({ 
+//           match, 
+//           warning: "Match updated but could not create or update session",
+//           error: sessionError.message
+//         });
+//       }
+//     } else {
+//       return res.status(200).json({ 
+//         match,
+//         notification: notification ? {
+//           id: notification._id,
+//           type: notification.type,
+//           title: notification.title
+//         } : null
+//       });
+//     }
+//   } catch (error) {
+//     console.error("Error updating match status:", error);
+//     return res.status(500).json({ 
+//       error: 'Failed to update match status',
+//       message: error.message,
+//       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+//     });
+//   }
+// },
+
 updateMatchStatus: async (req, res) => {
   try {
     // Input validation
@@ -1095,13 +1682,13 @@ updateMatchStatus: async (req, res) => {
     }
     
     const { matchId } = req.params;
-    const { status, proposedTimeSlots, selectedTimeSlot, message } = req.body;
+    const { status, proposedTimeSlots, selectedTimeSlot, message, sessionId } = req.body;
     
     if (!matchId || !mongoose.Types.ObjectId.isValid(matchId)) {
       return res.status(400).json({ error: 'Invalid match ID' });
     }
     
-    if (!status || !['pending', 'accepted', 'rejected', 'completed', 'rescheduled'].includes(status)) {
+    if (!status || !['pending', 'accepted', 'rejected', 'completed', 'rescheduled', 'canceled'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status value' });
     }
     
@@ -1145,6 +1732,11 @@ updateMatchStatus: async (req, res) => {
       match.rejectionReason = message;
     }
     
+    // Add cancellation reason if status is canceled
+    if (status === 'canceled' && message) {
+      match.cancellationReason = message;
+    }
+    
     // Add custom message if provided
     if (message) {
       match.statusMessages = match.statusMessages || [];
@@ -1184,6 +1776,31 @@ updateMatchStatus: async (req, res) => {
         selectedBy: senderId,
         selectedAt: new Date()
       };
+    }
+    
+    // Handle session relationship for completed or canceled status
+    if (status === 'completed' || status === 'canceled') {
+      // If sessionId is provided, use it, otherwise try to use currentSessionId
+      const sessionToProcess = sessionId || match.currentSessionId;
+      
+      if (sessionToProcess) {
+        // If this match has a current session, add it to previous sessions 
+        // and clear the current session reference
+        if (!match.previousSessionIds) {
+          match.previousSessionIds = [];
+        }
+        
+        // Only add to previousSessionIds if not already there
+        if (!match.previousSessionIds.includes(sessionToProcess)) {
+          match.previousSessionIds.push(sessionToProcess);
+        }
+        
+        // Clear current session reference
+        match.currentSessionId = null;
+        
+        // Set previouslyMatched flag to true
+        match.previouslyMatched = true;
+      }
     }
     
     // Update requesterName and teacherName if they don't exist (will be handled by pre-save middleware)
@@ -1245,6 +1862,7 @@ updateMatchStatus: async (req, res) => {
       ACCEPTED: 'match_accepted',
       REJECTED: 'match_rejected',
       COMPLETED: 'session_completed',
+      CANCELED: 'session_cancelled',
       MESSAGE: 'session_message',
       SCHEDULED: 'session_scheduled',
       RESCHEDULED: 'session_rescheduled'
@@ -1352,22 +1970,20 @@ updateMatchStatus: async (req, res) => {
           notificationKey = generateNotificationKey('rescheduled', matchId, timestampForKey);
           break;
           
-          case 'completed':
-            notificationType = VALID_NOTIFICATION_TYPES.COMPLETED;
-            notificationTitle = `${senderRole} ${senderName}: Completed ${courseName}`;
-            notificationMessage = `${senderName} marked your ${courseName} as completed${message ? ` with feedback` : ''}.`;
-            
-            // Explicitly set the match status to 'completed' as well
-            match.status = 'completed';
-            
-            notificationDetails = {
-              senderRole,
-              senderName,
-              course: courseName,
-              feedback: message || null
-            };
-            
-            notificationKey = generateNotificationKey('completed', matchId, timestampForKey);
+        case 'completed':
+          notificationType = VALID_NOTIFICATION_TYPES.COMPLETED;
+          notificationTitle = `${senderRole} ${senderName}: Completed ${courseName}`;
+          notificationMessage = `${senderName} marked your ${courseName} as completed${message ? ` with feedback` : ''}.`;
+          
+          notificationDetails = {
+            senderRole,
+            senderName,
+            course: courseName,
+            feedback: message || null,
+            sessionId: sessionId || null
+          };
+          
+          notificationKey = generateNotificationKey('completed', matchId, timestampForKey);
           break;
           
         case 'rejected':
@@ -1384,20 +2000,21 @@ updateMatchStatus: async (req, res) => {
           
           notificationKey = generateNotificationKey('rejected', matchId, timestampForKey);
           break;
-          
-        case 'completed':
-          notificationType = VALID_NOTIFICATION_TYPES.COMPLETED;
-          notificationTitle = `${senderRole} ${senderName}: Completed ${courseName}`;
-          notificationMessage = `${senderName} marked your ${courseName} as completed${message ? ` with feedback` : ''}.`;
+        
+        case 'canceled':
+          notificationType = VALID_NOTIFICATION_TYPES.CANCELED;
+          notificationTitle = `${senderRole} ${senderName}: Canceled ${courseName}`;
+          notificationMessage = `${senderName} canceled your ${courseName}${message ? `: "${message.substring(0, 30)}${message.length > 30 ? '...' : ''}"` : ''}.`;
           
           notificationDetails = {
             senderRole,
             senderName,
             course: courseName,
-            feedback: message || null
+            reason: message || null,
+            sessionId: sessionId || null
           };
           
-          notificationKey = generateNotificationKey('completed', matchId, timestampForKey);
+          notificationKey = generateNotificationKey('canceled', matchId, timestampForKey);
           break;
       }
     } else if (message) {
@@ -1519,6 +2136,10 @@ updateMatchStatus: async (req, res) => {
             createdAt: now
           });
           await session.save();
+          
+          // Update match with current session ID
+          match.currentSessionId = session._id;
+          await match.save();
         } else {
           // Update existing session
           session.startTime = new Date(selectedTimeSlot.startTime);
@@ -1527,6 +2148,12 @@ updateMatchStatus: async (req, res) => {
           session.updatedBy = senderId;
           session.updatedAt = now;
           await session.save();
+          
+          // Ensure current session ID is set
+          if (!match.currentSessionId || !match.currentSessionId.equals(session._id)) {
+            match.currentSessionId = session._id;
+            await match.save();
+          }
         }
         
         // Determine notification type based on whether it's a new session or rescheduling
@@ -1650,6 +2277,40 @@ updateMatchStatus: async (req, res) => {
           error: sessionError.message
         });
       }
+    } else if (status === 'completed' || status === 'canceled') {
+      // For completed or canceled status, return the updated match
+      
+      // Update session status if sessionId is provided
+      if (sessionId) {
+        try {
+          const session = await Session.findById(sessionId);
+          if (session) {
+            session.status = status === 'completed' ? 'completed' : 'cancelled';
+            if (message) {
+              if (status === 'completed') {
+                session.notes = message;
+              } else if (status === 'canceled') {
+                session.cancellationReason = message;
+              }
+            }
+            session.updatedBy = senderId;
+            session.updatedAt = now;
+            await session.save();
+          }
+        } catch (sessionUpdateError) {
+          console.error("Error updating session status:", sessionUpdateError);
+          // Continue even if session update fails
+        }
+      }
+      
+      return res.status(200).json({ 
+        match,
+        notification: notification ? {
+          id: notification._id,
+          type: notification.type,
+          title: notification.title
+        } : null
+      });
     } else {
       return res.status(200).json({ 
         match,

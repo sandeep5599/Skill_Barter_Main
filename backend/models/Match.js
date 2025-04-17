@@ -77,6 +77,21 @@ const matchSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
+  // Track if previously matched
+  previouslyMatched: {
+    type: Boolean,
+    default: false
+  },
+  // Array to store previous session IDs
+  previousSessionIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Session'
+  }],
+  // Current session ID (if any)
+  currentSessionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Session'
+  },
   createdAt: {
     type: Date,
     default: Date.now

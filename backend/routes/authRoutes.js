@@ -169,7 +169,7 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
-  // Check if the email and password are provided
+  // Check if the email and password are provided 
   if (!email || !password) {
     return res.status(400).json({ msg: 'Email and password are required.' });
   }

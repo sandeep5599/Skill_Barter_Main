@@ -119,6 +119,7 @@ const sendNotification = async (eventType, sessionData, extraData = {}) => {
 
 const SessionDetails = () => {
   const { sessionId } = useParams();
+  console.log("Recevied Session ID from SessionsList :", sessionId);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -182,6 +183,8 @@ const SessionDetails = () => {
   
   // Fetch session details
   const fetchSessionDetails = useCallback(async () => {
+
+    console.log("Fetching session details for sessionId:", sessionId);
     if (!sessionId || !user) return;
     
     try {
