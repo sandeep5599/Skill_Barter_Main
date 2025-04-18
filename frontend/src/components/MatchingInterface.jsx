@@ -6,6 +6,9 @@ import { toast } from 'react-toastify';
 import SessionScheduler from './SessionScheduler';
 import NotificationCenter from './NotificationCenter';
 import { fetchTeacherRatings } from '../services/reviewService';
+import { PeopleFill, Calendar2PlusFill, ChevronDown, StarFill, 
+  BookHalf, BarChartFill, CheckCircleFill, ArrowRepeat, Search, 
+  BoxArrowRight, PersonCircle, Speedometer } from 'react-bootstrap-icons';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
@@ -16,10 +19,7 @@ const MatchingInterface = () => {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-
   const [teacherStats, setTeacherStats] = useState({});
-  
-  // Store all session data separately to analyze
   const [allSessions, setAllSessions] = useState([]);
 
   const { user, logout } = useAuth();
@@ -31,148 +31,136 @@ const MatchingInterface = () => {
   };
 
   // Fetch all sessions first, then filter by teacher
-// Fix the fetchAllSessions function to properly extract the sessions array
-const fetchAllSessions = useCallback(async () => {
-  if (!user?._id) {
-    setAllSessions([]);  // Initialize with empty array when no user
-    return [];
-  }
-  
-  try {
-    const response = await fetch(`${BACKEND_URL}/api/sessions?userId=${user._id}&status=completed`, {
-      headers: { 
-        'Authorization': `Bearer ${localStorage.getItem('token')}` 
-      }
-    });
-    
-    if (!response.ok) throw new Error('Failed to fetch sessions');
-    
-    const responseData = await response.json();
-    console.log("Sessions API response:", responseData);
-    
-    // Extract the sessions array from the response object
-    const sessionsData = responseData.sessions || [];
-    console.log(`Found ${sessionsData.length} completed sessions`);
-    
-    setAllSessions(sessionsData);
-    return sessionsData;
-  } catch (error) {
-    console.error('Error fetching all sessions:', error);
-    setAllSessions([]);  // Set to empty array on error
-    return [];
-  }
-}, [user]);
-
-// Then modify the calculateTeacherStats function to be more defensive
-const calculateTeacherStats = useCallback(async () => {
-  console.log("Calculating teacher stats with:", { 
-    matchesCount: learningMatches?.length || 0, 
-    sessionsCount: allSessions?.length || 0 
-  });
-  
-  // Guard against empty arrays more defensively
-  if (!Array.isArray(learningMatches) || learningMatches.length === 0) {
-    console.log("No learning matches found, skipping stats calculation");
-    return;
-  }
-  
-  if (!Array.isArray(allSessions)) {
-    console.log("Sessions is not an array, initializing as empty");
-    setAllSessions([]);
-    return;
-  }
-  
-  const statsPromises = learningMatches.map(async (match) => {
-    const teacherId = match.teacherId;
-    if (!teacherId) {
-      console.log("No teacherId found for match:", match);
-      return null;
+  const fetchAllSessions = useCallback(async () => {
+    if (!user?._id) {
+      setAllSessions([]);
+      return [];
     }
     
     try {
-      // Add more logging
-      console.log(`Fetching ratings for teacher ${teacherId}`);
-      const ratings = await fetchTeacherRatings(teacherId);
-      console.log(`Teacher ${teacherId} ratings:`, ratings);
+      const response = await fetch(`${BACKEND_URL}/api/sessions?userId=${user._id}&status=completed`, {
+        headers: { 
+          'Authorization': `Bearer ${localStorage.getItem('token')}` 
+        }
+      });
       
-      // Filter sessions for this specific teacher
-      const teacherSessions = allSessions.filter(session => 
-        session && session.teacherId === teacherId && 
-        session.status === 'completed'
-      );
+      if (!response.ok) throw new Error('Failed to fetch sessions');
       
-      console.log(`Teacher ${teacherId} has ${teacherSessions.length} completed sessions`);
+      const responseData = await response.json();
+      console.log("Sessions API response:", responseData);
       
-      return {
-        teacherId,
-        ratings: ratings?.overall || { averageRating: 0, totalReviews: 0 },
-        completedSessions: teacherSessions.length
-      };
+      const sessionsData = responseData.sessions || [];
+      console.log(`Found ${sessionsData.length} completed sessions`);
+      
+      setAllSessions(sessionsData);
+      return sessionsData;
     } catch (error) {
-      console.error(`Error calculating stats for teacher ${teacherId}:`, error);
-      return {
-        teacherId,
-        ratings: { averageRating: 0, totalReviews: 0 },
-        completedSessions: 0,
-        error: true
-      };
+      console.error('Error fetching all sessions:', error);
+      setAllSessions([]);
+      return [];
     }
-  });
-  
-  try {
-    console.log("About to resolve stats promises");
-    const results = await Promise.all(statsPromises);
-    console.log("Stats results:", results);
+  }, [user]);
+
+  const calculateTeacherStats = useCallback(async () => {
+    console.log("Calculating teacher stats with:", { 
+      matchesCount: learningMatches?.length || 0, 
+      sessionsCount: allSessions?.length || 0 
+    });
     
-    // Filter out null values
-    const validResults = results.filter(result => result !== null);
+    if (!Array.isArray(learningMatches) || learningMatches.length === 0) {
+      console.log("No learning matches found, skipping stats calculation");
+      return;
+    }
     
-    // Convert array to object with teacherId as keys
-    const statsObj = validResults.reduce((acc, stat) => {
-      if (stat && stat.teacherId) {
-        acc[stat.teacherId] = stat;
+    if (!Array.isArray(allSessions)) {
+      console.log("Sessions is not an array, initializing as empty");
+      setAllSessions([]);
+      return;
+    }
+    
+    const statsPromises = learningMatches.map(async (match) => {
+      const teacherId = match.teacherId;
+      if (!teacherId) {
+        console.log("No teacherId found for match:", match);
+        return null;
       }
-      return acc;
-    }, {});
+      
+      try {
+        console.log(`Fetching ratings for teacher ${teacherId}`);
+        const ratings = await fetchTeacherRatings(teacherId);
+        console.log(`Teacher ${teacherId} ratings:`, ratings);
+        
+        const teacherSessions = allSessions.filter(session => 
+          session && session.teacherId === teacherId && 
+          session.status === 'completed'
+        );
+        
+        console.log(`Teacher ${teacherId} has ${teacherSessions.length} completed sessions`);
+        
+        return {
+          teacherId,
+          ratings: ratings?.overall || { averageRating: 0, totalReviews: 0 },
+          completedSessions: teacherSessions.length
+        };
+      } catch (error) {
+        console.error(`Error calculating stats for teacher ${teacherId}:`, error);
+        return {
+          teacherId,
+          ratings: { averageRating: 0, totalReviews: 0 },
+          completedSessions: 0,
+          error: true
+        };
+      }
+    });
     
-    console.log("Final teacher stats:", statsObj);
-    setTeacherStats(statsObj);
-  } catch (error) {
-    console.error("Error calculating teacher stats:", error);
-  }
-}, [learningMatches, allSessions, fetchTeacherRatings]);
+    try {
+      console.log("About to resolve stats promises");
+      const results = await Promise.all(statsPromises);
+      console.log("Stats results:", results);
+      
+      const validResults = results.filter(result => result !== null);
+      
+      const statsObj = validResults.reduce((acc, stat) => {
+        if (stat && stat.teacherId) {
+          acc[stat.teacherId] = stat;
+        }
+        return acc;
+      }, {});
+      
+      console.log("Final teacher stats:", statsObj);
+      setTeacherStats(statsObj);
+    } catch (error) {
+      console.error("Error calculating teacher stats:", error);
+    }
+  }, [learningMatches, allSessions]);
 
-// Fix the useEffect to properly initialize allSessions
-useEffect(() => {
-  // Initialize allSessions to an empty array
-  if (!allSessions) {
-    setAllSessions([]);
-  }
-  
-  if (user?._id) {
-    fetchAllSessions();
-  }
-}, [fetchAllSessions, user]);
+  useEffect(() => {
+    if (!allSessions) {
+      setAllSessions([]);
+    }
+    
+    if (user?._id) {
+      fetchAllSessions();
+    }
+  }, [fetchAllSessions, user]);
 
-// Update the useEffect that triggers stats calculation
-useEffect(() => {
-  console.log("Effect running with:", { 
-    matchesCount: learningMatches?.length || 0, 
-    sessionsCount: allSessions?.length || 0,
-    allSessionsIsArray: Array.isArray(allSessions)
-  });
+  useEffect(() => {
+    console.log("Effect running with:", { 
+      matchesCount: learningMatches?.length || 0, 
+      sessionsCount: allSessions?.length || 0,
+      allSessionsIsArray: Array.isArray(allSessions)
+    });
 
-  // Make sure we have matches and allSessions is at least an empty array
-  if (
-    Array.isArray(learningMatches) && 
-    learningMatches.length > 0 && 
-    Array.isArray(allSessions)
-  ) {
-    calculateTeacherStats();
-  } else {
-    console.log("Skipping stats calculation - prerequisites not met");
-  }
-}, [calculateTeacherStats, learningMatches, allSessions]);
+    if (
+      Array.isArray(learningMatches) && 
+      learningMatches.length > 0 && 
+      Array.isArray(allSessions)
+    ) {
+      calculateTeacherStats();
+    } else {
+      console.log("Skipping stats calculation - prerequisites not met");
+    }
+  }, [calculateTeacherStats, learningMatches, allSessions]);
 
   const fetchLearningMatches = useCallback(async () => {
     setLoading(true);
@@ -192,17 +180,13 @@ useEffect(() => {
 
       const data = await response.json();
       
-      // Filter only learning matches (where user is the requester/learner)
-      // AND only show matches that have no status or status is null/undefined
-      // (meaning they haven't been requested yet)
       const onlyUnrequestedMatches = data.filter(match => 
         (match.requesterId === user?._id || match.requestorId === user?._id) && 
-        (!match.status || match.status === 'initial' || match.status === 'not_requested' ||  match.status === 'completed' || match.status === '')
+        (!match.status || match.status === 'initial' || match.status === 'not_requested' || match.status === 'completed' || match.status === '')
       );
       
       setLearningMatches(onlyUnrequestedMatches);
       
-      // After getting matches, fetch all sessions again to ensure we have the latest data
       fetchAllSessions();
     } catch (err) {
       console.error("Error fetching matches:", err);
@@ -273,16 +257,6 @@ useEffect(() => {
     }
   };
 
-  const getStatusBadgeVariant = (status) => {
-    switch(status) {
-      case 'pending': return 'warning';
-      case 'accepted': return 'success';
-      case 'rejected': return 'danger';
-      case 'rescheduled': return 'info';
-      default: return 'secondary';
-    }
-  };
-
   // Function to get profile background color
   const getProfileColor = (name) => {
     if (!name) return '#6610f2'; // Default purple
@@ -298,53 +272,82 @@ useEffect(() => {
       '#0dcaf0'  // cyan
     ];
     
-    // Get a consistent color based on the first letter
     const charCode = name.charCodeAt(0);
     return colors[charCode % colors.length];
   };
 
-  // Function to render action button based on status
-  const renderActionButton = (match) => {
-    return (
-      <Button 
-        variant="primary" 
-        className="w-100 py-2 shadow-sm" 
-        onClick={() => openScheduleModal(match)}
-      >
-        <i className="bi bi-calendar-plus-fill me-2"></i> Request Session
-      </Button>
-    );
-  };
-
   return (
     <Container fluid className="py-4 px-md-4">
-      {/* Header */}
-      <Card className="mb-4 shadow-sm border-0 bg-gradient">
-        <Card.Body style={{ background: 'linear-gradient(to right, #f8f9fa, #e9ecef)' }} className="py-4">
+      {/* Header - Modern gradient background */}
+      <Card className="mb-4 shadow border-0 rounded-4 overflow-hidden">
+        <Card.Body style={{ background: 'linear-gradient(135deg, #0b1437 0%, #1a237e 100%)' }} className="p-4 text-white position-relative">
+          {/* Decorative Elements */}
+          <div className="position-absolute" style={{ 
+            top: '-20px', 
+            right: '-20px', 
+            width: '200px', 
+            height: '200px', 
+            background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
+            borderRadius: '50%'
+          }}></div>
+          
+          <div className="position-absolute" style={{ 
+            bottom: '-40px', 
+            left: '10%', 
+            width: '180px', 
+            height: '180px',  
+            background: 'radial-gradient(circle, rgba(64,115,255,0.2) 0%, rgba(64,115,255,0) 70%)',
+            borderRadius: '50%'
+          }}></div>
+
           <Row className="align-items-center">
-            <Col xs={12} md={6}>
-              <h1 className="mb-0 fw-bold text-primary">
-                <i className="bi bi-person-lines-fill me-2"></i>
+            <Col xs={12} md={7}>
+              <h1 className="mb-1 fw-bold" style={{ fontWeight: '800', letterSpacing: '-0.5px' }}>
+                <PeopleFill className="me-2" />
                 Available Skill Sharers
               </h1>
-              <p className="text-muted mt-2 mb-0">Find and connect with teachers for your learning journey</p>
+              <p className="text-white-50 mb-0">Find and connect with teachers for your learning journey</p>
             </Col>
-            <Col xs={12} md={6} className="d-flex justify-content-md-end mt-3 mt-md-0">
+            <Col xs={12} md={5} className="d-flex justify-content-md-end mt-3 mt-md-0">
               <div className="d-flex align-items-center gap-3">
                 <NotificationCenter />
                 
                 {/* Navigation buttons for Desktop */}
                 <div className="d-none d-md-flex gap-2">
-                  <Button variant="primary" onClick={() => navigate('/dashboard')} className="d-flex align-items-center">
-                    <i className="bi bi-speedometer2 me-md-2"></i>
+                  <Button 
+                    variant="light" 
+                    onClick={() => navigate('/dashboard')} 
+                    className="d-flex align-items-center rounded-pill"
+                    style={{ 
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                      background: 'rgba(255, 255, 255, 0.9)'
+                    }}
+                  >
+                    <Speedometer className="me-md-2" />
                     <span>Dashboard</span>
                   </Button>
-                  <Button variant="primary" onClick={() => navigate('/profile')} className="d-flex align-items-center">
-                    <i className="bi bi-person-circle me-md-2"></i>
+                  <Button 
+                    variant="light" 
+                    onClick={() => navigate('/profile')} 
+                    className="d-flex align-items-center rounded-pill"
+                    style={{ 
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                      background: 'rgba(255, 255, 255, 0.9)'
+                    }}
+                  >
+                    <PersonCircle className="me-md-2" />
                     <span>Profile</span>
                   </Button>
-                  <Button variant="primary" onClick={handleLogout} className="d-flex align-items-center">
-                    <i className="bi bi-box-arrow-right me-md-2"></i>
+                  <Button 
+                    variant="light" 
+                    onClick={handleLogout} 
+                    className="d-flex align-items-center rounded-pill"
+                    style={{ 
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                      background: 'rgba(255, 255, 255, 0.9)'
+                    }}
+                  >
+                    <BoxArrowRight className="me-md-2" />
                     <span>Logout</span>
                   </Button>
                 </div>
@@ -352,18 +355,26 @@ useEffect(() => {
                 {/* Dropdown menu for Mobile */}
                 <div className="d-md-none">
                   <Dropdown>
-                    <Dropdown.Toggle variant="primary" id="nav-dropdown">
-                      <i className="bi bi-three-dots"></i>
+                    <Dropdown.Toggle 
+                      variant="light" 
+                      id="nav-dropdown"
+                      className="rounded-pill"
+                      style={{ 
+                        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                        background: 'rgba(255, 255, 255, 0.9)'
+                      }}
+                    >
+                      <ChevronDown />
                     </Dropdown.Toggle>
-                    <Dropdown.Menu align="end">
-                      <Dropdown.Item onClick={() => navigate('/dashboard')}>
-                        <i className="bi bi-speedometer2 me-2"></i> Dashboard
+                    <Dropdown.Menu align="end" className="shadow-lg border-0 rounded-3">
+                      <Dropdown.Item onClick={() => navigate('/dashboard')} className="d-flex align-items-center py-2">
+                        <Speedometer className="me-2" /> Dashboard
                       </Dropdown.Item>
-                      <Dropdown.Item onClick={() => navigate('/profile')}>
-                        <i className="bi bi-person-circle me-2"></i> Profile
+                      <Dropdown.Item onClick={() => navigate('/profile')} className="d-flex align-items-center py-2">
+                        <PersonCircle className="me-2" /> Profile
                       </Dropdown.Item>
-                      <Dropdown.Item onClick={handleLogout}>
-                        <i className="bi bi-box-arrow-right me-2"></i> Logout
+                      <Dropdown.Item onClick={handleLogout} className="d-flex align-items-center py-2">
+                        <BoxArrowRight className="me-2" /> Logout
                       </Dropdown.Item>
                     </Dropdown.Menu>
                   </Dropdown>
@@ -376,31 +387,58 @@ useEffect(() => {
       
       {/* Error message */}
       {error && (
-        <Alert variant="danger" onClose={() => setError('')} dismissible className="d-flex align-items-center">
-          <i className="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
-          <div>{error}</div>
+        <Alert variant="danger" onClose={() => setError('')} dismissible className="d-flex align-items-center rounded-4 shadow-sm">
+          <div className="me-3 rounded-circle bg-danger bg-opacity-10 p-2">
+            <i className="bi bi-exclamation-triangle-fill text-danger fs-4"></i>
+          </div>
+          <div className="flex-grow-1">{error}</div>
         </Alert>
       )}
 
-      {/* Refresh button */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="text-dark mb-0">New Matches</h2>
+      {/* Title and Refresh button */}
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2 className="fw-bold mb-0" style={{ color: '#0f172a' }}>New Matches</h2>
         <Button 
           variant="primary" 
           onClick={fetchLearningMatches} 
           disabled={loading}
           className="d-flex align-items-center gap-2 rounded-pill px-3"
+          style={{ 
+            background: 'linear-gradient(to right, #3b82f6, #1e40af)',
+            border: 'none',
+            boxShadow: '0 4px 10px -3px rgba(59, 130, 246, 0.5)'
+          }}
         >
-          <i className="bi bi-arrow-repeat"></i> Refresh Matches
+          <ArrowRepeat />
+          <span className="d-none d-sm-inline">Refresh Matches</span>
         </Button>
       </div>
 
       {/* Loading state */}
       {loading ? (
-        <Card className="text-center my-5 py-5 border-0 shadow-sm">
-          <Card.Body>
-            <Spinner animation="border" variant="primary" role="status" style={{ width: '3rem', height: '3rem' }} />
-            <h4 className="mt-4 text-primary">Loading available teachers...</h4>
+        <Card className="text-center my-5 py-5 border-0 shadow-sm rounded-4">
+          <Card.Body className="p-5">
+            <div className="position-relative d-inline-block mb-4">
+              <Spinner 
+                animation="border" 
+                variant="primary" 
+                role="status" 
+                style={{ 
+                  width: '4rem', 
+                  height: '4rem',
+                  borderWidth: '0.25rem',
+                  filter: 'drop-shadow(0 10px 15px rgba(59, 130, 246, 0.3))'
+                }} 
+              />
+              <div className="position-absolute top-0 start-0 w-100 h-100"
+                style={{
+                  background: 'radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0) 70%)',
+                  borderRadius: '50%',
+                  transform: 'scale(1.5)'
+                }}>
+              </div>
+            </div>
+            <h4 className="fw-bold text-primary mb-2">Loading available teachers...</h4>
             <p className="text-muted">Please wait while we find your perfect teachers</p>
           </Card.Body>
         </Card>
@@ -409,10 +447,15 @@ useEffect(() => {
           <Row className="g-3">
             {learningMatches.map(match => (
               <Col key={match.id || match._id} xs={12}>
-                <Card className="h-100 shadow-sm hover-shadow border-0 mb-3" 
-                      style={{ transition: 'all 0.3s ease', cursor: 'pointer' }}
-                      onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
-                      onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                <Card 
+                  className="h-100 shadow-sm border-0 rounded-4 mb-3" 
+                  style={{ 
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer',
+                    background: 'white'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+                  onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                 >
                   <Card.Body className="p-4">
                     <Row className="align-items-center">
@@ -425,8 +468,9 @@ useEffect(() => {
                             fontSize: 36, 
                             fontWeight: 'bold',
                             color: 'white',
-                            background: getProfileColor(match.name || match.teacherName),
-                            border: '3px solid white'
+                            background: `${getProfileColor(match.name || match.teacherName)}`,
+                            border: '3px solid white',
+                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.15)'
                           }}
                         >
                           {match.name ? match.name.charAt(0).toUpperCase() : 
@@ -434,47 +478,63 @@ useEffect(() => {
                         </div>
                       </Col>
                       <Col xs={12} md={7}>
-                        <h3 className="mb-2 fw-bold text-primary">{match.name || match.teacherName || "Unknown"}</h3>
+                        <h3 className="mb-2 fw-bold" style={{ color: '#1e40af' }}>
+                          {match.name || match.teacherName || "Unknown"}
+                        </h3>
                         <div className="d-flex flex-wrap gap-2 mb-3">
-                          <Badge bg="light" text="dark" className="px-3 py-2 border">
-                            <i className="bi bi-book-half text-primary me-2"></i>
-                            <strong>Skill:</strong> {match.expertise || match.skillName || "Not specified"}
+                          <Badge bg="light" text="dark" className="px-3 py-2 border d-flex align-items-center">
+                            <BookHalf className="text-primary me-2" />
+                            <span><strong>Skill:</strong> {match.expertise || match.skillName || "Not specified"}</span>
                           </Badge>
-                          <Badge bg="light" text="dark" className="px-3 py-2 border">
-                            <i className="bi bi-bar-chart-fill text-success me-2"></i>
-                            <strong>Level:</strong> {match.proficiency || match.proficiencyLevel || "Fetching..."}
+                          <Badge bg="light" text="dark" className="px-3 py-2 border d-flex align-items-center">
+                            <BarChartFill className="text-success me-2" />
+                            <span><strong>Level:</strong> {match.proficiency || match.proficiencyLevel || "Fetching..."}</span>
                           </Badge>
                           {/* Rating Badge */}
-                          <Badge bg="light" text="dark" className="px-3 py-2 border">
-                            <i className="bi bi-star-fill text-warning me-2"></i>
-                            <strong>Rating:</strong> {
-                              !teacherStats[match.teacherId] ? 
-                                <Spinner animation="border" size="sm" className="ms-1" /> :
-                              teacherStats[match.teacherId]?.ratings?.totalReviews > 0 ?
-                                `${teacherStats[match.teacherId].ratings.averageRating.toFixed(1)}/5 (${teacherStats[match.teacherId].ratings.totalReviews} review${teacherStats[match.teacherId].ratings.totalReviews !== 1 ? 's' : ''})` :
-                                "No ratings yet"
-                            }
+                          <Badge bg="light" text="dark" className="px-3 py-2 border d-flex align-items-center">
+                            <StarFill className="text-warning me-2" />
+                            <span>
+                              <strong>Rating:</strong> {
+                                !teacherStats[match.teacherId] ? 
+                                  <Spinner animation="border" size="sm" className="ms-1" /> :
+                                teacherStats[match.teacherId]?.ratings?.totalReviews > 0 ?
+                                  `${teacherStats[match.teacherId].ratings.averageRating.toFixed(1)}/5 (${teacherStats[match.teacherId].ratings.totalReviews} review${teacherStats[match.teacherId].ratings.totalReviews !== 1 ? 's' : ''})` :
+                                  "No ratings yet"
+                              }
+                            </span>
                           </Badge>
 
                           {/* Only show Completed Sessions badge if this specific teacher has completed sessions with the user */}
                           {teacherStats[match.teacherId]?.completedSessions > 0 && (
-                            <Badge bg="success" className="px-3 py-2">
-                              <i className="bi bi-check-circle-fill me-2"></i>
-                              <strong>Completed Sessions:</strong> {teacherStats[match.teacherId]?.completedSessions || 0}
+                            <Badge bg="success" className="px-3 py-2 d-flex align-items-center">
+                              <CheckCircleFill className="me-2" />
+                              <span><strong>Completed Sessions:</strong> {teacherStats[match.teacherId]?.completedSessions || 0}</span>
                             </Badge>
                           )}
                         </div>
 
                         {/* Show completed match status if applicable */}
                         {match.status === 'completed' && (
-                          <Alert variant="success" className="mb-0 mt-2 py-2">
-                            <i className="bi bi-check-circle-fill me-2"></i>
-                            You've completed sessions with this teacher. Consider booking another one!
+                          <Alert variant="success" className="mb-0 mt-2 py-2 d-flex align-items-center">
+                            <CheckCircleFill className="me-2" />
+                            <span>You've completed sessions with this teacher. Consider booking another one!</span>
                           </Alert>
                         )}
                       </Col>
                       <Col xs={12} md={3} className="d-flex justify-content-md-end mt-4 mt-md-0">
-                        {renderActionButton(match)}
+                        <Button 
+                          variant="primary" 
+                          className="w-100 py-2 d-flex align-items-center justify-content-center gap-2 rounded-pill" 
+                          onClick={() => openScheduleModal(match)}
+                          style={{ 
+                            background: 'linear-gradient(to right, #3b82f6, #1e40af)',
+                            border: 'none',
+                            boxShadow: '0 10px 15px -3px rgba(59, 130, 246, 0.3)'
+                          }}
+                        >
+                          <Calendar2PlusFill />
+                          <span>Request Session</span>
+                        </Button>
                       </Col>
                     </Row>
                   </Card.Body>
@@ -484,37 +544,77 @@ useEffect(() => {
           </Row>
         </>
       ) : (
-        <Card className="text-center my-5 border-0 shadow-sm bg-light py-5">
+        <Card className="text-center my-5 border-0 shadow-sm bg-light py-5 rounded-4">
           <Card.Body className="p-5">
-            <i className="bi bi-search display-1 mb-4 text-primary opacity-75"></i>
-            <h3 className="fw-bold">No new matches found</h3>
+            <div className="rounded-circle mx-auto mb-4 d-flex align-items-center justify-content-center bg-primary bg-opacity-10" 
+              style={{ width: '100px', height: '100px' }}>
+              <Search size={40} className="text-primary opacity-75" />
+            </div>
+            <h3 className="fw-bold mb-3">No new matches found</h3>
             <p className="text-muted mb-4 lead">Try adding more skills you want to learn to find potential teachers!</p>
-            <Button variant="primary" size="lg" className="rounded-pill px-4 py-2 shadow" onClick={() => navigate('/profile')}>
+            <Button 
+              variant="primary" 
+              size="lg" 
+              className="rounded-pill px-4 py-2" 
+              onClick={() => navigate('/profile')}
+              style={{ 
+                background: 'linear-gradient(to right, #3b82f6, #1e40af)',
+                border: 'none',
+                boxShadow: '0 10px 15px -3px rgba(59, 130, 246, 0.3)'
+              }}
+            >
               <i className="bi bi-plus-circle-fill me-2"></i> Add Learning Skills
             </Button>
           </Card.Body>
         </Card>
       )}
 
-      {/* Scheduling Modal */}
-      <Modal show={showScheduleModal} onHide={() => setShowScheduleModal(false)} size="lg" centered backdrop="static">
-        <Modal.Header closeButton className="bg-primary text-white">
-          <Modal.Title>
-            <i className="bi bi-calendar-date me-2"></i>
-            Schedule with {selectedTeacher?.name || selectedTeacher?.teacherName || "Teacher"} 
-            {selectedTeacher?.expertise || selectedTeacher?.skillName ? 
-              ` - ${selectedTeacher.expertise || selectedTeacher.skillName}` : ""}
+      {/* Scheduling Modal - Modern Design */}
+      <Modal show={showScheduleModal} onHide={() => setShowScheduleModal(false)} size="lg" centered backdrop="static" className="rounded-4">
+        <Modal.Header closeButton className="border-0" style={{ 
+          background: 'linear-gradient(135deg, #0b1437 0%, #1a237e 100%)',
+          color: 'white'
+        }}>
+          <Modal.Title className="d-flex align-items-center">
+            <Calendar2PlusFill className="me-2" size={22} />
+            <span>
+              Schedule with {selectedTeacher?.name || selectedTeacher?.teacherName || "Teacher"} 
+              {selectedTeacher?.expertise || selectedTeacher?.skillName ? 
+                ` - ${selectedTeacher.expertise || selectedTeacher.skillName}` : ""}
+            </span>
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="p-4">
           <SessionScheduler onSchedule={handleScheduleSubmit} submitting={submitting}/>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowScheduleModal(false)}>
+        <Modal.Footer className="border-0">
+          <Button 
+            variant="secondary" 
+            onClick={() => setShowScheduleModal(false)} 
+            className="rounded-pill px-4"
+          >
             <i className="bi bi-x-circle me-2"></i> Cancel
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Custom animations */}
+      <style>
+        {`
+        @keyframes pulse {
+          0% { opacity: 0.6; }
+          50% { opacity: 1; }
+          100% { opacity: 0.6; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .hover-shadow:hover {
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        `}
+      </style>
     </Container>
   );
 };

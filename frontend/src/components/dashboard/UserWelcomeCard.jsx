@@ -597,82 +597,86 @@ const UserWelcomeCard = ({
                         <p className="text-muted">No leaderboard data available yet.</p>
                       </div>
                     ) : (
-                      leaderboardData.map((entry, index) => (
-                        <div 
-                          key={entry.userId} 
-                          className="d-flex align-items-center p-3 mb-2 rounded-4" 
-                          style={{
-                            background: index === 0 ? 'rgba(251, 191, 36, 0.1)' : 
-                      index === 1 ? 'rgba(148, 163, 184, 0.1)' :
-                      index === 2 ? 'rgba(205, 127, 50, 0.1)' : 'transparent',
-            borderBottom: index !== leaderboardData.length - 1 ? '1px solid rgba(0, 0, 0, 0.05)' : 'none',
-            transition: 'transform 0.2s ease-out',
-            boxShadow: index < 3 ? '0 4px 6px -1px rgba(0, 0, 0, 0.05)' : 'none'
-          }}
-          onMouseOver={(e) => {e.currentTarget.style.transform = 'translateY(-2px)'}}
-          onMouseOut={(e) => {e.currentTarget.style.transform = 'translateY(0)'}}
-        >
-          {/* Position Indicator */}
-          <div className="me-3">
-            <div className="rounded-circle d-flex align-items-center justify-content-center" 
-              style={{ 
-                width: '36px', 
-                height: '36px', 
-                background: index === 0 ? 'linear-gradient(135deg, #fbbf24, #d97706)' : 
-                          index === 1 ? 'linear-gradient(135deg, #94a3b8, #64748b)' : 
-                          index === 2 ? 'linear-gradient(135deg, #cd7f32, #b06000)' : '#e2e8f0',
-                color: 'white',
-                boxShadow: index < 3 ? '0 4px 6px -1px rgba(0, 0, 0, 0.1)' : 'none'
-              }}>
-              <span className="fw-bold">{index + 1}</span>
-            </div>
-          </div>
-          
-          {/* User Avatar */}
-          <div className="me-3">
-            <div className="rounded-circle d-flex align-items-center justify-content-center" 
-              style={{ 
-                width: '40px', 
-                height: '40px', 
-                background: `hsl(${(entry.userId.charCodeAt(0) * 70) % 360}, 70%, 65%)`,
-                color: 'white',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-              }}>
-              <span className="fw-bold">{getInitials(entry.name)}</span>
-            </div>
-          </div>
-          
-          {/* User Details */}
-          <div className="flex-grow-1">
-            <div className="fw-semibold">{entry.name}</div>
-            <div className="d-flex align-items-center">
-              {/* Stars based on level */}
-              <div className="me-2">
-                {[...Array(Math.min(Math.floor(entry.points / 100) + 1, 5))].map((_, i) => (
-                  <StarFill key={i} size={12} className="me-1" style={{ 
-                    color: index === 0 ? '#fbbf24' : 
-                          index === 1 ? '#94a3b8' : 
-                          index === 2 ? '#cd7f32' : '#cbd5e1'
-                  }} />
-                ))}
-              </div>
-              <span className="text-muted small">Level {Math.floor(entry.points / 100) + 1}</span>
-            </div>
-          </div>
-          
-          {/* Points */}
-          <div>
-            <div className="fw-bold text-end" style={{ 
-              color: index === 0 ? '#d97706' : 
-                    index === 1 ? '#64748b' : 
-                    index === 2 ? '#b06000' : '#0f172a'
-            }}>
-              {entry.points}
-            </div>
-            <div className="text-muted small text-end">points</div>
-          </div>
+ 
+leaderboardData.map((entry, index) => (
+  <div 
+    key={entry.userId} 
+    className="d-flex align-items-center p-3 mb-2 rounded-4" 
+    style={{
+      background: index === 0 ? 'rgba(251, 191, 36, 0.1)' : 
+                 index === 1 ? 'rgba(148, 163, 184, 0.1)' :
+                 index === 2 ? 'rgba(205, 127, 50, 0.1)' : 'transparent',
+      borderBottom: index !== leaderboardData.length - 1 ? '1px solid rgba(0, 0, 0, 0.05)' : 'none',
+      transition: 'transform 0.2s ease-out',
+      boxShadow: index < 3 ? '0 4px 6px -1px rgba(0, 0, 0, 0.05)' : 'none'
+    }}
+    onMouseOver={(e) => {e.currentTarget.style.transform = 'translateY(-2px)'}}
+    onMouseOut={(e) => {e.currentTarget.style.transform = 'translateY(0)'}}
+  >
+    {/* Position Indicator */}
+    <div className="me-3">
+      <div className="rounded-circle d-flex align-items-center justify-content-center" 
+        style={{ 
+          width: '36px', 
+          height: '36px', 
+          background: index === 0 ? 'linear-gradient(135deg, #fbbf24, #d97706)' : 
+                    index === 1 ? 'linear-gradient(135deg, #94a3b8, #64748b)' : 
+                    index === 2 ? 'linear-gradient(135deg, #cd7f32, #b06000)' : '#e2e8f0',
+          color: 'white',
+          boxShadow: index < 3 ? '0 4px 6px -1px rgba(0, 0, 0, 0.1)' : 'none'
+        }}>
+        <span className="fw-bold">{index + 1}</span>
+      </div>
+    </div>
+    
+    {/* User Avatar */}
+    <div className="me-3">
+      <div className="rounded-circle d-flex align-items-center justify-content-center" 
+        style={{ 
+          width: '40px', 
+          height: '40px', 
+          background: `hsl(${(entry.userId.charCodeAt(0) * 70) % 360}, 70%, 65%)`,
+          color: 'white',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+        }}>
+        <span className="fw-bold">{getInitials(entry.name)}</span>
+      </div>
+    </div>
+    
+    {/* User Details */}
+    <div className="flex-grow-1">
+      <div className="fw-semibold">{entry.name}</div>
+      <div className="d-flex align-items-center">
+        {/* Stars based on level */}
+        <div className="me-2">
+          {[...Array(Math.min(Math.floor(entry.points / 100) + 1, 5))].map((_, i) => (
+            <StarFill key={i} size={12} className="me-1" style={{ 
+              color: index === 0 ? '#fbbf24' : 
+                    index === 1 ? '#94a3b8' : 
+                    index === 2 ? '#cd7f32' : '#cbd5e1'
+            }} />
+          ))}
         </div>
-                      ))
+        <span className="text-muted small">Level {Math.floor(entry.points / 100) + 1}</span>
+      </div>
+    </div>
+    
+    {/* Points and Streak */}
+    <div>
+      <div className="fw-bold text-end" style={{ 
+        color: index === 0 ? '#d97706' : 
+              index === 1 ? '#64748b' : 
+              index === 2 ? '#b06000' : '#0f172a'
+      }}>
+        {entry.points}
+      </div>
+      <div className="d-flex align-items-center justify-content-end">
+        <Lightning size={12} className="me-1" style={{ color: "#ef4444" }} />
+        <span className="text-danger small">{entry.streak}-day streak</span>
+      </div>
+    </div>
+  </div>
+))
                     )}
                   </div>
                 )}
@@ -710,12 +714,16 @@ const UserWelcomeCard = ({
                     </div>
                   </div>
                   <div className="text-end">
-                    <Button 
-                      variant="light" 
+                  <Button 
+                      variant="primary" 
                       size="sm" 
                       className="rounded-pill px-3 d-flex align-items-center"
                       onClick={() => navigate('/leaderboard')}
-                      style={{ border: '1px solid rgba(0, 0, 0, 0.1)' }}
+                      style={{ 
+                        background: 'linear-gradient(to right, #4f46e5, #3730a3)',
+                        border: 'none',
+                        boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.3)'
+                      }}
                     >
                       <BoxArrowUpRight size={14} className="me-2" />
                       <span>View Full Leaderboard</span>
