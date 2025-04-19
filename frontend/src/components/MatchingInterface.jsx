@@ -8,7 +8,7 @@ import NotificationCenter from './NotificationCenter';
 import { fetchTeacherRatings } from '../services/reviewService';
 import { PeopleFill, Calendar2PlusFill, ChevronDown, StarFill, 
   BookHalf, BarChartFill, CheckCircleFill, ArrowRepeat, Search, 
-  BoxArrowRight, PersonCircle, Speedometer } from 'react-bootstrap-icons';
+  BoxArrowRight, PersonCircle, Speedometer,ThreeDotsVertical  } from 'react-bootstrap-icons';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
@@ -279,111 +279,142 @@ const MatchingInterface = () => {
   return (
     <Container fluid className="py-4 px-md-4">
       {/* Header - Modern gradient background */}
-      <Card className="mb-4 shadow border-0 rounded-4 overflow-hidden">
-        <Card.Body style={{ background: 'linear-gradient(135deg, #0b1437 0%, #1a237e 100%)' }} className="p-4 text-white position-relative">
-          {/* Decorative Elements */}
-          <div className="position-absolute" style={{ 
-            top: '-20px', 
-            right: '-20px', 
-            width: '200px', 
-            height: '200px', 
-            background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
-            borderRadius: '50%'
-          }}></div>
-          
-          <div className="position-absolute" style={{ 
-            bottom: '-40px', 
-            left: '10%', 
-            width: '180px', 
-            height: '180px',  
-            background: 'radial-gradient(circle, rgba(64,115,255,0.2) 0%, rgba(64,115,255,0) 70%)',
-            borderRadius: '50%'
-          }}></div>
+      {/* Header - Modern gradient background */}
+<Card className="mb-4 shadow border-0 rounded-4 overflow-hidden">
+  <Card.Body style={{ background: 'linear-gradient(135deg, #0b1437 0%, #1a237e 100%)' }} className="p-4 text-white position-relative">
+    {/* Decorative Elements */}
+    <div className="position-absolute" style={{ 
+      top: '-20px', 
+      right: '-20px', 
+      width: '200px', 
+      height: '200px', 
+      background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
+      borderRadius: '50%'
+    }}></div>
+    
+    <div className="position-absolute" style={{ 
+      bottom: '-40px', 
+      left: '10%', 
+      width: '180px', 
+      height: '180px',  
+      background: 'radial-gradient(circle, rgba(64,115,255,0.2) 0%, rgba(64,115,255,0) 70%)',
+      borderRadius: '50%'
+    }}></div>
 
-          <Row className="align-items-center">
-            <Col xs={12} md={7}>
-              <h1 className="mb-1 fw-bold" style={{ fontWeight: '800', letterSpacing: '-0.5px' }}>
-                <PeopleFill className="me-2" />
-                Available Skill Sharers
-              </h1>
-              <p className="text-white-50 mb-0">Find and connect with teachers for your learning journey</p>
-            </Col>
-            <Col xs={12} md={5} className="d-flex justify-content-md-end mt-3 mt-md-0">
-              <div className="d-flex align-items-center gap-3">
-                <NotificationCenter />
-                
-                {/* Navigation buttons for Desktop */}
-                <div className="d-none d-md-flex gap-2">
-                  <Button 
-                    variant="light" 
-                    onClick={() => navigate('/dashboard')} 
-                    className="d-flex align-items-center rounded-pill"
+    <Row className="align-items-center">
+      <Col xs={12} md={7} className="mb-3 mb-md-0">
+        <h1 className="mb-1 fw-bold fs-3 fs-md-2" style={{ fontWeight: '800', letterSpacing: '-0.5px' }}>
+          <PeopleFill className="me-2" />
+          Available Skill Sharers
+        </h1>
+        <p className="text-white-50 mb-0">Find and connect with teachers for your learning journey</p>
+      </Col>
+      <Col xs={12} md={5} className="d-flex justify-content-md-end">
+        <div className="d-flex align-items-center gap-3">
+          <NotificationCenter />
+          
+          {/* Navigation buttons for Desktop */}
+          <div className="d-none d-md-flex gap-2">
+            <Button 
+              variant="primary" 
+              onClick={() => navigate('/dashboard')} 
+              className="d-flex align-items-center gap-2 rounded-pill"
+              style={{ 
+                background: 'linear-gradient(to right, #3b82f6, #1e40af)',
+                border: 'none',
+                boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <Speedometer /> <span>Dashboard</span>
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={() => navigate('/profile')} 
+              className="d-flex align-items-center gap-2 rounded-pill"
+              style={{ 
+                background: 'linear-gradient(to right, #3b82f6, #1e40af)',
+                border: 'none',
+                boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <PersonCircle /> <span>Profile</span>
+            </Button>
+            <Button 
+              variant="danger" 
+              onClick={handleLogout} 
+              className="d-flex align-items-center gap-2 rounded-pill"
+              style={{ 
+                background: 'linear-gradient(to right, #ef4444, #b91c1c)',
+                border: 'none',
+                boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.3)',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <BoxArrowRight /> <span>Logout</span>
+            </Button>
+          </div>
+          
+          {/* Dropdown menu for Mobile */}
+          <div className="d-md-none">
+            <Dropdown>
+              <Dropdown.Toggle 
+                variant="light" 
+                id="nav-dropdown"
+                className="border-0 rounded-pill"
+                style={{ 
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                }}
+              >
+                <ThreeDotsVertical />
+              </Dropdown.Toggle>
+              <Dropdown.Menu align="end" className="shadow-lg border-0 rounded-3">
+                <Dropdown.Item onClick={() => navigate('/dashboard')} className="d-flex align-items-center py-2">
+                  <div className="me-2 rounded-circle d-flex align-items-center justify-content-center" 
                     style={{ 
-                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                      background: 'rgba(255, 255, 255, 0.9)'
-                    }}
-                  >
-                    <Speedometer className="me-md-2" />
-                    <span>Dashboard</span>
-                  </Button>
-                  <Button 
-                    variant="light" 
-                    onClick={() => navigate('/profile')} 
-                    className="d-flex align-items-center rounded-pill"
+                      width: '28px', 
+                      height: '28px',
+                      background: 'linear-gradient(135deg, #3b82f6, #1e40af)',
+                      color: 'white'
+                    }}>
+                    <Speedometer size={14} />
+                  </div>
+                  <span>Dashboard</span>
+                </Dropdown.Item>
+                <Dropdown.Item onClick={() => navigate('/profile')} className="d-flex align-items-center py-2">
+                  <div className="me-2 rounded-circle d-flex align-items-center justify-content-center" 
                     style={{ 
-                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                      background: 'rgba(255, 255, 255, 0.9)'
-                    }}
-                  >
-                    <PersonCircle className="me-md-2" />
-                    <span>Profile</span>
-                  </Button>
-                  <Button 
-                    variant="light" 
-                    onClick={handleLogout} 
-                    className="d-flex align-items-center rounded-pill"
+                      width: '28px', 
+                      height: '28px',
+                      background: 'linear-gradient(135deg, #3b82f6, #1e40af)',
+                      color: 'white'
+                    }}>
+                    <PersonCircle size={14} />
+                  </div>
+                  <span>Profile</span>
+                </Dropdown.Item>
+                <Dropdown.Item onClick={handleLogout} className="d-flex align-items-center py-2 text-danger">
+                  <div className="me-2 rounded-circle d-flex align-items-center justify-content-center" 
                     style={{ 
-                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                      background: 'rgba(255, 255, 255, 0.9)'
-                    }}
-                  >
-                    <BoxArrowRight className="me-md-2" />
-                    <span>Logout</span>
-                  </Button>
-                </div>
-                
-                {/* Dropdown menu for Mobile */}
-                <div className="d-md-none">
-                  <Dropdown>
-                    <Dropdown.Toggle 
-                      variant="light" 
-                      id="nav-dropdown"
-                      className="rounded-pill"
-                      style={{ 
-                        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                        background: 'rgba(255, 255, 255, 0.9)'
-                      }}
-                    >
-                      <ChevronDown />
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu align="end" className="shadow-lg border-0 rounded-3">
-                      <Dropdown.Item onClick={() => navigate('/dashboard')} className="d-flex align-items-center py-2">
-                        <Speedometer className="me-2" /> Dashboard
-                      </Dropdown.Item>
-                      <Dropdown.Item onClick={() => navigate('/profile')} className="d-flex align-items-center py-2">
-                        <PersonCircle className="me-2" /> Profile
-                      </Dropdown.Item>
-                      <Dropdown.Item onClick={handleLogout} className="d-flex align-items-center py-2">
-                        <BoxArrowRight className="me-2" /> Logout
-                      </Dropdown.Item>
-                    </Dropdown.Menu>
-                  </Dropdown>
-                </div>
-              </div>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
+                      width: '28px', 
+                      height: '28px',
+                      background: 'linear-gradient(135deg, #ef4444, #b91c1c)',
+                      color: 'white'
+                    }}>
+                    <BoxArrowRight size={14} />
+                  </div>
+                  <span>Logout</span>
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+          </div>
+        </div>
+      </Col>
+    </Row>
+  </Card.Body>
+</Card>
       
       {/* Error message */}
       {error && (

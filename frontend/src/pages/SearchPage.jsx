@@ -4,8 +4,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import SearchBar from '../components/search/SearchBar';
 import SearchResults from '../components/search/SearchResults';
-import { FaArrowLeft, FaSearch } from 'react-icons/fa';
-import { useAuth } from '../context/AuthContext'; // Import useAuth hook
+import { ArrowLeft, Search, InfoCircle, MortarboardFill, BookFill } from 'react-bootstrap-icons';
+import { useAuth } from '../context/AuthContext';
 
 const SearchPage = () => {
   const [searchResults, setSearchResults] = useState([]);
@@ -20,7 +20,7 @@ const SearchPage = () => {
   
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth(); // Get authentication state using useAuth hook
+  const { user } = useAuth();
 
   // Handle initial URL parameters when page loads
   useEffect(() => {
@@ -30,7 +30,6 @@ const SearchPage = () => {
       skillLevel: queryParams.get('skillLevel') || ''
     };
     
-    console.log("From SearchPage: ", initialParams);
     setCurrentParams(initialParams);
     
     // If there are search parameters in URL, perform search
@@ -97,108 +96,199 @@ const SearchPage = () => {
   const backButtonTarget = user ? '/dashboard' : '/';
 
   return (
-    <div className="search-page-wrapper min-vh-100 d-flex flex-column" 
-         style={{ 
-           background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-           backgroundAttachment: 'fixed',
-           width: '100%'
-         }}>
+    <div className="min-vh-100 d-flex flex-column" style={{ background: '#f8fafc' }}>
       {/* Error Toast */}
       <Toast 
         onClose={() => setShowErrorToast(false)} 
         show={showErrorToast} 
         delay={5000} 
         autohide
-        className="position-fixed top-0 end-0 m-3 z-index-toast"
+        className="position-fixed top-0 end-0 m-4"
         style={{ zIndex: 1050 }}
       >
-        <Toast.Header closeButton>
-          <strong className="me-auto text-danger">Search Error</strong>
+        <Toast.Header closeButton className="bg-danger text-white">
+          <InfoCircle className="me-2" />
+          <strong className="me-auto">Search Error</strong>
         </Toast.Header>
-        <Toast.Body>{error}</Toast.Body>
+        <Toast.Body className="d-flex align-items-center">
+          <span>{error}</span>
+        </Toast.Body>
       </Toast>
 
-      {/* Main Content - Full Width */}
-      <div className="w-100 p-3 p-md-4 flex-grow-1">
-        {/* Back Button - Dynamic based on auth state */}
-        <Button 
-          variant="primary" 
-          className="mb-4 shadow-sm" 
-          onClick={() => navigate(backButtonTarget)}
-        >
-          <FaArrowLeft className="me-2" /> {backButtonText}
-        </Button>
-        
-        {/* Header Section - Full Width */}
-        <div className="w-100 mb-4">
-          <Card className="border-0 shadow text-center mb-4 bg-white rounded-lg p-4 w-100">
-            <h1 className="display-4 fw-bold mb-3">Find the Perfect Skill to Learn</h1>
-            <p className="lead text-muted">
-              Explore our community of skilled teachers and find the expertise you need.
-            </p>
-          </Card>
-        </div>
-        
-        {/* Main Content Section - Full Width with Sidebar and Results */}
-        <Row className="g-4 m-0 w-100">
-          <Col lg={3} md={4} className="mb-4 px-0 pe-lg-3">
-            {/* Sidebar with search filters */}
-            <Card className="border-0 shadow-sm sticky-top w-100" style={{ top: '20px' }}>
-              <Card.Header className="bg-primary text-white">
-                <h4 className="mb-0 fs-5"><FaSearch className="me-2" />Refine Search</h4>
-              </Card.Header>
-              <Card.Body className="bg-white p-3">
-                <SearchBar 
-                  onSearch={handleSearch} 
-                  initialParams={currentParams}
-                  compact={true} 
-                />
-              </Card.Body>
-            </Card>
-          </Col>
+      {/* Main Content */}
+      <div className="flex-grow-1">
+        <Container className="py-4 py-lg-5">
+          {/* Navigation */}
+          <div className="mb-4">
+            <Button 
+              variant="primary" 
+              className="rounded-pill px-4 py-2 d-flex align-items-center shadow-sm" 
+              onClick={() => navigate(backButtonTarget)}
+            >
+              <ArrowLeft className="me-2" />
+              <span>{backButtonText}</span>
+            </Button>
+          </div>
           
-          <Col lg={9} md={8} className="mb-4 px-0 ps-lg-3">
-            {!searchPerformed ? (
-              <Card className="text-center p-3 p-md-5 border-0 shadow-sm bg-white rounded-lg w-100">
-                <Card.Body>
-                  <div className="p-2 p-md-4">
-                    <img 
-                      src="/api/placeholder/150/150" 
-                      alt="Search illustration" 
-                      className="mb-4 opacity-75" 
+          {/* Header */}
+          <Card className="border-0 rounded-4 shadow mb-5 overflow-hidden">
+            <div style={{ 
+              background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+              padding: '3rem',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              {/* Decorative elements */}
+              <div className="position-absolute" style={{ 
+                top: '-5%', 
+                right: '-5%', 
+                width: '300px', 
+                height: '300px', 
+                background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
+                borderRadius: '50%'
+              }}></div>
+              
+              <div className="position-absolute" style={{ 
+                bottom: '-10%', 
+                left: '5%', 
+                width: '200px', 
+                height: '200px',  
+                background: 'radial-gradient(circle, rgba(59,130,246,0.3) 0%, rgba(59,130,246,0) 70%)',
+                borderRadius: '50%'
+              }}></div>
+              
+              <div className="text-center text-white position-relative">
+                <h1 className="display-4 fw-bold mb-3">Find the Perfect Skills</h1>
+                <p className="lead mb-0 mx-auto" style={{ maxWidth: '700px' }}>
+                  Connect with teachers and fellow students to expand your knowledge and share your expertise
+                </p>
+              </div>
+            </div>
+          </Card>
+          
+          <Row className="g-4">
+            {/* Sidebar */}
+            <Col lg={3} md={4}>
+              <div className="sticky-top" style={{ top: '20px' }}>
+                <Card className="border-0 rounded-4 shadow-sm overflow-hidden mb-4">
+                  <Card.Header className="bg-white py-3 px-4 border-bottom">
+                    <h5 className="mb-0 fw-bold d-flex align-items-center">
+                      <Search className="me-2 text-primary" />
+                      <span>Search Filters</span>
+                    </h5>
+                  </Card.Header>
+                  <Card.Body className="p-4">
+                    <SearchBar 
+                      onSearch={handleSearch} 
+                      initialParams={currentParams}
+                      compact={true} 
                     />
-                    <h3>Use the search filters to find skills</h3>
-                    <p className="text-muted">Adjust your search criteria to see matching results</p>
-                    <Button 
-                      variant="outline-primary" 
-                      className="mt-3" 
-                      onClick={() => handleSearch({query: '', skillLevel: ''})}
+                  </Card.Body>
+                </Card>
+                
+                {/* Quick links card */}
+                <Card className="border-0 rounded-4 shadow-sm overflow-hidden">
+                  <Card.Header className="bg-white py-3 px-4 border-bottom">
+                    <h5 className="mb-0 fw-bold">Quick Links</h5>
+                  </Card.Header>
+                  <Card.Body className="p-0">
+                    <div className="p-3 border-bottom d-flex align-items-center" 
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => navigate('/match/teaching-requests')}
                     >
-                      <FaSearch className="me-2" /> Browse All Skills
-                    </Button>
-                  </div>
-                </Card.Body>
-              </Card>
-            ) : (
-              <Card className="border-0 shadow-sm bg-white rounded-lg w-100">
-                <Card.Header className="bg-white border-bottom d-flex justify-content-between align-items-center p-3">
-                  <h4 className="mb-0 fs-5">Search Results</h4>
-                  {searchResults.length > 0 && (
-                    <span className="badge bg-primary">{searchResults.length} found</span>
-                  )}
-                </Card.Header>
-                <Card.Body>
-                  {loading ? (
-                    <div className="text-center py-5">
-                      <Spinner animation="border" variant="primary" />
-                      <p className="mt-3 text-muted">Searching for skills...</p>
+                      <div className="me-3 rounded-circle d-flex align-items-center justify-content-center" 
+                        style={{ 
+                          width: '40px', 
+                          height: '40px',
+                          background: 'rgba(59, 130, 246, 0.1)',
+                          color: '#3b82f6'
+                        }}>
+                        <MortarboardFill size={18} />
+                      </div>
+                      <div>
+                        <div className="fw-semibold">Teaching</div>
+                        <div className="text-muted small">Share your knowledge</div>
+                      </div>
                     </div>
+                    <div className="p-3 d-flex align-items-center" 
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => navigate('/match/learning')}
+                    >
+                      <div className="me-3 rounded-circle d-flex align-items-center justify-content-center" 
+                        style={{ 
+                          width: '40px', 
+                          height: '40px',
+                          background: 'rgba(14, 165, 233, 0.1)',
+                          color: '#0ea5e9'
+                        }}>
+                        <BookFill size={18} />
+                      </div>
+                      <div>
+                        <div className="fw-semibold">Learning</div>
+                        <div className="text-muted small">Find a teacher</div>
+                      </div>
+                    </div>
+                  </Card.Body>
+                </Card>
+              </div>
+            </Col>
+            
+            {/* Main Content Area */}
+            <Col lg={9} md={8}>
+              {!searchPerformed ? (
+                <Card className="border-0 rounded-4 shadow-sm bg-white h-100">
+                  <Card.Body className="d-flex flex-column align-items-center justify-content-center p-5">
+                    <div className="text-center mb-4">
+                      <div className="bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center mx-auto mb-4" 
+                        style={{ width: '120px', height: '120px' }}>
+                        <Search className="text-primary" style={{ fontSize: '3rem' }} />
+                      </div>
+                      <h3 className="fw-bold mb-3">Begin Your Skill Search</h3>
+                      <p className="text-muted mb-4 mx-auto" style={{ maxWidth: '500px' }}>
+                        Use the search filters to discover skills or browse all available teachers and skills
+                      </p>
+                      <Button 
+                        variant="primary" 
+                        className="rounded-pill px-4 py-2" 
+                        onClick={() => handleSearch({query: '', skillLevel: ''})}
+                        style={{ 
+                          background: 'linear-gradient(to right, #3b82f6, #1e40af)',
+                          border: 'none',
+                          boxShadow: '0 4px 6px rgba(59, 130, 246, 0.3)'
+                        }}
+                      >
+                        <Search className="me-2" />
+                        <span>Browse All Skills</span>
+                      </Button>
+                    </div>
+                  </Card.Body>
+                </Card>
+              ) : (
+                <div>
+                  {loading ? (
+                    <Card className="border-0 rounded-4 shadow-sm bg-white">
+                      <Card.Body className="text-center py-5">
+                        <Spinner 
+                          animation="border" 
+                          variant="primary" 
+                          style={{ width: '4rem', height: '4rem', borderWidth: '0.25rem' }}
+                        />
+                        <p className="mt-4 text-muted">Searching for matching skills...</p>
+                      </Card.Body>
+                    </Card>
                   ) : error ? (
-                    <Alert variant="danger">
-                      <Alert.Heading>Error</Alert.Heading>
+                    <Alert 
+                      variant="danger" 
+                      className="rounded-4 shadow-sm border-0"
+                    >
+                      <Alert.Heading>Search Error</Alert.Heading>
                       <p>{error}</p>
                       <div className="d-flex justify-content-end">
-                        <Button variant="outline-danger" onClick={handleRetry}>
+                        <Button 
+                          variant="outline-danger" 
+                          onClick={handleRetry}
+                          className="rounded-pill"
+                        >
                           Try Again
                         </Button>
                       </div>
@@ -210,27 +300,27 @@ const SearchPage = () => {
                       error={error}
                     />
                   )}
-                </Card.Body>
-              </Card>
-            )}
-          </Col>
-        </Row>
-      </div>
-      
-      {/* Footer - Full Width */}
-      <footer className="bg-dark text-white py-4 mt-auto w-100">
-        <div className="px-4 px-md-5 w-100">
-          <Row className="w-100 m-0">
-            <Col md={6} className="px-0">
-              <p className="mb-0">&copy; 2025 Skills Learning Platform. All rights reserved.</p>
-            </Col>
-            <Col md={6} className="px-0 text-md-end">
-              <a href="#" className="text-white text-decoration-none me-3">Terms</a>
-              <a href="#" className="text-white text-decoration-none me-3">Privacy</a>
-              <a href="#" className="text-white text-decoration-none">Help</a>
+                </div>
+              )}
             </Col>
           </Row>
-        </div>
+        </Container>
+      </div>
+      
+      {/* Footer */}
+      <footer className="py-4 mt-auto" style={{ background: '#0f172a' }}>
+        <Container>
+          <Row className="align-items-center">
+            <Col md={6} className="mb-3 mb-md-0">
+              <p className="mb-0 text-white">&copy; 2025 Skills Learning Platform. All rights reserved.</p>
+            </Col>
+            <Col md={6} className="text-md-end">
+              <a href="#" className="text-decoration-none me-3" style={{ color: '#94a3b8' }}>Terms</a>
+              <a href="#" className="text-decoration-none me-3" style={{ color: '#94a3b8' }}>Privacy</a>
+              <a href="#" className="text-decoration-none" style={{ color: '#94a3b8' }}>Help</a>
+            </Col>
+          </Row>
+        </Container>
       </footer>
     </div>
   );

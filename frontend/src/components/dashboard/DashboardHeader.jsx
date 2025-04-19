@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Button, Dropdown, Nav } from 'react-bootstrap';
-import { PersonFill, BoxArrowRight, ThreeDotsVertical } from 'react-bootstrap-icons';
+import { PersonFill, BoxArrowRight, ThreeDotsVertical, Globe } from 'react-bootstrap-icons';
 import NotificationCenter from '../NotificationCenter';
 import useResponsive from '../../hooks/useResponsive';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { breakpoints } from '../../styles/breakpoints';
 import NavbarSearchDropdown from '../search/NavbarSearchDropdown';
 
@@ -47,7 +47,7 @@ const ResponsiveHeader = styled(Card)`
     
     @media (max-width: ${breakpoints.sm}px) {
       width: 100%;
-      justify-content: flex-end;
+      justify-content: center;
     }
   }
 
@@ -58,7 +58,7 @@ const ResponsiveHeader = styled(Card)`
     
     @media (max-width: ${breakpoints.sm}px) {
       width: 100%;
-      justify-content: space-between;
+      justify-content: center;
     }
   }
   
@@ -71,43 +71,197 @@ const ResponsiveHeader = styled(Card)`
       }
     }
   }
+  
+  /* Fix to ensure notification badges are visible */
+  :global(.notification-badge) {
+    z-index: 5;
+    position: relative;
+  }
+  
+  /* Override any potential z-index issues for notifications */
+  .notification-wrapper {
+    position: relative;
+    
+    /* Ensure any notification counter appears above other elements */
+    :global(.badge),
+    :global(.notification-counter) {
+      z-index: 1000;
+      position: absolute;
+      top: -5px;
+      right: -5px;
+    }
+  }
 `;
 
-// Custom styled component for the futuristic title
-const FuturisticTitle = styled.h1`
-  font-family: 'Orbitron', 'Rajdhani', 'Play', 'Exo 2', sans-serif;
-  letter-spacing: 1px;
-  color: #1a1a2e;
-  text-transform: uppercase;
-  font-weight: 800;
-  margin-bottom: 0;
-  font-size: ${props => props.isMobile ? '1.5rem' : '1.8rem'};
+// Keyframes for the globe rotation
+const rotateGlobe = keyframes`
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+`;
+
+const pulseGlow = keyframes`
+  0% {
+    box-shadow: 0 0 5px 2px rgba(67, 97, 238, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 12px 4px rgba(76, 201, 240, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 5px 2px rgba(67, 97, 238, 0.3);
+  }
+`;
+
+// Styled component for the revolving globe
+const RevolvingGlobe = styled.div`
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+  border-radius: 50%;
+  padding: 10px;
+  width: ${props => props.isMobile ? '35px' : '42px'};
+  height: ${props => props.isMobile ? '35px' : '42px'};
+  animation: ${rotateGlobe} 10s linear infinite, ${pulseGlow} 4s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
   
-  .title-text {
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%);
+    border-radius: 50%;
+  }
+  
+  svg {
+    color: white;
+    height: ${props => props.isMobile ? '18px' : '22px'};
+    width: ${props => props.isMobile ? '18px' : '22px'};
+  }
+  
+  @media (max-width: ${breakpoints.sm}px) {
+    margin-right: 8px;
+  }
+`;
+
+// Enhanced title with typing animation - NOW WITH BLACK TEXT
+const EnhancedTitle = styled.div`
+  margin-bottom: 0;
+  
+  .title-container {
     position: relative;
     display: inline-block;
+  }
+  
+  .main-title {
+    font-family: 'Space Grotesk', 'Orbitron', sans-serif;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    font-size: ${props => props.isMobile ? '1.4rem' : '1.8rem'};
+    color: #000000; /* Direct black color instead of gradient */
+    text-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+    position: relative;
+    z-index: 1;
+    text-transform: uppercase;
+    margin: 0;
     padding-bottom: 4px;
-    border-bottom: 3px solid;
-    border-image: linear-gradient(90deg, #3a3a3a, #121212) 1;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+  }
+  
+  .typing-text {
+    position: relative;
+    display: inline-block;
     
     &::after {
-      content: '';
+      content: '|';
       position: absolute;
-      bottom: -3px;
-      left: 0;
-      width: 30%;
-      height: 3px;
-      background: linear-gradient(90deg, #4361ee, #3a0ca3);
-      animation: glow 2s infinite alternate;
+      right: -8px;
+      animation: blink-caret 0.75s step-end infinite;
+      color: #4361ee;
+      font-weight: 400;
     }
   }
   
-  @keyframes glow {
-    from {
-      width: 30%;
+  @keyframes blink-caret {
+    from, to { opacity: 0; }
+    50% { opacity: 1; }
+  }
+  
+  .title-accent {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    width: 100%;
+    background: linear-gradient(90deg, #4361ee, #3a0ca3, #480ca8, #4cc9f0);
+    background-size: 300% 300%;
+    animation: gradient-shift 8s ease infinite;
+    border-radius: 2px;
+    z-index: 0;
+  }
+  
+  .title-glow {
+    position: absolute;
+    bottom: -4px;
+    left: 25%;
+    width: 50%;
+    height: 12px;
+    background: radial-gradient(ellipse at center, rgba(76, 201, 240, 0.6) 0%, rgba(67, 97, 238, 0) 70%);
+    filter: blur(4px);
+    opacity: 0.7;
+    animation: glow-pulse 3s ease-in-out infinite alternate;
+  }
+  
+  .subtitle {
+    font-family: 'Inter', sans-serif;
+    font-size: ${props => props.isMobile ? '0.7rem' : '0.8rem'};
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-top: 2px;
+    opacity: 0.8;
+    text-align: center;
+    animation: fade-in 1s ease-in;
+  }
+  
+  @keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  
+  @keyframes glow-pulse {
+    0% { opacity: 0.3; transform: translateX(-5px); }
+    100% { opacity: 0.7; transform: translateX(5px); }
+  }
+  
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 0.8; transform: translateY(0); }
+  }
+  
+  &:hover {
+    .main-title {
+      transform: translateY(-2px);
+      text-shadow: 0px 4px 8px rgba(0, 0, 0, 0.15);
     }
-    to {
-      width: 100%;
+    
+    .title-accent {
+      height: 5px;
+      animation-duration: 4s;
+    }
+    
+    .title-glow {
+      opacity: 0.9;
     }
   }
 `;
@@ -124,14 +278,63 @@ const ActionButton = styled(Button)`
   }
 `;
 
+// Styled wrapper for notification center to ensure badge visibility
+const NotificationWrapper = styled.div`
+  position: relative;
+  z-index: 1;
+  
+  /* This ensures any badges from NotificationCenter are visible */
+  && {
+    .badge, 
+    [class*="badge"],
+    [class*="notification-badge"],
+    [class*="notification-counter"] {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      z-index: 10;
+    }
+  }
+`;
+
 const DashboardHeader = ({ handleLogout, navigate }) => {
   const { isMobile } = useResponsive();
+  const [displayText, setDisplayText] = useState('');
+  const fullText = isMobile ? 'Skill Barter' : 'Skill Barter Platform';
+  const [showCursor, setShowCursor] = useState(true);
+  
+  // Typing animation effect
+  useEffect(() => {
+    if (displayText === fullText) {
+      // Text is fully typed, start blinking cursor for a moment
+      const timeout = setTimeout(() => {
+        setShowCursor(false);
+      }, 3000);
+      return () => clearTimeout(timeout);
+    }
+    
+    const timeout = setTimeout(() => {
+      setDisplayText(fullText.substring(0, displayText.length + 1));
+    }, 100); // Speed of typing
+    
+    return () => clearTimeout(timeout);
+  }, [displayText, fullText]);
+  
+  // Reset typing animation periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDisplayText('');
+      setShowCursor(true);
+    }, 10000); // Reset every 10 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
 
   // Add font import to document head
   React.useEffect(() => {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800&family=Rajdhani:wght@500;600;700&family=Exo+2:wght@400;500;600;700&family=Play:wght@400;700&display=swap';
+    link.href = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap';
     document.head.appendChild(link);
     
     return () => {
@@ -216,11 +419,22 @@ const DashboardHeader = ({ handleLogout, navigate }) => {
       <Card.Body>
         <div className="d-flex justify-content-between align-items-center header-content">
           <div className="d-flex align-items-center">
-            <FuturisticTitle isMobile={isMobile} className="text-primary fw-bold fs-3 title">
-              <span className="title-text">
-                {isMobile ? 'Skill Barter' : 'Skill Barter Platform'}
-              </span>
-            </FuturisticTitle>
+            <RevolvingGlobe isMobile={isMobile}>
+              <Globe />
+            </RevolvingGlobe>
+            
+            <EnhancedTitle isMobile={isMobile}>
+              <div className="title-container">
+                <h1 className="main-title">
+                  <span className={showCursor ? "typing-text" : ""}>
+                    {displayText}
+                  </span>
+                </h1>
+                <div className="title-accent"></div>
+                <div className="title-glow"></div>
+                {!isMobile && <div className="subtitle">Exchange Expertise Globally</div>}
+              </div>
+            </EnhancedTitle>
           </div>
           
           <div className="right-container">
@@ -228,7 +442,9 @@ const DashboardHeader = ({ handleLogout, navigate }) => {
               <Nav.Item className="mx-2 search-icon-mobile">
                 <NavbarSearchDropdown />
               </Nav.Item>
-              <NotificationCenter />
+              <NotificationWrapper>
+                <NotificationCenter />
+              </NotificationWrapper>
             </div>
             
             {renderDesktopActions()}

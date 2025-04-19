@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FileEarmarkPdf, Calendar, ArrowRight, CheckCircle, XCircle, ClockHistory, Eye, SortDown, Filter, Search } from 'react-bootstrap-icons';
+import { 
+  FileEarmarkPdf, Calendar, ArrowRight, CheckCircle, XCircle, 
+  ClockHistory, Eye, SortDown, Filter, Search, 
+  BoxArrowUpRight, Lightning, FileEarmark
+} from 'react-bootstrap-icons';
 import Loading from '../common/Loading';
 import Error from '../common/Error';
 import FeedbackModal from './FeedbackModal';
@@ -88,15 +92,45 @@ const LearnerSubmissionsList = ({ userId }) => {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'submitted':
-        return <span className="badge rounded-pill bg-info text-white px-3 py-2">Pending Review</span>;
+        return (
+          <div className="badge rounded-pill px-3 py-2 d-flex align-items-center gap-1" 
+               style={{ background: 'linear-gradient(to right, #0ea5e9, #0284c7)', color: 'white' }}>
+            <ClockHistory size={12} />
+            <span>Pending Review</span>
+          </div>
+        );
       case 'evaluated':
-        return <span className="badge rounded-pill bg-success text-white px-3 py-2">Evaluated</span>;
+        return (
+          <div className="badge rounded-pill px-3 py-2 d-flex align-items-center gap-1" 
+               style={{ background: 'linear-gradient(to right, #10b981, #047857)', color: 'white' }}>
+            <CheckCircle size={12} />
+            <span>Evaluated</span>
+          </div>
+        );
       case 'late':
-        return <span className="badge rounded-pill bg-warning text-dark px-3 py-2">Submitted Late</span>;
+        return (
+          <div className="badge rounded-pill px-3 py-2 d-flex align-items-center gap-1" 
+               style={{ background: 'linear-gradient(to right, #f59e0b, #d97706)', color: 'white' }}>
+            <Lightning size={12} />
+            <span>Submitted Late</span>
+          </div>
+        );
       case 'rejected':
-        return <span className="badge rounded-pill bg-danger text-white px-3 py-2">Rejected</span>;
+        return (
+          <div className="badge rounded-pill px-3 py-2 d-flex align-items-center gap-1" 
+               style={{ background: 'linear-gradient(to right, #ef4444, #b91c1c)', color: 'white' }}>
+            <XCircle size={12} />
+            <span>Rejected</span>
+          </div>
+        );
       default:
-        return <span className="badge rounded-pill bg-secondary text-white px-3 py-2">Unknown</span>;
+        return (
+          <div className="badge rounded-pill px-3 py-2 d-flex align-items-center gap-1" 
+               style={{ background: 'linear-gradient(to right, #64748b, #475569)', color: 'white' }}>
+            <FileEarmark size={12} />
+            <span>Unknown</span>
+          </div>
+        );
     }
   };
 
@@ -139,16 +173,25 @@ const LearnerSubmissionsList = ({ userId }) => {
         return (
           <button 
             onClick={() => openFeedbackModal(submission._id)}
-            className="btn btn-primary rounded-pill py-2 px-4 d-flex align-items-center justify-content-center shadow-sm"
+            className="btn btn-primary rounded-pill py-2 px-4 d-flex align-items-center justify-content-center shadow-sm gap-2"
+            style={{ 
+              background: 'linear-gradient(to right, #3b82f6, #1e40af)',
+              border: 'none',
+              boxShadow: '0 10px 15px -3px rgba(59, 130, 246, 0.3)'
+            }}
           >
-            <Eye className="me-2" size={18} />
-            <span>View Feedback</span>
+            <Eye size={18} />
+            <span className="fw-semibold">View Feedback</span>
           </button>
         );
       case 'submitted':
         return (
-          <div className="d-flex align-items-center justify-content-center p-3 bg-light rounded-3 border">
-            <ClockHistory className="text-info me-2" />
+          <div className="d-flex align-items-center justify-content-center p-3 rounded-3 gap-2"
+               style={{ 
+                 background: 'rgba(14, 165, 233, 0.1)',
+                 border: '1px solid rgba(14, 165, 233, 0.2)' 
+               }}>
+            <ClockHistory className="text-info" size={18} />
             <span className="fw-medium">Awaiting Evaluation</span>
           </div>
         );
@@ -156,10 +199,15 @@ const LearnerSubmissionsList = ({ userId }) => {
         return (
           <Link 
             to={`/assessment/${assessmentId}/details`}
-            className="btn btn-outline-primary rounded-pill py-2 px-4 d-flex align-items-center justify-content-center"
+            className="btn btn-outline-primary rounded-pill py-2 px-4 d-flex align-items-center justify-content-center gap-2"
+            style={{
+              borderColor: '#3b82f6',
+              color: '#1e40af',
+              transition: 'all 0.2s ease'
+            }}
           >
-            <span>View Details</span>
-            <ArrowRight className="ms-2" size={18} />
+            <span className="fw-semibold">View Details</span>
+            <ArrowRight size={18} />
           </Link>
         );
     }
@@ -177,14 +225,29 @@ const LearnerSubmissionsList = ({ userId }) => {
     return (
       <div className="text-center py-5 my-5">
         <div className="mb-4">
-          <div className="bg-light rounded-circle mx-auto d-flex align-items-center justify-content-center" style={{ width: '80px', height: '80px' }}>
-            <FileEarmarkPdf size={40} className="text-primary opacity-75" />
+          <div className="bg-light rounded-circle mx-auto d-flex align-items-center justify-content-center" 
+               style={{ 
+                 width: '80px', 
+                 height: '80px',
+                 background: 'linear-gradient(135deg, #e0f2fe, #bae6fd)',
+                 boxShadow: '0 10px 15px -3px rgba(59, 130, 246, 0.2)'
+               }}>
+            <FileEarmarkPdf size={40} style={{ color: '#0284c7' }} />
           </div>
         </div>
         <h4 className="fw-bold mb-3">No Submissions Found</h4>
         <p className="text-muted mb-4">You haven't submitted any assessments yet.</p>
-        <Link to="/assessments" className="btn btn-primary rounded-pill py-2 px-4 shadow-sm">
-          Browse Available Assessments
+        <Link 
+          to="/assessments" 
+          className="btn btn-primary rounded-pill py-2 px-4 shadow-sm d-inline-flex align-items-center gap-2"
+          style={{ 
+            background: 'linear-gradient(to right, #3b82f6, #1e40af)',
+            border: 'none',
+            boxShadow: '0 10px 15px -3px rgba(59, 130, 246, 0.3)'
+          }}
+        >
+          <Lightning size={16} />
+          <span className="fw-semibold">Browse Available Assessments</span>
         </Link>
       </div>
     );
@@ -199,95 +262,161 @@ const LearnerSubmissionsList = ({ userId }) => {
 
   return (
     <div className="submission-list-container">
-      <div className="mb-4">
-        <div className="row align-items-center mb-4">
-          <div className="col-md-6">
-            <h4 className="fw-bold mb-0">My Submissions</h4>
-            <p className="text-muted mb-0">
-              Track your progress and assessment results
+      {/* Hero Section with Background Gradient */}
+      <div className="position-relative mb-4 p-4 rounded-4" 
+           style={{ 
+             background: 'linear-gradient(135deg, #0b1437 0%, #1a237e 100%)',
+             color: 'white',
+             overflow: 'hidden'
+           }}>
+        {/* Decorative Elements */}
+        <div className="position-absolute" style={{ 
+          top: '-20px', 
+          right: '-20px', 
+          width: '200px', 
+          height: '200px', 
+          background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
+          borderRadius: '50%'
+        }}></div>
+        
+        <div className="position-absolute" style={{ 
+          bottom: '-40px', 
+          left: '10%', 
+          width: '180px', 
+          height: '180px',  
+          background: 'radial-gradient(circle, rgba(64,115,255,0.2) 0%, rgba(64,115,255,0) 70%)',
+          borderRadius: '50%'
+        }}></div>
+        
+        <div className="row align-items-center">
+          <div className="col-md-7">
+            <h2 className="mb-1 fw-bold" style={{ letterSpacing: '-0.5px' }}>
+              My Submissions
+            </h2>
+            <p className="text-white-50 mb-0">
+              Track your progress and review assessment results
             </p>
           </div>
-          <div className="col-md-6">
+          <div className="col-md-5 mt-3 mt-md-0">
             <div className="position-relative">
               <input 
                 type="text" 
-                className="form-control bg-light border-0 rounded-pill py-2 ps-4 pe-5" 
+                className="form-control bg-white bg-opacity-10 border-0 rounded-pill py-2 ps-4 pe-5 text-white" 
                 placeholder="Search assessments..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ backdropFilter: 'blur(10px)' }}
               />
-              <Search className="position-absolute end-0 top-50 translate-middle-y me-3 text-muted" />
+              <Search className="position-absolute end-0 top-50 translate-middle-y me-3 text-white-50" />
             </div>
           </div>
         </div>
-
-        <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 bg-light p-3 rounded-3 mb-4">
-          <div className="d-flex flex-wrap gap-2">
-            <button 
-              className={`btn ${filter === 'all' ? 'btn-primary' : 'btn-outline-secondary bg-white'} rounded-pill px-4`}
-              onClick={() => setFilter('all')}
-            >
-              All ({submissionCounts.all})
-            </button>
-            <button 
-              className={`btn ${filter === 'submitted' ? 'btn-primary' : 'btn-outline-secondary bg-white'} rounded-pill px-4`}
-              onClick={() => setFilter('submitted')}
-            >
-              Pending ({submissionCounts.submitted})
-            </button>
-            <button 
-              className={`btn ${filter === 'evaluated' ? 'btn-primary' : 'btn-outline-secondary bg-white'} rounded-pill px-4`}
-              onClick={() => setFilter('evaluated')}
-            >
-              Evaluated ({submissionCounts.evaluated})
-            </button>
-          </div>
-          <div className="dropdown">
-            <button 
-              className="btn btn-outline-secondary bg-white rounded-pill d-flex align-items-center gap-2 px-4" 
-              type="button" 
-              id="sortDropdown" 
-              data-bs-toggle="dropdown" 
-              aria-expanded="false"
-            >
-              <SortDown size={18} />
-              <span>Sort: {sortBy === 'newest' ? 'Newest' : sortBy === 'oldest' ? 'Oldest' : 'Status'}</span>
-            </button>
-            <ul className="dropdown-menu shadow border-0" aria-labelledby="sortDropdown">
-              <li>
-                <button 
-                  className={`dropdown-item ${sortBy === 'newest' ? 'active' : ''}`}
-                  onClick={() => setSortBy('newest')}
-                >
-                  Most Recent
-                </button>
-              </li>
-              <li>
-                <button 
-                  className={`dropdown-item ${sortBy === 'oldest' ? 'active' : ''}`}
-                  onClick={() => setSortBy('oldest')}
-                >
-                  Oldest First
-                </button>
-              </li>
-              <li>
-                <button 
-                  className={`dropdown-item ${sortBy === 'status' ? 'active' : ''}`}
-                  onClick={() => setSortBy('status')}
-                >
-                  By Status
-                </button>
-              </li>
-            </ul>
-          </div>
+        
+        <div className="d-flex flex-wrap align-items-center mt-4 gap-2">
+        <button 
+  className={`btn ${filter === 'all' ? 'btn-light text-primary' : 'btn-outline-light'} rounded-pill px-3 py-2 d-flex align-items-center justify-content-center gap-2 text-nowrap overflow-visible`}
+  onClick={() => setFilter('all')}
+>
+  <FileEarmark size={16} />
+  <span className="d-inline-block">All ({submissionCounts.all})</span>
+</button>
+          <button 
+            className={`btn ${filter === 'submitted' ? 'btn-info text-white' : 'btn-outline-light'} rounded-pill px-4 py-2 d-flex align-items-center gap-2`}
+            onClick={() => setFilter('submitted')}
+            style={filter === 'submitted' ? { 
+              background: 'linear-gradient(to right, #0ea5e9, #0284c7)',
+              border: 'none' 
+            } : {}}
+          >
+            <ClockHistory size={16} />
+            <span>Pending ({submissionCounts.submitted})</span>
+          </button>
+          <button 
+            className={`btn ${filter === 'evaluated' ? 'btn-success text-white' : 'btn-outline-light'} rounded-pill px-4 py-2 d-flex align-items-center gap-2`}
+            onClick={() => setFilter('evaluated')}
+            style={filter === 'evaluated' ? { 
+              background: 'linear-gradient(to right, #10b981, #047857)',
+              border: 'none' 
+            } : {}}
+          >
+            <CheckCircle size={16} />
+            <span>Evaluated ({submissionCounts.evaluated})</span>
+          </button>
+        </div>
+      </div>
+      
+      {/* Sorting Controls */}
+      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 p-3 rounded-3" 
+           style={{ background: '#f8fafc', border: '1px solid rgba(203, 213, 225, 0.5)' }}>
+        <div className="d-flex align-items-center gap-2">
+          <Filter size={18} className="text-primary" />
+          <span className="fw-semibold">Filter & Sort</span>
+        </div>
+        <div className="dropdown">
+          <button 
+            className="btn btn-outline-secondary bg-white rounded-pill d-flex align-items-center gap-2 px-4" 
+            type="button" 
+            id="sortDropdown" 
+            data-bs-toggle="dropdown" 
+            aria-expanded="false"
+            style={{ borderColor: '#cbd5e1' }}
+          >
+            <SortDown size={18} className="text-primary" />
+            <span>Sort: {sortBy === 'newest' ? 'Newest' : sortBy === 'oldest' ? 'Oldest' : 'Status'}</span>
+          </button>
+          <ul className="dropdown-menu shadow border-0 rounded-3" aria-labelledby="sortDropdown">
+            <li>
+              <button 
+                className={`dropdown-item ${sortBy === 'newest' ? 'active' : ''}`}
+                onClick={() => setSortBy('newest')}
+              >
+                Most Recent
+              </button>
+            </li>
+            <li>
+              <button 
+                className={`dropdown-item ${sortBy === 'oldest' ? 'active' : ''}`}
+                onClick={() => setSortBy('oldest')}
+              >
+                Oldest First
+              </button>
+            </li>
+            <li>
+              <button 
+                className={`dropdown-item ${sortBy === 'status' ? 'active' : ''}`}
+                onClick={() => setSortBy('status')}
+              >
+                By Status
+              </button>
+            </li>
+          </ul>
         </div>
       </div>
       
       {filteredSubmissions.length === 0 ? (
-        <div className="text-center py-4 my-4 bg-light rounded-3">
-          <Filter size={24} className="text-muted mb-2" />
-          <h6 className="mb-1">No matching submissions</h6>
-          <p className="text-muted mb-0 small">Try changing your search or filter settings</p>
+        <div className="text-center py-4 my-4 rounded-4" style={{ background: 'linear-gradient(to right, #f8fafc, #f1f5f9)' }}>
+          <div className="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" 
+               style={{ 
+                 width: '64px', 
+                 height: '64px',
+                 background: 'rgba(100, 116, 139, 0.1)'
+               }}>
+            <Filter size={24} className="text-primary" />
+          </div>
+          <h6 className="fw-bold mb-2">No matching submissions</h6>
+          <p className="text-muted mb-3">Try changing your search or filter settings</p>
+          <button 
+            onClick={() => {
+              setFilter('all');
+              setSearchTerm('');
+              setSortBy('newest');
+            }}
+            className="btn btn-outline-primary rounded-pill px-4 py-2 d-flex align-items-center mx-auto gap-2"
+            style={{ width: 'fit-content' }}
+          >
+            <span>Reset Filters</span>
+            <ArrowRight size={16} />
+          </button>
         </div>
       ) : (
         <div className="row g-4">
@@ -312,51 +441,81 @@ const LearnerSubmissionsList = ({ userId }) => {
               ? submission.assessmentId.skillId.title
               : 'Skill Assessment';
             
+            // Determine card style based on status
+            const cardStyle = {
+              borderTop: submission.status === 'evaluated' ? '4px solid #10b981' : 
+                        submission.status === 'submitted' ? '4px solid #0ea5e9' : 
+                        submission.status === 'late' ? '4px solid #f59e0b' :
+                        submission.status === 'rejected' ? '4px solid #ef4444' :
+                        '4px solid #3b82f6'
+            };
+            
+            // Status icon background 
+            const iconBgStyle = {
+              background: submission.status === 'evaluated' ? 'rgba(16, 185, 129, 0.1)' :
+                          submission.status === 'submitted' ? 'rgba(14, 165, 233, 0.1)' :
+                          submission.status === 'late' ? 'rgba(245, 158, 11, 0.1)' :
+                          submission.status === 'rejected' ? 'rgba(239, 68, 68, 0.1)' :
+                          'rgba(59, 130, 246, 0.1)'
+            };
+            
+            // Status icon color
+            const iconColorStyle = {
+              color: submission.status === 'evaluated' ? '#10b981' :
+                     submission.status === 'submitted' ? '#0ea5e9' :
+                     submission.status === 'late' ? '#f59e0b' :
+                     submission.status === 'rejected' ? '#ef4444' :
+                     '#3b82f6'
+            };
+            
             return (
-              <div key={submission._id} className="col-md-6 col-lg-4">
-                <div className="card h-100 border-0 shadow-sm rounded-4 position-relative overflow-hidden">
-                  {/* Status indicator strip on top */}
-                  <div className={`status-strip position-absolute top-0 start-0 end-0 ${
-                    submission.status === 'evaluated' ? 'bg-success' : 
-                    submission.status === 'submitted' ? 'bg-info' : 
-                    'bg-primary'
-                  }`} style={{ height: '4px' }}></div>
+              <div key={submission._id} className="col-12 col-md-6 col-lg-4">
+                <div className="card h-100 border-0 shadow-sm rounded-4 overflow-hidden transition-all hover-lift"
+                     style={{
+                       transition: 'all 0.3s ease',
+                       ...cardStyle
+                     }}>
                   
                   {/* Score badge is removed by modifying getScore function */}
                   {getScore(submission)}
                   
-                  <div className="card-body p-4 pt-5">
+                  <div className="card-body p-4">
                     <div className="d-flex align-items-center mb-3">
-                      <div className={`rounded-circle p-2 me-3 ${
-                        submission.status === 'evaluated' ? 'bg-success bg-opacity-10' : 
-                        submission.status === 'submitted' ? 'bg-info bg-opacity-10' : 
-                        'bg-primary bg-opacity-10'
-                      }`}>
+                      <div className="me-3 rounded-circle p-3 d-flex align-items-center justify-content-center"
+                           style={iconBgStyle}>
                         {submission.status === 'evaluated' ? (
-                          <CheckCircle className="text-success" size={20} />
+                          <CheckCircle style={iconColorStyle} size={24} />
                         ) : submission.status === 'submitted' ? (
-                          <ClockHistory className="text-info" size={20} />
+                          <ClockHistory style={iconColorStyle} size={24} />
+                        ) : submission.status === 'late' ? (
+                          <Lightning style={iconColorStyle} size={24} />
+                        ) : submission.status === 'rejected' ? (
+                          <XCircle style={iconColorStyle} size={24} />
                         ) : (
-                          <FileEarmarkPdf className="text-primary" size={20} />
+                          <FileEarmarkPdf style={iconColorStyle} size={24} />
                         )}
                       </div>
                       <div>
-                        <h5 className="mb-0 fw-bold">{assessmentTitle}</h5>
+                        <h5 className="mb-0 fw-bold" style={{ color: '#0f172a' }}>{assessmentTitle}</h5>
                         <p className="text-muted mb-0 small">{skillTitle}</p>
                       </div>
                     </div>
                     
-                    <div className="d-flex justify-content-between align-items-center mb-3">
-                      <div className="d-flex align-items-center">
-                        <Calendar className="text-muted me-2" size={16} />
+                    <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                      <div className="d-flex align-items-center backdrop-blur-sm bg-light rounded-pill px-3 py-2">
+                        <Calendar className="text-primary me-2" size={16} />
                         <span className="text-muted small">{formattedSubmittedDate}</span>
                       </div>
                       {getStatusBadge(submission.status)}
                     </div>
                     
                     {submission.status === 'evaluated' && submission.feedback && (
-                      <div className="mb-3 px-3 py-2 bg-light rounded-3">
-                        <p className="text-muted mb-1 small fw-medium">Feedback:</p>
+                      <div className="mb-3 p-3 rounded-3" 
+                           style={{ 
+                             background: 'rgba(16, 185, 129, 0.1)',
+                             border: '1px solid rgba(16, 185, 129, 0.2)'
+                           }}>
+                        <p className="mb-1 small fw-semibold" style={{ color: '#047857' }}>Feedback:</p>
                         <p className="mb-0 small">
                           {submission.feedback.length > 120 ? 
                             `${submission.feedback.substring(0, 120)}...` : 
@@ -365,7 +524,7 @@ const LearnerSubmissionsList = ({ userId }) => {
                       </div>
                     )}
                     
-                    <div className="d-grid mt-3">
+                    <div className="d-grid mt-4">
                       {getCardAction(submission)}
                     </div>
                   </div>
@@ -376,12 +535,38 @@ const LearnerSubmissionsList = ({ userId }) => {
         </div>
       )}
 
-      {/* Modal Component */}
+      {/* Modal */}
       {showModal && (
         <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} tabIndex="-1">
           <FeedbackModal submissionId={selectedSubmissionId} onClose={closeFeedbackModal} />
         </div>
       )}
+      
+      {/* Custom CSS for transitions and hover effects */}
+      <style>
+        {`
+          .hover-lift:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
+          }
+          
+          .transition-all {
+            transition: all 0.3s ease;
+          }
+          
+          @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+          }
+          
+          @media (max-width: 768px) {
+            .submission-list-container {
+              padding: 1rem;
+            }
+          }
+        `}
+      </style>
     </div>
   );
 };

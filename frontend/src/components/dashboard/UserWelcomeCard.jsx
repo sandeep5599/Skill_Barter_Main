@@ -143,7 +143,7 @@ const UserWelcomeCard = ({
         }}></div>
         
         {/* Date Display */}
-        <div className="position-absolute top-0 end-0 mt-3 me-3">
+        <div className="position-absolute top-0 end-0 mt-3 me-3 d-none d-md-flex">
           <div className="d-flex align-items-center backdrop-blur-sm bg-white bg-opacity-10 rounded-pill px-3 py-2 shadow-sm">
             <Clock className="text-primary me-2" />
             <span className="text-white fw-semibold">{formattedDate}</span>
@@ -316,7 +316,7 @@ const UserWelcomeCard = ({
                   <p className="text-muted small mb-0">Teaching vs. Learning</p>
                 </div>
                 <Button 
-                  variant="outline-primary" 
+                  variant="primary" 
                   className="rounded-pill px-3 py-1 d-flex align-items-center"
                   onClick={() => navigate('/profile')}
                   style={{ borderWidth: '1.5px' }}
