@@ -869,53 +869,95 @@ const sessionController = {
       });
     }
   },
-
   cancelSession: async (req, res) => {
+    console.log('=== CANCEL SESSION REQUEST STARTED ===');
+    console.log('Request params:', req.params);
+    console.log('Request body:', req.body);
+    
     try {
       // Check authentication
+      console.log('Checking authentication...');
+      console.log('req.user:', req.user);
       if (!req.user || !req.user.id) {
+        console.log('Authentication failed: No user or user ID');
         return res.status(401).json({ error: 'Unauthorized access' });
       }
+      console.log('Authentication successful for user ID:', req.user.id);
   
       const { sessionId } = req.params;
       const { reason, message, notificationType, recipientId } = req.body;
       const userId = req.user.id;
       
+      console.log('Session ID from params:', sessionId);
+      console.log('Request payload:', { reason, message, notificationType, recipientId });
+      console.log('User ID from auth:', userId);
+      
       if (!reason) {
+        console.log('Validation failed: No cancellation reason provided');
         return res.status(400).json({ error: 'Cancellation reason is required' });
       }
+      console.log('Validation passed: Cancellation reason provided');
       
       // Find session
-      const session = await Session.findOne({matchId: sessionId});
+      console.log('Finding session by ID:', sessionId);
+      // const session = await Session.findOne({matchId: sessionId});
+      const session = await Session.findById(sessionId);
+      console.log('Session found:', session ? 'Yes' : 'No');
       if (!session) {
+        console.log('Session not found in database');
         return res.status(404).json({ error: 'Session not found' });
       }
+      console.log('Session details:', {
+        id: session._id,
+        teacherId: session.teacherId,
+        studentId: session.studentId,
+        matchId: session.matchId,
+        status: session.status
+      });
       
       // Verify that the user is part of this session
+      console.log('Verifying user authorization...');
+      console.log('Teacher ID (from session):', session.teacherId.toString());
+      console.log('Student ID (from session):', session.studentId.toString());
+      console.log('User ID (from request):', userId);
+      
       if (session.teacherId.toString() !== userId && session.studentId.toString() !== userId) {
+        console.log('Authorization failed: User is not part of this session');
         return res.status(403).json({ error: 'Not authorized to cancel this session' });
       }
+      console.log('Authorization passed: User is part of the session');
       
       // Update session status
+      console.log('Updating session status to "canceled"');
       session.status = 'canceled';
       session.cancellationReason = reason;
       session.updatedAt = Date.now();
       
+      console.log('Saving updated session...');
       await session.save();
+      console.log('Session successfully updated');
       
-      // Also update the match status to 'canceled'
+      // Also update the match status to "canceled"
+      console.log('Finding match with ID:', session.matchId);
       const match = await Match.findById(session.matchId);
+      console.log('Match found:', match ? 'Yes' : 'No');
       if (match) {
+        console.log('Updating match status to "canceled"');
         match.status = 'canceled';
         await match.save();
+        console.log('Match successfully updated');
+      } else {
+        console.log('No associated match found');
       }
       
       // Create notification for the other party
+      console.log('Creating notification...');
       const notificationRecipientId = recipientId || (
         session.teacherId.toString() === userId ? session.studentId : session.teacherId
       );
+      console.log('Notification recipient ID:', notificationRecipientId);
       
-      await Notification.create({
+      const notificationData = {
         userId: notificationRecipientId,
         senderId: userId,
         title: 'Session Canceled',
@@ -923,8 +965,13 @@ const sessionController = {
         type: notificationType || 'session_canceled',
         relatedId: session._id,
         isRead: false
-      });
+      };
+      console.log('Creating notification with data:', notificationData);
       
+      await Notification.create(notificationData);
+      console.log('Notification created successfully');
+      
+      console.log('Sending success response...');
       return res.status(200).json({
         success: true,
         message: 'Session canceled successfully',
@@ -934,13 +981,17 @@ const sessionController = {
       
     } catch (error) {
       console.error("Error canceling session:", error);
+      console.log("Error name:", error.name);
+      console.log("Error message:", error.message);
+      console.log("Error stack:", error.stack);
       return res.status(500).json({ 
         error: 'Failed to cancel session',
         message: error.message
       });
+    } finally {
+      console.log('=== CANCEL SESSION REQUEST COMPLETED ===');
     }
   }
-
 };
 
 

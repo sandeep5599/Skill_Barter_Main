@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Card, Button, Badge, OverlayTrigger, Tooltip, 
   Row, Col, Spinner
@@ -11,9 +11,25 @@ import {
   ChevronRight,
   CalendarCheck
 } from 'react-bootstrap-icons';
+import MatchDetailsModal from './Modal/MatchDetailsModal';
 
 const MatchesTab = ({ matches, navigate, loading = false }) => {
   console.log('MatchesTab matches:', matches);
+  
+  // State for modal
+  const [showModal, setShowModal] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  
+  // Function to open modal with selected match
+  const openMatchDetails = (match) => {
+    setSelectedMatch(match);
+    setShowModal(true);
+  };
+  
+  // Function to close modal
+  const closeMatchDetails = () => {
+    setShowModal(false);
+  };
   
   // Function to format date and time in a readable format
   const formatDateTime = (dateString) => {
@@ -77,100 +93,109 @@ const MatchesTab = ({ matches, navigate, loading = false }) => {
   }
 
   return (
-    <Card className="mb-4 shadow-lg border-0 rounded-4 overflow-hidden">
-      <div style={{ 
-        background: 'linear-gradient(135deg, #0b1437 0%, #1a237e 100%)',
-        padding: '1.5rem',
-        color: 'white',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        {/* Decorative Elements */}
-        <div className="position-absolute" style={{ 
-          top: '-20px', 
-          right: '-20px', 
-          width: '150px', 
-          height: '150px', 
-          background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
-          borderRadius: '50%'
-        }}></div>
-        
-        <div className="position-absolute" style={{ 
-          bottom: '-40px', 
-          left: '10%', 
-          width: '150px', 
-          height: '150px',  
-          background: 'radial-gradient(circle, rgba(64,115,255,0.2) 0%, rgba(64,115,255,0) 70%)',
-          borderRadius: '50%'
-        }}></div>
-        
-        <Row className="align-items-center position-relative">
-          <Col>
-            <div className="d-flex align-items-center">
-              <div className="rounded-circle d-flex align-items-center justify-content-center me-3" 
-                style={{ 
-                  width: '42px', 
-                  height: '42px', 
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                }}>
-                <People size={20} className="text-white" />
+    <>
+      <Card className="mb-4 shadow-lg border-0 rounded-4 overflow-hidden">
+        <div style={{ 
+          background: 'linear-gradient(135deg, #0b1437 0%, #1a237e 100%)',
+          padding: '1.5rem',
+          color: 'white',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          {/* Decorative Elements */}
+          <div className="position-absolute" style={{ 
+            top: '-20px', 
+            right: '-20px', 
+            width: '150px', 
+            height: '150px', 
+            background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
+            borderRadius: '50%'
+          }}></div>
+          
+          <div className="position-absolute" style={{ 
+            bottom: '-40px', 
+            left: '10%', 
+            width: '150px', 
+            height: '150px',  
+            background: 'radial-gradient(circle, rgba(64,115,255,0.2) 0%, rgba(64,115,255,0) 70%)',
+            borderRadius: '50%'
+          }}></div>
+          
+          <Row className="align-items-center position-relative">
+            <Col>
+              <div className="d-flex align-items-center">
+                <div className="rounded-circle d-flex align-items-center justify-content-center me-3" 
+                  style={{ 
+                    width: '42px', 
+                    height: '42px', 
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                  }}>
+                  <People size={20} className="text-white" />
+                </div>
+                <h3 className="mb-0" style={{ fontWeight: '700', letterSpacing: '-0.5px' }}>
+                  Recent Matches
+                </h3>
               </div>
-              <h3 className="mb-0" style={{ fontWeight: '700', letterSpacing: '-0.5px' }}>
-                Recent Matches
-              </h3>
-            </div>
-          </Col>
-        </Row>
-      </div>
+            </Col>
+          </Row>
+        </div>
 
-      <Card.Body className="p-3 p-md-4">
-        {matches && matches.length > 0 ? (
-          <div className="d-flex flex-column gap-3">
-            {matches.map((match, i) => {
-              const statusInfo = getMatchStatus(match.status);
-              
-              return (
-                <MatchCard 
-                  key={i} 
-                  match={match}
-                  statusInfo={statusInfo}
-                  formatDateTime={formatDateTime}
-                  navigate={navigate}
-                />
-              );
-            })}
-          </div>
-        ) : (
-          <div className="text-center p-4">
-            <div className="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center bg-info bg-opacity-10" 
-              style={{ width: '64px', height: '64px' }}>
-              <People className="text-info" size={28} />
+        <Card.Body className="p-3 p-md-4">
+          {matches && matches.length > 0 ? (
+            <div className="d-flex flex-column gap-3">
+              {matches.map((match, i) => {
+                const statusInfo = getMatchStatus(match.status);
+                
+                return (
+                  <MatchCard 
+                    key={i} 
+                    match={match}
+                    statusInfo={statusInfo}
+                    formatDateTime={formatDateTime}
+                    openMatchDetails={openMatchDetails}
+                  />
+                );
+              })}
             </div>
-            <h4 className="fw-bold mb-2">No Matches Found</h4>
-            <p className="text-muted mb-4">You don't have any recent matches yet.</p>
-            <Button 
-              variant="primary" 
-              onClick={() => navigate('/match/finding')}
-              className="rounded-pill px-4 py-2"
-              style={{ 
-                background: 'linear-gradient(to right, #3b82f6, #1e40af)',
-                border: 'none',
-                boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)'
-              }}
-            >
-              Find New Matches
-            </Button>
-          </div>
-        )}
-      </Card.Body>
-    </Card>
+          ) : (
+            <div className="text-center p-4">
+              <div className="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center bg-info bg-opacity-10" 
+                style={{ width: '64px', height: '64px' }}>
+                <People className="text-info" size={28} />
+              </div>
+              <h4 className="fw-bold mb-2">No Matches Found</h4>
+              <p className="text-muted mb-4">You don't have any recent matches yet.</p>
+              <Button 
+                variant="primary" 
+                onClick={() => navigate('/match/finding')}
+                className="rounded-pill px-4 py-2"
+                style={{ 
+                  background: 'linear-gradient(to right, #3b82f6, #1e40af)',
+                  border: 'none',
+                  boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)'
+                }}
+              >
+                Find New Matches
+              </Button>
+            </div>
+          )}
+        </Card.Body>
+      </Card>
+      
+      {/* Modal Component */}
+      <MatchDetailsModal 
+        show={showModal} 
+        handleClose={closeMatchDetails} 
+        match={selectedMatch} 
+      />
+    </>
   );
 };
 
 // Match Card Component
-const MatchCard = ({ match, statusInfo, formatDateTime, navigate }) => {
+const MatchCard = ({ match, statusInfo, formatDateTime, openMatchDetails }) => {
   return (
     <Card 
       className="border-0 shadow-sm rounded-4 overflow-hidden"
@@ -275,7 +300,7 @@ const MatchCard = ({ match, statusInfo, formatDateTime, navigate }) => {
                     <div>
                       <Button 
                         variant="primary" 
-                        onClick={() => navigate(`/match/details/${match._id}`)}
+                        onClick={() => openMatchDetails(match)}
                         className="rounded-pill d-flex align-items-center" 
                         style={{ 
                           background: 'linear-gradient(to right, #3b82f6, #1e40af)',

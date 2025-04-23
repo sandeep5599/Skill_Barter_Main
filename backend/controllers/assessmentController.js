@@ -150,42 +150,44 @@ exports.getAssessmentStats = async (req, res) => {
 
 exports.getGeneralStats = async (req, res) => {
   try {
-    const userId = req.user.id;
+    // Get user ID from auth middleware
+    const userId = req.user.id || req.user.userId || req.user._id;
+    console.log('Fetching general stats for user:', userId);
 
-    // Get total assessments available to the user
+    // Count all active assessments in the system
     const totalAssessments = await Assessment.countDocuments({
-      status: 'active'
+      isActive: true
     });
+    console.log('Total active assessments:', totalAssessments);
 
-    // Get submissions pending review for this teacher
+    // Count all submissions with 'submitted' status (pending review)
     const pendingSubmissions = await Submission.countDocuments({
-      evaluatorId: userId,
-      status: 'submitted',
-      evaluatedBy: { $exists: false }
+      status: 'submitted'
     });
+    console.log('Pending submissions:', pendingSubmissions);
 
-    // Get completed submissions by this user
+    // Count all submissions with 'evaluated' status (completed)
     const completedSubmissions = await Submission.countDocuments({
-      userId: userId,
       status: 'evaluated'
     });
+    console.log('Completed submissions:', completedSubmissions);
 
     // Calculate average score from evaluated submissions
     const scoreAggregation = await Submission.aggregate([
       {
         $match: {
-          userId: new mongoose.Types.ObjectId(userId), // Use new keyword here
           status: 'evaluated',
-          score: { $exists: true, $ne: null }
+          marks: { $exists: true, $ne: null }
         }
       },
       {
         $group: {
           _id: null,
-          averageScore: { $avg: "$score" }
+          averageScore: { $avg: "$marks" }
         }
       }
     ]);
+    console.log('Score aggregation result:', scoreAggregation);
 
     // Get average score or default to 0
     const averageScore = scoreAggregation.length > 0 
@@ -210,6 +212,7 @@ exports.getGeneralStats = async (req, res) => {
     });
   }
 };
+
 // Get all assessments for a skill
 exports.getAssessmentsBySkill = async (req, res) => {
   try {
@@ -293,43 +296,63 @@ exports.getPendingAssessments = async (req, res) => {
 exports.getAssessmentStats = async (req, res) => {
   try {
     const skillId = req.params.skillId;
-    const userId = req.user.id;
+    console.log(`Fetching assessment stats for skill: ${skillId}`);
 
-    // Get total assessments for this skill
-    const totalAssessments = await Assessment.countDocuments({
+    // First, find all assessment IDs for this skill
+    const assessmentIds = await Assessment.find({ 
       skillId: skillId,
-      status: 'active'
-    });
+      isActive: true 
+    }).distinct('_id');
+    
+    console.log(`Found ${assessmentIds.length} assessments for skill ${skillId}`);
 
-    // Get submissions pending review (submitted but not evaluated)
+    // Count total assessments for this skill
+    const totalAssessments = assessmentIds.length;
+
+    // If no assessments found for this skill, return zeros
+    if (totalAssessments === 0) {
+      return res.status(200).json({
+        success: true,
+        stats: {
+          totalAssessments: 0,
+          pendingSubmissions: 0,
+          completedSubmissions: 0,
+          averageScore: 0
+        }
+      });
+    }
+
+    // Count pending submissions for these assessments
     const pendingSubmissions = await Submission.countDocuments({
-      skillId: skillId,
-      status: 'submitted',
-      evaluatedBy: { $exists: false }
+      assessmentId: { $in: assessmentIds },
+      status: 'submitted'
     });
+    console.log('Pending submissions for this skill:', pendingSubmissions);
 
-    // Get completed submissions
+    // Count completed submissions for these assessments
     const completedSubmissions = await Submission.countDocuments({
-      skillId: skillId,
+      assessmentId: { $in: assessmentIds },
       status: 'evaluated'
     });
+    console.log('Completed submissions for this skill:', completedSubmissions);
 
-    // Calculate average score from evaluated submissions
+    // Calculate average score for these assessments
     const scoreAggregation = await Submission.aggregate([
       {
         $match: {
-          skillId: new mongoose.Types.ObjectId(skillId), // Use new keyword here
+          assessmentId: { $in: assessmentIds },
           status: 'evaluated',
-          score: { $exists: true, $ne: null }
+          marks: { $exists: true, $ne: null }
         }
       },
       {
         $group: {
           _id: null,
-          averageScore: { $avg: "$score" }
+          averageScore: { $avg: "$marks" }
         }
       }
     ]);
+    console.log('Score aggregation result:', scoreAggregation);
 
     // Get average score or default to 0
     const averageScore = scoreAggregation.length > 0 

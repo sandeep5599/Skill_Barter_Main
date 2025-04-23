@@ -15,7 +15,8 @@ import {
   BoxArrowRight,
   MortarboardFill,
   BookFill,
-  ChevronRight
+  ChevronRight,
+  XCircleFill
 } from 'react-bootstrap-icons';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
@@ -79,7 +80,17 @@ const SessionsList = () => {
     const startTime = new Date(session.startTime);
     const endTime = new Date(session.endTime);
     
-    if (session.status === 'completed') {
+    // Check for canceled status first
+    if (session.status === 'canceled') {
+      return { 
+        status: 'Canceled', 
+        variant: 'danger',
+        color: '#ef4444',
+        bgColor: 'rgba(239, 68, 68, 0.1)',
+        borderColor: 'rgba(239, 68, 68, 0.2)',
+        icon: <XCircleFill />
+      };
+    } else if (session.status === 'completed') {
       return { 
         status: 'Completed', 
         variant: 'success',
@@ -173,10 +184,14 @@ const SessionsList = () => {
     const active = processedSessions.filter(s => 
       s.statusInfo.status === 'Active' || s.statusInfo.status === 'Scheduled'
     );
-    const past = processedSessions.filter(s => 
-      s.statusInfo.status === 'Completed' || s.statusInfo.status === 'Ended'
+    const canceled = processedSessions.filter(s => 
+      s.statusInfo.status === 'Canceled'
     );
-    return { active, past };
+    const past = processedSessions.filter(s => 
+      (s.statusInfo.status === 'Completed' || s.statusInfo.status === 'Ended') &&
+      s.statusInfo.status !== 'Canceled'
+    );
+    return { active, canceled, past };
   }, [processedSessions]);
   
   if (loading) {
@@ -337,6 +352,38 @@ const SessionsList = () => {
           {/* Sessions Cards - Responsive with Flex */}
           <div className="d-flex flex-column gap-3">
             {groupedSessions.active.map((session) => (
+              <SessionCard 
+                key={session._id} 
+                session={session} 
+                formatDateTime={formatDateTime}
+                onViewDetails={() => handleViewSession(session._id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Canceled Sessions */}
+      {groupedSessions.canceled.length > 0 && (
+        <div className="mb-4">
+          <div className="d-flex align-items-center mb-3">
+            <div className="me-3">
+              <div className="rounded-circle d-flex align-items-center justify-content-center" 
+                style={{ 
+                  width: '48px', 
+                  height: '48px', 
+                  background: 'linear-gradient(135deg, #ef4444, #b91c1c)',
+                  boxShadow: '0 10px 15px -3px rgba(239, 68, 68, 0.3)'
+                }}>
+                <XCircleFill size={22} className="text-white" />
+              </div>
+            </div>
+            <h4 className="fw-bold mb-0" style={{ color: '#b91c1c' }}>Canceled Sessions</h4>
+          </div>
+          
+          {/* Sessions Cards - Responsive with Flex */}
+          <div className="d-flex flex-column gap-3">
+            {groupedSessions.canceled.map((session) => (
               <SessionCard 
                 key={session._id} 
                 session={session} 

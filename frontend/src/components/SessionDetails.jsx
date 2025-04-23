@@ -608,7 +608,7 @@ const apiActions = useMemo(() => ({
       setIsSubmitting(false);
     }
   },
-  // Cancel session
+
   // Cancel session - updated version
 cancelSession: async () => {
   if (!formData.cancellationReason.trim()) {

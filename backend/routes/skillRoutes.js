@@ -24,34 +24,6 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// @route   GET api/skills/:userId
-// router.get('/:userId', auth, async (req, res) => {
-//   try {
-//     const { includeTeaching, includeLearning } = req.query;
-    
-//     const filter = { userId: req.params.userId };
-    
-//     // Apply filtering based on query parameters if specified
-//     if (includeTeaching === 'true' && includeLearning === 'true') {
-//       // Include both teaching and learning skills
-//       filter.$or = [{ isTeaching: true }, { isLearning: true }];
-//     } else if (includeTeaching === 'true') {
-//       filter.isTeaching = true;
-//     } else if (includeLearning === 'true') {
-//       filter.isLearning = true;
-//     }
-
-//     const skills = await Skill.find(filter);
-
-//     res.json({
-//       teachingSkills: skills.filter(skill => skill.isTeaching),
-//       learningSkills: skills.filter(skill => skill.isLearning)
-//     });
-//   } catch (err) {
-//     console.error(err.message);
-//     res.status(500).send('Server error');
-//   }
-// });
 
 router.get('/:userId', auth, async (req, res) => {
   try {
@@ -66,6 +38,35 @@ router.get('/:userId', auth, async (req, res) => {
   }
 });
 
+
+// @route   GET api/skills/requests/counts/:userId
+// @desc    Get counts of teaching and learning requests for a user
+// @access  Private
+router.get('/requests/counts/:userId', auth, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    
+    // Get teaching skills count
+    const teachingRequestsCount = await Skill.countDocuments({ 
+      userId: userId,
+      isTeaching: true
+    });
+    
+    // Get learning skills count
+    const learningRequestsCount = await Skill.countDocuments({ 
+      userId: userId,
+      isLearning: true
+    });
+    
+    res.json({
+      teachingRequestsCount,
+      learningRequestsCount
+    });
+  } catch (err) {
+    console.error('Error fetching request counts:', err.message);
+    res.status(500).send('Server error');
+  }
+});
 
 router.delete('/:skillId', auth, async (req, res) => {
   try {

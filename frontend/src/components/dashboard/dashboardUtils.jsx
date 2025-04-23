@@ -1,3 +1,27 @@
+// Fetch teaching and learning requests counts
+// Fetch teaching and learning requests counts
+export const fetchRequestCounts = async (userId, backendUrl) => {
+  try {
+    const response = await fetch(`${backendUrl}/api/skills/requests/counts/${userId}`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+
+    if (!response.ok) {
+      console.warn('Unable to fetch request counts');
+      return { teachingRequestsCount: 0, learningRequestsCount: 0 };
+    }
+
+    const data = await response.json();
+    return {
+      teachingRequestsCount: data.teachingRequestsCount || 0,
+      learningRequestsCount: data.learningRequestsCount || 0
+    };
+  } catch (error) {
+    console.error('Error fetching request counts:', error);
+    return { teachingRequestsCount: 0, learningRequestsCount: 0 };
+  }
+};
+
 // Helper function to get readable time until session
 export const getTimeUntilSession = (sessionTime) => {
     const now = new Date();
