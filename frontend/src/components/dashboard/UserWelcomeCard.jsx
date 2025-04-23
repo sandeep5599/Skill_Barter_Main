@@ -3,6 +3,7 @@ import { Card, Row, Col, Button, Badge, Spinner, Dropdown } from 'react-bootstra
 import { PeopleFill, Award, Clock, CheckCircleFill, MortarboardFill, BookFill, ChevronRight, ChevronDown, 
   Lightning, GraphUp, StarFill, BoxArrowUpRight, GearFill } from 'react-bootstrap-icons';
 import axios from 'axios';
+import { fetchRequestCounts } from './dashboardUtils'; // Update with correct path
 
 const UserWelcomeCard = ({ 
   user, 
@@ -18,6 +19,10 @@ const UserWelcomeCard = ({
   const [userRank, setUserRank] = useState(null);
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(true);
   const [leaderboardError, setLeaderboardError] = useState(null);
+  const [requestCounts, setRequestCounts] = useState({
+    teachingRequestsCount: 0,
+    learningRequestsCount: 0
+  });
   
   // Memoized values to prevent unnecessary recalculations
   const formattedDate = useMemo(() => 
@@ -25,6 +30,7 @@ const UserWelcomeCard = ({
     []
   );
   
+
   const userLevel = useMemo(() => 
     Math.floor((stats?.points || 0) / 100) + 1,
     [stats?.points]
@@ -63,6 +69,15 @@ const UserWelcomeCard = ({
 
   // Fetch leaderboard data and user rank
   useEffect(() => {
+
+    const fetchUserRequestCounts = async () => {
+      if (user && user._id) {
+        const counts = await fetchRequestCounts(user._id, process.env.REACT_APP_BACKEND_URL); // Replace '/api' with your actual API base URL
+        setRequestCounts(counts);
+        console.log('Request Counts:', counts);
+      }
+    };
+
     const fetchLeaderboardData = async () => {
       setIsLoadingLeaderboard(true);
       setLeaderboardError(null);
@@ -106,6 +121,7 @@ const UserWelcomeCard = ({
     };
 
     fetchLeaderboardData();
+    fetchUserRequestCounts();
   }, [user]);
 
   // Generate a gradient based on user level
@@ -372,7 +388,7 @@ const UserWelcomeCard = ({
                         </div>
                       </div>
                       <div className="d-flex justify-content-between">
-                        <span className="text-muted small">{teachingSkillCount} skills</span>
+                        <span className="text-muted small">{requestCounts.teachingRequestsCount} skills</span>
                         <span className="small fw-semibold" style={{ color: '#3b82f6' }}>{teachingStatus}</span>
                       </div>
                     </div>
@@ -449,7 +465,7 @@ const UserWelcomeCard = ({
                         </div>
                       </div>
                       <div className="d-flex justify-content-between">
-                        <span className="text-muted small">{learningSkillCount} skills</span>
+                        <span className="text-muted small">  {requestCounts.learningRequestsCount} skills</span>
                         <span className="small fw-semibold" style={{ color: '#06b6d4' }}>{learningStatus}</span>
                       </div>
                     </div>

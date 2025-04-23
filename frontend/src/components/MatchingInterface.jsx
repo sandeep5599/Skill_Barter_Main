@@ -182,7 +182,7 @@ const MatchingInterface = () => {
       
       const onlyUnrequestedMatches = data.filter(match => 
         (match.requesterId === user?._id || match.requestorId === user?._id) && 
-        (!match.status || match.status === 'initial' || match.status === 'not_requested' || match.status === 'completed' || match.status === '')
+        (!match.status || match.status === 'initial' || match.status === 'not_requested' || match.status === 'completed' || match.status === '' || match.status === 'canceled') 
       );
       
       setLearningMatches(onlyUnrequestedMatches);
@@ -279,142 +279,151 @@ const MatchingInterface = () => {
   return (
     <Container fluid className="py-4 px-md-4">
       {/* Header - Modern gradient background */}
-      {/* Header - Modern gradient background */}
-<Card className="mb-4 shadow border-0 rounded-4 overflow-hidden">
-  <Card.Body style={{ background: 'linear-gradient(135deg, #0b1437 0%, #1a237e 100%)' }} className="p-4 text-white position-relative">
-    {/* Decorative Elements */}
-    <div className="position-absolute" style={{ 
-      top: '-20px', 
-      right: '-20px', 
-      width: '200px', 
-      height: '200px', 
-      background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
-      borderRadius: '50%'
-    }}></div>
-    
-    <div className="position-absolute" style={{ 
-      bottom: '-40px', 
-      left: '10%', 
-      width: '180px', 
-      height: '180px',  
-      background: 'radial-gradient(circle, rgba(64,115,255,0.2) 0%, rgba(64,115,255,0) 70%)',
-      borderRadius: '50%'
-    }}></div>
+      <Card className="mb-4 shadow border-0 rounded-4 overflow-hidden">
+        <Card.Body style={{ background: 'linear-gradient(135deg, #0b1437 0%, #1a237e 100%)' }} className="p-4 text-white position-relative">
+          {/* Decorative Elements - Ensure they have a lower z-index */}
+          <div className="position-absolute" style={{ 
+            top: '-20px', 
+            right: '-20px', 
+            width: '200px', 
+            height: '200px', 
+            background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
+            borderRadius: '50%',
+            zIndex: 1 // Lower z-index for decorations
+          }}></div>
+          
+          <div className="position-absolute" style={{ 
+            bottom: '-40px', 
+            left: '10%', 
+            width: '180px', 
+            height: '180px',  
+            background: 'radial-gradient(circle, rgba(64,115,255,0.2) 0%, rgba(64,115,255,0) 70%)',
+            borderRadius: '50%',
+            zIndex: 1 // Lower z-index for decorations
+          }}></div>
 
-    <Row className="align-items-center">
-      <Col xs={12} md={7} className="mb-3 mb-md-0">
-        <h1 className="mb-1 fw-bold fs-3 fs-md-2" style={{ fontWeight: '800', letterSpacing: '-0.5px' }}>
-          <PeopleFill className="me-2" />
-          Available Skill Sharers
-        </h1>
-        <p className="text-white-50 mb-0">Find and connect with teachers for your learning journey</p>
-      </Col>
-      <Col xs={12} md={5} className="d-flex justify-content-md-end">
-        <div className="d-flex align-items-center gap-3">
-          <NotificationCenter />
-          
-          {/* Navigation buttons for Desktop */}
-          <div className="d-none d-md-flex gap-2">
-            <Button 
-              variant="primary" 
-              onClick={() => navigate('/dashboard')} 
-              className="d-flex align-items-center gap-2 rounded-pill"
-              style={{ 
-                background: 'linear-gradient(to right, #3b82f6, #1e40af)',
-                border: 'none',
-                boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              <Speedometer /> <span>Dashboard</span>
-            </Button>
-            <Button 
-              variant="primary" 
-              onClick={() => navigate('/profile')} 
-              className="d-flex align-items-center gap-2 rounded-pill"
-              style={{ 
-                background: 'linear-gradient(to right, #3b82f6, #1e40af)',
-                border: 'none',
-                boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              <PersonCircle /> <span>Profile</span>
-            </Button>
-            <Button 
-              variant="danger" 
-              onClick={handleLogout} 
-              className="d-flex align-items-center gap-2 rounded-pill"
-              style={{ 
-                background: 'linear-gradient(to right, #ef4444, #b91c1c)',
-                border: 'none',
-                boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.3)',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              <BoxArrowRight /> <span>Logout</span>
-            </Button>
-          </div>
-          
-          {/* Dropdown menu for Mobile */}
-          <div className="d-md-none">
-            <Dropdown>
-              <Dropdown.Toggle 
-                variant="light" 
-                id="nav-dropdown"
-                className="border-0 rounded-pill"
-                style={{ 
-                  background: 'rgba(255, 255, 255, 0.9)',
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-                }}
-              >
-                <ThreeDotsVertical />
-              </Dropdown.Toggle>
-              <Dropdown.Menu align="end" className="shadow-lg border-0 rounded-3">
-                <Dropdown.Item onClick={() => navigate('/dashboard')} className="d-flex align-items-center py-2">
-                  <div className="me-2 rounded-circle d-flex align-items-center justify-content-center" 
+          <Row className="align-items-center position-relative" style={{ zIndex: 5 }}> {/* Add higher z-index here */}
+            <Col xs={12} md={7} className="mb-3 mb-md-0">
+              <h1 className="mb-1 fw-bold fs-3 fs-md-2" style={{ fontWeight: '800', letterSpacing: '-0.5px' }}>
+                <PeopleFill className="me-2" />
+                Available Skill Sharers
+              </h1>
+              <p className="text-white-50 mb-0">Find and connect with teachers for your learning journey</p>
+            </Col>
+            <Col xs={12} md={5} className="d-flex justify-content-md-end">
+              <div className="d-flex align-items-center gap-3">
+                <NotificationCenter />
+                
+                {/* Navigation buttons for Desktop - Ensure higher z-index and proper pointer-events */}
+                <div className="d-none d-md-flex gap-2 position-relative" style={{ zIndex: 10 }}>
+                  <Button 
+                    variant="primary" 
+                    onClick={() => navigate('/dashboard')} 
+                    className="d-flex align-items-center gap-2 rounded-pill"
                     style={{ 
-                      width: '28px', 
-                      height: '28px',
-                      background: 'linear-gradient(135deg, #3b82f6, #1e40af)',
-                      color: 'white'
-                    }}>
-                    <Speedometer size={14} />
-                  </div>
-                  <span>Dashboard</span>
-                </Dropdown.Item>
-                <Dropdown.Item onClick={() => navigate('/profile')} className="d-flex align-items-center py-2">
-                  <div className="me-2 rounded-circle d-flex align-items-center justify-content-center" 
+                      background: 'linear-gradient(to right, #3b82f6, #1e40af)',
+                      border: 'none',
+                      boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)',
+                      transition: 'all 0.3s ease',
+                      position: 'relative', // Ensure position for z-index 
+                      zIndex: 10 // Add high z-index
+                    }}
+                  >
+                    <Speedometer /> <span>Dashboard</span>
+                  </Button>
+                  <Button 
+                    variant="primary" 
+                    onClick={() => navigate('/profile')} 
+                    className="d-flex align-items-center gap-2 rounded-pill"
                     style={{ 
-                      width: '28px', 
-                      height: '28px',
-                      background: 'linear-gradient(135deg, #3b82f6, #1e40af)',
-                      color: 'white'
-                    }}>
-                    <PersonCircle size={14} />
-                  </div>
-                  <span>Profile</span>
-                </Dropdown.Item>
-                <Dropdown.Item onClick={handleLogout} className="d-flex align-items-center py-2 text-danger">
-                  <div className="me-2 rounded-circle d-flex align-items-center justify-content-center" 
+                      background: 'linear-gradient(to right, #3b82f6, #1e40af)',
+                      border: 'none',
+                      boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)',
+                      transition: 'all 0.3s ease',
+                      position: 'relative', // Ensure position for z-index
+                      zIndex: 10 // Add high z-index
+                    }}
+                  >
+                    <PersonCircle /> <span>Profile</span>
+                  </Button>
+                  <Button 
+                    variant="danger" 
+                    onClick={handleLogout} 
+                    className="d-flex align-items-center gap-2 rounded-pill"
                     style={{ 
-                      width: '28px', 
-                      height: '28px',
-                      background: 'linear-gradient(135deg, #ef4444, #b91c1c)',
-                      color: 'white'
-                    }}>
-                    <BoxArrowRight size={14} />
-                  </div>
-                  <span>Logout</span>
-                </Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
-          </div>
-        </div>
-      </Col>
-    </Row>
-  </Card.Body>
-</Card>
+                      background: 'linear-gradient(to right, #ef4444, #b91c1c)',
+                      border: 'none',
+                      boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.3)',
+                      transition: 'all 0.3s ease',
+                      position: 'relative', // Ensure position for z-index
+                      zIndex: 10 // Add high z-index
+                    }}
+                  >
+                    <BoxArrowRight /> <span>Logout</span>
+                  </Button>
+                </div>
+                
+                {/* Dropdown menu for Mobile - Fix z-index issues */}
+                <div className="d-md-none position-relative" style={{ zIndex: 10 }}>
+                  <Dropdown>
+                    <Dropdown.Toggle 
+                      variant="light" 
+                      id="nav-dropdown"
+                      className="border-0 rounded-pill"
+                      style={{ 
+                        background: 'rgba(255, 255, 255, 0.9)',
+                        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                        position: 'relative',
+                        zIndex: 10
+                      }}
+                    >
+                      <ThreeDotsVertical />
+                    </Dropdown.Toggle>
+                    <Dropdown.Menu align="end" className="shadow-lg border-0 rounded-3" style={{ zIndex: 11 }}>
+                      <Dropdown.Item onClick={() => navigate('/dashboard')} className="d-flex align-items-center py-2">
+                        <div className="me-2 rounded-circle d-flex align-items-center justify-content-center" 
+                          style={{ 
+                            width: '28px', 
+                            height: '28px',
+                            background: 'linear-gradient(135deg, #3b82f6, #1e40af)',
+                            color: 'white'
+                          }}>
+                          <Speedometer size={14} />
+                        </div>
+                        <span>Dashboard</span>
+                      </Dropdown.Item>
+                      <Dropdown.Item onClick={() => navigate('/profile')} className="d-flex align-items-center py-2">
+                        <div className="me-2 rounded-circle d-flex align-items-center justify-content-center" 
+                          style={{ 
+                            width: '28px', 
+                            height: '28px',
+                            background: 'linear-gradient(135deg, #3b82f6, #1e40af)',
+                            color: 'white'
+                          }}>
+                          <PersonCircle size={14} />
+                        </div>
+                        <span>Profile</span>
+                      </Dropdown.Item>
+                      <Dropdown.Item onClick={handleLogout} className="d-flex align-items-center py-2 text-danger">
+                        <div className="me-2 rounded-circle d-flex align-items-center justify-content-center" 
+                          style={{ 
+                            width: '28px', 
+                            height: '28px',
+                            background: 'linear-gradient(135deg, #ef4444, #b91c1c)',
+                            color: 'white'
+                          }}>
+                          <BoxArrowRight size={14} />
+                        </div>
+                        <span>Logout</span>
+                      </Dropdown.Item>
+                    </Dropdown.Menu>
+                  </Dropdown>
+                </div>
+              </div>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
       
       {/* Error message */}
       {error && (
@@ -629,7 +638,7 @@ const MatchingInterface = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* Custom animations */}
+      {/* CSS to ensure buttons are clickable and have correct pointer-events */}
       <style>
         {`
         @keyframes pulse {
@@ -643,6 +652,14 @@ const MatchingInterface = () => {
         }
         .hover-shadow:hover {
           box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        /* Ensure all buttons have proper pointer-events */
+        button {
+          pointer-events: auto !important;
+        }
+        /* Ensure decorative elements don't interfere */
+        .position-absolute {
+          pointer-events: none;
         }
         `}
       </style>

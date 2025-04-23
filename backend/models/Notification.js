@@ -19,7 +19,7 @@ const NotificationSchema = new mongoose.Schema({
       'session_updated',
       'session_created',
       'session_reminder',
-      'session_canceled',
+      'session_cancelled',
       'session_completed',
       'session_status',
       'reschedule_accepted',

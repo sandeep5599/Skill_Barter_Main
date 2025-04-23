@@ -8,11 +8,11 @@ import Dashboard from "./components/Dashboard";
 import Login from "./components/Login";
 import Register from "./components/Register";
 import MatchingInterface from "./components/MatchingInterface";
-import ProfileManagement from "./components/ProfileManagement";
+import ProfileManagement from "./pages/ProfileManagement";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import TeachingRequests from "./components/TeachingRequests";
+import TeachingRequests from "./components/teaching.sessions/TeachingRequests";
 import LearnerRequests from "./components/LearnerRequests";
 import SessionDetails from "./components/SessionDetails";
 import SessionsList from "./components/SessionsList";
@@ -21,7 +21,9 @@ import GlobalStyles from "./styles/GlobalStyles";
 import { ThemeProvider } from 'styled-components';
 import { theme } from './styles/theme';
 import AssessmentDashboard from "./components/assessment/AssessmentDashboard";
-import Leaderboard from "./components/LeaderboardOld";
+// import Leaderboard from "./components/LeaderboardOld";
+import PlaceholderViews from "./components/Leaderboard/PlaceholderViews";
+import Leaderboard from "./components/Leaderboard/index";
 import SearchPage from "./pages/SearchPage";
 import PasswordReset from "./components/PasswordReset";
 import TeacherProfilePage from './pages/TeacherProfilePage';
@@ -51,10 +53,9 @@ function App() {
             <Route path="/forgot-password" element={<PasswordReset />} />
             <Route path="/leaderboard" element={<PrivateRoute><Leaderboard /></PrivateRoute>} />
             <Route path="/teacher/:teacherId" element={<TeacherProfilePage />} />
-            // Route for the list of submissions to evaluate
             <Route path="/assessments/evaluate" element={<PrivateRoute><EvaluateSubmission /></PrivateRoute>} />
-            // Route for evaluating a specific submission
             <Route path="/assessments/evaluate/:submissionId" element={<PrivateRoute><EvaluateSubmission /></PrivateRoute>} />
+            <Route path="/placeholder" element={<PlaceholderViews />} />
           </Routes>
         </NotificationProvider>
       </AuthProvider>

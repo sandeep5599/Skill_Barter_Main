@@ -105,206 +105,216 @@ const LearnerRequests = () => {
   }, []);
 
   return (
-    <Container fluid="lg" className="py-4 px-3 px-md-4">
-      {/* Modern Hero Section */}
-      <div className="position-relative mb-4 rounded-4 overflow-hidden shadow-lg">
-        <div style={{ 
-          background: 'linear-gradient(135deg, #0b1437 0%, #1e3a8a 100%)',
-          padding: '1.5rem 2rem',
-          color: 'white',
-          overflow: 'visible' // Changed from hidden to visible
-        }}>
-          {/* Decorative Elements */}
-          <div className="position-absolute" style={{ 
-            top: '-20px', 
-            right: '-20px', 
-            width: '200px', 
-            height: '200px', 
-            background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
-            borderRadius: '50%',
-            pointerEvents: 'none' // Ensure this doesn't block clicks
-          }}></div>
-          
-          <div className="d-flex justify-content-between align-items-center position-relative" style={{ zIndex: 10 }}>
-            <div>
-              <h2 className="mb-1" style={{ fontWeight: '800', letterSpacing: '-0.5px' }}>
-                Learning Requests
-              </h2>
-              <p className="text-white-50 mb-0 d-none d-sm-block">Manage your learning journey and track your progress</p>
-            </div>
-            <div className="d-flex gap-2">
-             {/* Dashboard Button */}
-<button 
-  className="btn d-flex align-items-center gap-2 rounded-pill px-3 py-2"
-  onClick={() => navigate('/dashboard')}
-  style={{
-    background: 'linear-gradient(to right, #8b5cf6, #6d28d9)',
-    color: 'white',
-    border: 'none',
-    boxShadow: '0 4px 6px -1px rgba(139, 92, 246, 0.3)',
-    cursor: 'pointer',
-    position: 'relative',
-    zIndex: 100
-  }}
->
-  <i className="bi bi-grid-fill me-2" style={{ fontSize: '16px' }}></i>
-  <span className="d-none d-md-inline">Dashboard</span>
-</button>
+    <Container fluid className="p-0">
+      <div className="px-2 px-sm-3 px-md-4 py-4 mx-auto" style={{ maxWidth: '100%' }}>
+        {/* Modern Hero Section */}
+        <div className="position-relative mb-4 rounded-4 overflow-hidden shadow-lg w-100">
+          <div style={{ 
+            background: 'linear-gradient(135deg, #0b1437 0%, #1e3a8a 100%)',
+            padding: '1.5rem 2rem',
+            color: 'white',
+            overflow: 'visible' // Changed from hidden to visible
+          }}>
+            {/* Decorative Elements */}
+            <div className="position-absolute" style={{ 
+              top: '-20px', 
+              right: '-20px', 
+              width: '200px', 
+              height: '200px', 
+              background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
+              borderRadius: '50%',
+              pointerEvents: 'none' // Ensure this doesn't block clicks
+            }}></div>
+            
+            <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center position-relative gap-3" style={{ zIndex: 10 }}>
+              <div>
+                <h2 className="mb-1" style={{ fontWeight: '800', letterSpacing: '-0.5px' }}>
+                  Learning Requests
+                </h2>
+                <p className="text-white-50 mb-0 d-none d-sm-block">Manage your learning journey and track your progress</p>
+              </div>
+              <div className="d-flex gap-2 flex-wrap">
+               {/* Dashboard Button */}
+                <button 
+                  className="btn d-flex align-items-center gap-2 rounded-pill px-3 py-2"
+                  onClick={() => navigate('/dashboard')}
+                  style={{
+                    background: 'linear-gradient(to right, #8b5cf6, #6d28d9)',
+                    color: 'white',
+                    border: 'none',
+                    boxShadow: '0 4px 6px -1px rgba(139, 92, 246, 0.3)',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    zIndex: 100
+                  }}
+                >
+                  <i className="bi bi-grid-fill me-2" style={{ fontSize: '16px' }}></i>
+                  <span className="d-none d-md-inline">Dashboard</span>
+                </button>
 
-{/* Profile Button - Updated */}
-<button 
-  className="btn d-flex align-items-center gap-2 rounded-pill px-3 py-2"
-  onClick={() => navigate('/profile')}
-  style={{
-    background: 'linear-gradient(to right, #3b82f6, #1e40af)',
-    color: 'white',
-    border: 'none',
-    boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)',
-    cursor: 'pointer',
-    position: 'relative',
-    zIndex: 100
-  }}
->
-  <PencilSquare className="me-2" size={16} />
-  <span className="d-none d-md-inline">Profile</span>
-</button>
+                {/* Profile Button - Updated */}
+                <button 
+                  className="btn d-flex align-items-center gap-2 rounded-pill px-3 py-2"
+                  onClick={() => navigate('/profile')}
+                  style={{
+                    background: 'linear-gradient(to right, #3b82f6, #1e40af)',
+                    color: 'white',
+                    border: 'none',
+                    boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    zIndex: 100
+                  }}
+                >
+                  <PencilSquare className="me-2" size={16} />
+                  <span className="d-none d-md-inline">Profile</span>
+                </button>
 
-{/* Logout Button - Updated */}
-<button 
-  className="btn d-flex align-items-center gap-2 rounded-pill px-3 py-2"
-  onClick={handleLogout}
-  style={{
-    background: 'linear-gradient(to right, #ef4444, #b91c1c)',
-    color: 'white',
-    border: 'none',
-    boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.3)',
-    cursor: 'pointer',
-    position: 'relative',
-    zIndex: 100
-  }}
->
-  <BoxArrowLeft className="me-2" size={16} />
-  <span className="d-none d-md-inline">Logout</span>
-</button>
+                {/* Logout Button - Updated */}
+                <button 
+                  className="btn d-flex align-items-center gap-2 rounded-pill px-3 py-2"
+                  onClick={handleLogout}
+                  style={{
+                    background: 'linear-gradient(to right, #ef4444, #b91c1c)',
+                    color: 'white',
+                    border: 'none',
+                    boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.3)',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    zIndex: 100
+                  }}
+                >
+                  <BoxArrowLeft className="me-2" size={16} />
+                  <span className="d-none d-md-inline">Logout</span>
+                </button>
+              </div>
             </div>
-          </div>
-          
-          <div className="d-flex flex-wrap gap-3 mt-3">
-            <div className="backdrop-blur-sm bg-white bg-opacity-10 rounded-pill px-3 py-2 shadow-sm">
-              <Clock className="me-2 text-warning" /> 
-              <span className="fw-semibold">In Progress Requests: {requests.filter(r => r.status === 'pending' || r.status === 'approved').length}</span>
-            </div>
-            <div className="backdrop-blur-sm bg-white bg-opacity-10 rounded-pill px-3 py-2 shadow-sm">
-              <CheckCircleFill className="me-2 text-success" /> 
-              <span className="fw-semibold">Completed: {requests.filter(r => r.status === 'completed').length}</span>
+            
+            <div className="d-flex flex-wrap gap-3 mt-3">
+              <div className="backdrop-blur-sm bg-white bg-opacity-10 rounded-pill px-3 py-2 shadow-sm">
+                <Clock className="me-2 text-warning" /> 
+                <span className="fw-semibold">In Progress Requests: {requests.filter(r => r.status === 'pending' || r.status === 'approved').length}</span>
+              </div>
+              <div className="backdrop-blur-sm bg-white bg-opacity-10 rounded-pill px-3 py-2 shadow-sm">
+                <CheckCircleFill className="me-2 text-success" /> 
+                <span className="fw-semibold">Completed: {requests.filter(r => r.status === 'completed').length}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {error && (
-        <Alert 
-          variant="danger" 
-          onClose={dismissError} 
-          dismissible
-          className="shadow-sm rounded-4 border-0 d-flex align-items-center"
-          style={{ 
-            background: 'linear-gradient(to right, #fee2e2, #fecaca)', 
-            borderLeft: '4px solid #ef4444' 
-          }}
-        >
-          <ExclamationTriangleFill size={20} className="me-3 text-danger" />
-          <div>
-            <p className="mb-0 fw-semibold text-danger">{error}</p>
-          </div>
-        </Alert>
-      )}
-
-      <Card className="border-0 rounded-4 shadow-lg overflow-hidden mb-4">
-        <Card.Body className="p-0">
-          <div className="p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        {error && (
+          <Alert 
+            variant="danger" 
+            onClose={dismissError} 
+            dismissible
+            className="shadow-sm rounded-4 border-0 d-flex align-items-center w-100"
+            style={{ 
+              background: 'linear-gradient(to right, #fee2e2, #fecaca)', 
+              borderLeft: '4px solid #ef4444' 
+            }}
+          >
+            <ExclamationTriangleFill size={20} className="me-3 text-danger" />
             <div>
-              <h3 className="mb-0 fw-bold" style={{ color: '#0f172a' }}>Your Learning Requests</h3>
-              <p className="text-muted mb-0">View and manage all your learning requests</p>
+              <p className="mb-0 fw-semibold text-danger">{error}</p>
             </div>
-            <div className="d-flex gap-2">
-              <Button 
-                variant="primary" 
-                onClick={fetchRequests} 
-                disabled={loading} 
-                className="d-flex align-items-center gap-2 rounded-pill py-2 px-3"
-                style={{ 
-                  background: 'linear-gradient(to right, #3b82f6, #1e40af)',
-                  border: 'none',
-                  boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)'
-                }}
-              >
-                <ArrowRepeat size={18} />
-                <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
-              </Button>
-              <Button 
-                variant="success" 
-                onClick={() => navigate('/match/learning')} 
-                className="d-flex align-items-center gap-2 rounded-pill py-2 px-3"
-                style={{ 
-                  background: 'linear-gradient(to right, #10b981, #047857)',
-                  border: 'none',
-                  boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.3)'
-                }}
-              >
-                <i className="bi bi-plus-lg"></i>
-                <span>New Request</span>
-              </Button>
-            </div>
-          </div>
+          </Alert>
+        )}
 
-          {loading ? (
-            <LoadingState />
-          ) : requests.length > 0 ? (
-            <div className="px-4 pb-4">
-              <RequestsList 
-                requests={requests} 
+        <Card className="border-0 rounded-4 shadow-lg overflow-hidden mb-4 w-100">
+          <Card.Body className="p-0">
+            <div className="p-3 p-sm-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+              <div>
+                <h3 className="mb-0 fw-bold" style={{ color: '#0f172a' }}>Your Learning Requests</h3>
+                <p className="text-muted mb-0">View and manage all your learning requests</p>
+              </div>
+              <div className="d-flex gap-2 flex-wrap">
+                <Button 
+                  variant="primary" 
+                  onClick={fetchRequests} 
+                  disabled={loading} 
+                  className="d-flex align-items-center gap-2 rounded-pill py-2 px-3"
+                  style={{ 
+                    background: 'linear-gradient(to right, #3b82f6, #1e40af)',
+                    border: 'none',
+                    boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)'
+                  }}
+                >
+                  <ArrowRepeat size={18} />
+                  <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
+                </Button>
+                <Button 
+                  variant="success" 
+                  onClick={() => navigate('/match/learning')} 
+                  className="d-flex align-items-center gap-2 rounded-pill py-2 px-3"
+                  style={{ 
+                    background: 'linear-gradient(to right, #10b981, #047857)',
+                    border: 'none',
+                    boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.3)'
+                  }}
+                >
+                  <i className="bi bi-plus-lg"></i>
+                  <span>New Request</span>
+                </Button>
+              </div>
+            </div>
+
+            {loading ? (
+              <LoadingState />
+            ) : requests.length > 0 ? (
+              <div className="px-3 px-sm-4 pb-4">
+                <RequestsList 
+                  requests={requests} 
+                  navigate={navigate} 
+                  handleStatusUpdate={handleStatusUpdate}
+                  processingIds={processingIds}
+                />
+              </div>
+            ) : (
+              <EmptyState 
                 navigate={navigate} 
-                handleStatusUpdate={handleStatusUpdate}
-                processingIds={processingIds}
+                actionPath="/match/learning" 
+                actionText="Find Learning Matches"
               />
-            </div>
-          ) : (
-            <EmptyState 
-              navigate={navigate} 
-              actionPath="/match/learning" 
-              actionText="Find Learning Matches"
-            />
-          )}
-        </Card.Body>
-      </Card>
+            )}
+          </Card.Body>
+        </Card>
 
-      {/* Custom CSS for animations */}
-      <style>
-        {`
-        @keyframes pulse {
-          0% { opacity: 0.6; }
-          50% { opacity: 1; }
-          100% { opacity: 0.6; }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        
-        /* Fix for button hover states */
-        .btn-light:hover {
-          background-color: #f8f9fa !important;
-          color: #0d6efd !important;
-        }
-        
-        /* Ensure button clickability */
-        button, .btn {
-          position: relative;
-          z-index: 10;
-        }
-        `}
-      </style>
+        {/* Custom CSS for animations */}
+        <style>
+          {`
+          @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+          }
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          
+          /* Fix for button hover states */
+          .btn-light:hover {
+            background-color: #f8f9fa !important;
+            color: #0d6efd !important;
+          }
+          
+          /* Ensure button clickability */
+          button, .btn {
+            position: relative;
+            z-index: 10;
+          }
+
+          /* Responsive full-width styles */
+          @media (max-width: 576px) {
+            .container-fluid {
+              padding-left: 0.5rem;
+              padding-right: 0.5rem;
+            }
+          }
+          `}
+        </style>
+      </div>
     </Container>
   ); 
 };

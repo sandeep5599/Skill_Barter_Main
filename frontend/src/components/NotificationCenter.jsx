@@ -16,7 +16,9 @@ import {
   ChatSquareTextFill,
   ChatLeftDotsFill,
   Calendar3,
-  Clock
+  Clock,
+  Bell,
+  BellFill
 } from "react-bootstrap-icons";
 import { useNotifications } from "../context/NotificationContext";
 import { formatDistanceToNow } from "date-fns";
@@ -128,19 +130,18 @@ const NotificationCenter = () => {
     };
   }, [notifications]);
 
-  // Advanced notification icon with dynamic styling (using Chat icon instead of Bell)
+  // Enhanced notification icon with dynamic styling (using Bell icon to match dashboard)
   const renderNotificationIcon = () => {
-    // Base icon selection
-    const baseIcon = isMobile ? (
-      unreadCount > 0 ? (
-        <ChatLeftDotsFill size={isMobile ? 16 : 18} className="text-white position-relative z-1" />
-      ) : (
-        <ChatSquareTextFill size={isMobile ? 16 : 18} className="text-white position-relative z-1" />
-      )
-    ) : (
-      <ChatDotsFill 
-        size={isMobile ? 18 : 20} 
+    // Base icon selection - using Bell icons to match the dashboard theme
+    const baseIcon = unreadCount > 0 ? (
+      <BellFill 
+        size={isMobile ? 16 : 18} 
         className={`text-white position-relative z-1 ${isAnimating ? 'animate__animated animate__headShake' : ''}`} 
+      />
+    ) : (
+      <Bell 
+        size={isMobile ? 16 : 18} 
+        className="text-white position-relative z-1" 
       />
     );
     
@@ -159,7 +160,7 @@ const NotificationCenter = () => {
                 width: isMobile ? '8px' : '10px',
                 height: isMobile ? '8px' : '10px',
                 borderRadius: '50%',
-                background: 'rgb(255, 45, 85)',
+                background: '#FF2D55',
                 boxShadow: '0 0 5px 2px rgba(255, 45, 85, 0.6)',
                 zIndex: 2,
                 animation: isAnimating ? 'pulse-dot 1.5s infinite' : 'none'
@@ -203,16 +204,18 @@ const NotificationCenter = () => {
 
     return (
       <div 
-        className="notification-timeframe bg-light px-3 py-2 d-flex align-items-center"
+        className="notification-timeframe d-flex align-items-center"
         style={{
-          background: 'var(--bs-gray-100)',
-          borderTop: '1px solid var(--bs-gray-200)',
-          borderBottom: '1px solid var(--bs-gray-200)',
+          background: 'linear-gradient(to right, #f1f5f9, #f8fafc)',
+          borderTop: '1px solid rgba(203, 213, 225, 0.5)',
+          borderBottom: '1px solid rgba(203, 213, 225, 0.5)',
           fontSize: '0.75rem',
           fontWeight: '600',
           textTransform: 'uppercase',
           letterSpacing: '0.5px',
-          color: 'var(--bs-gray-600)'
+          color: '#64748b',
+          padding: '0.5rem 1rem',
+          fontFamily: "'Inter', sans-serif"
         }}
       >
         {getTimeFrameIcon()}
@@ -233,11 +236,12 @@ const NotificationCenter = () => {
           height: isMobile ? "38px" : "42px",
           transition: "all 0.3s ease",
           background: unreadCount > 0 
-            ? 'linear-gradient(145deg, #4267B2, #1877F2)' 
-            : 'linear-gradient(145deg, #3b5998, #4267B2)',
+            ? 'linear-gradient(145deg, #4361EE, #3A0CA3)' 
+            : 'linear-gradient(145deg, #3B82F6, #1E40AF)',
           boxShadow: unreadCount > 0 
-            ? "0 0 0 4px rgba(19, 119, 242, 0.2), 0 4px 12px rgba(19, 119, 242, 0.3)" 
-            : "0 2px 8px rgba(0, 0, 0, 0.15)"
+            ? "0 0 0 4px rgba(67, 97, 238, 0.2), 0 4px 12px rgba(67, 97, 238, 0.3)" 
+            : "0 2px 8px rgba(0, 0, 0, 0.15)",
+          border: "none"
         }}
       >
         {renderNotificationIcon()}
@@ -273,19 +277,20 @@ const NotificationCenter = () => {
           marginTop: "0.75rem",
           overflow: "hidden",
           boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
-          border: "1px solid rgba(0,0,0,0.08)"
+          border: "1px solid rgba(0,0,0,0.08)",
+          fontFamily: "'Inter', sans-serif"
         }}
       >
         <Card className="border-0 notification-card">
           <Card.Header 
             className="d-flex justify-content-between align-items-center py-3 border-bottom"
             style={{
-              background: "linear-gradient(to right, #f8f9fa, #ffffff)",
+              background: "linear-gradient(to right, #f1f5f9, #f8fafc)",
               borderBottom: "1px solid rgba(0,0,0,0.05)"
             }}
           >
-            <h6 className="m-0 fw-bold d-flex align-items-center">
-              <ChatLeftTextFill size={16} className="me-2 text-primary" />
+            <h6 className="m-0 fw-bold d-flex align-items-center" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              <BellFill size={16} className="me-2 text-primary" />
               <span>Notifications</span>
               {unreadCount > 0 && (
                 <Badge 
@@ -295,7 +300,8 @@ const NotificationCenter = () => {
                   style={{
                     fontSize: "0.7rem",
                     height: "20px",
-                    minWidth: "20px"
+                    minWidth: "20px",
+                    background: "linear-gradient(to right, #4361EE, #3A0CA3)"
                   }}
                 >
                   {unreadCount}
@@ -311,10 +317,11 @@ const NotificationCenter = () => {
                   onClick={handleMarkAllAsRead}
                   title="Mark all as read"
                   style={{
-                    borderRadius: "6px",
+                    borderRadius: "8px",
                     fontSize: "0.8rem",
                     fontWeight: "500",
-                    border: "1px solid rgba(13, 110, 253, 0.5)"
+                    border: "1px solid rgba(67, 97, 238, 0.5)",
+                    color: "#4361EE"
                   }}
                 >
                   <Check2All size={14} />
@@ -329,7 +336,7 @@ const NotificationCenter = () => {
                   onClick={handleDeleteAllNotifications}
                   title="Delete all notifications"
                   style={{
-                    borderRadius: "6px",
+                    borderRadius: "8px",
                     fontSize: "0.8rem",
                     fontWeight: "500",
                     border: "1px solid rgba(220, 53, 69, 0.5)"
@@ -355,7 +362,7 @@ const NotificationCenter = () => {
               <div 
                 className="text-center py-5 empty-state"
                 style={{
-                  background: "linear-gradient(to bottom, rgba(248,249,250,0.5), rgba(255,255,255,0.8))"
+                  background: "linear-gradient(to bottom, rgba(241,245,249,0.5), rgba(248,250,252,0.8))"
                 }}
               >
                 <div 
@@ -364,13 +371,13 @@ const NotificationCenter = () => {
                     width: "70px",
                     height: "70px",
                     borderRadius: "50%",
-                    background: "linear-gradient(135deg, #e9ecef, #f8f9fa)",
+                    background: "linear-gradient(135deg, #f1f5f9, #f8fafc)",
                     boxShadow: "0 4px 12px rgba(0,0,0,0.06)"
                   }}
                 >
-                  <ChatSquareTextFill size={32} className="text-secondary opacity-60" />
+                  <BellSlashFill size={32} className="text-secondary opacity-60" />
                 </div>
-                <p className="mb-1 fw-bold text-secondary">No notifications</p>
+                <p className="mb-1 fw-bold text-secondary" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>No notifications</p>
                 <small className="text-muted d-block">You're all caught up!</small>
               </div>
             ) : (
@@ -389,7 +396,7 @@ const NotificationCenter = () => {
                             transition: 'all 0.2s ease',
                             borderLeft: !notification.read ? `4px solid var(--bs-${getNotificationTypeColor(notification.type)})` : 'none',
                             paddingLeft: !notification.read ? '0' : '4px',
-                            background: !notification.read ? 'rgba(248, 249, 250, 0.7)' : 'transparent'
+                            background: !notification.read ? 'rgba(248, 250, 252, 0.7)' : 'transparent'
                           }}
                         >
                           <div 
@@ -402,10 +409,17 @@ const NotificationCenter = () => {
                           >
                             <div className="me-3 mt-1">
                               <div 
-                                className={`rounded-circle notification-icon-bg bg-${getNotificationTypeColor(notification.type)} d-flex align-items-center justify-content-center`}
+                                className={`rounded-circle notification-icon-bg d-flex align-items-center justify-content-center`}
                                 style={{ 
                                   width: isMobile ? "36px" : "40px", 
                                   height: isMobile ? "36px" : "40px",
+                                  background: notification.type === 'alert' 
+                                    ? 'linear-gradient(145deg, #FF3B30, #FF2D55)' 
+                                    : notification.type === 'warning'
+                                      ? 'linear-gradient(145deg, #FF9500, #FF3B30)'
+                                      : notification.type === 'success'
+                                        ? 'linear-gradient(145deg, #34C759, #30D158)'
+                                        : 'linear-gradient(145deg, #4361EE, #3A0CA3)',
                                   boxShadow: `0 4px 8px rgba(var(--bs-${getNotificationTypeColor(notification.type)}-rgb), 0.25)`,
                                   transition: 'transform 0.2s ease'
                                 }}
@@ -418,7 +432,8 @@ const NotificationCenter = () => {
                                 style={{
                                   fontSize: '0.95rem',
                                   lineHeight: '1.3',
-                                  transition: 'color 0.15s ease'
+                                  transition: 'color 0.15s ease',
+                                  fontFamily: "'Space Grotesk', sans-serif"
                                 }}
                               >
                                 {notification.title}
@@ -452,8 +467,8 @@ const NotificationCenter = () => {
                               style={{ 
                                 top: "12px", 
                                 right: "12px", 
-                                background: "rgba(248,249,250,0.8)",
-                                borderRadius: "50%",
+                                background: "rgba(248,250,252,0.8)",
+                                borderRadius: "8px",
                                 border: "1px solid rgba(0,0,0,0.08)",
                                 width: "28px",
                                 height: "28px",
@@ -499,13 +514,13 @@ const NotificationCenter = () => {
         
         @keyframes pulse-effect {
           0% {
-            box-shadow: 0 0 0 0 rgba(19, 119, 242, 0.4);
+            box-shadow: 0 0 0 0 rgba(67, 97, 238, 0.4);
           }
           70% {
-            box-shadow: 0 0 0 10px rgba(19, 119, 242, 0);
+            box-shadow: 0 0 0 10px rgba(67, 97, 238, 0);
           }
           100% {
-            box-shadow: 0 0 0 0 rgba(19, 119, 242, 0);
+            box-shadow: 0 0 0 0 rgba(67, 97, 238, 0);
           }
         }
         
@@ -529,7 +544,7 @@ const NotificationCenter = () => {
         
         .notification-toggle:hover {
           transform: translateY(-2px);
-          box-shadow: 0 6px 12px rgba(19, 119, 242, 0.3);
+          box-shadow: 0 6px 12px rgba(67, 97, 238, 0.3);
         }
         
         .notification-icon-container {
@@ -588,7 +603,7 @@ const NotificationCenter = () => {
         
         /* Enhanced notification item interactions */
         .notification-item:hover {
-          background-color: rgba(248, 250, 252, 0.6) !important;
+          background-color: rgba(241, 245, 249, 0.8) !important;
         }
         
         .notification-item:hover .notification-icon-bg {
@@ -596,7 +611,7 @@ const NotificationCenter = () => {
         }
         
         .notification-item:hover .notification-title {
-          color: var(--bs-primary);
+          color: #4361EE;
         }
         
         .notification-item:hover .delete-button {
@@ -605,7 +620,7 @@ const NotificationCenter = () => {
         }
         
         .notification-content-wrapper:active {
-          background-color: rgba(243, 244, 246, 0.8);
+          background-color: rgba(226, 232, 240, 0.8);
         }
         
         .delete-button:hover {
@@ -690,6 +705,9 @@ const NotificationCenter = () => {
           visibility: visible !important;
           overflow: visible !important;
         }
+        
+        /* Add Space Grotesk font styling */
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
       `}</style>
     </Dropdown>
   );
