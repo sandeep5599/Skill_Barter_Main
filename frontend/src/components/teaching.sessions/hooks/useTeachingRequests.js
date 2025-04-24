@@ -183,17 +183,26 @@ export default function useTeachingRequests() {
       toast.error('Please select both start and end times');
       return false;
     }
-
+  
     try {
       setProcessing(true);
       const startDate = new Date(startTime);
       const endDate = new Date(endTime);
-
+  
       if (startDate >= endDate) {
         toast.error('End time must be after start time');
         return false;
       }
-
+  
+      // Add a check if this request has an associated session
+      if (selectedRequest.sessionId) {
+        // Update the session with new time information
+        await updateSession(selectedRequest.sessionId, {
+          startTime: startDate.toISOString(),
+          endTime: endDate.toISOString()
+        });
+      }
+  
       await updateMatchStatus(selectedRequest._id || selectedRequest.id, {
         status: 'rescheduled',
         selectedTimeSlot: {
@@ -201,11 +210,11 @@ export default function useTeachingRequests() {
           endTime: endDate.toISOString()
         },
         message: "I've proposed a new time for our session.",
-        notificationType: 'match_rescheduled', // Add this to trigger a notification
-        recipientId: selectedRequest.studentId, // Add this to specify who gets the notification
-        rescheduleInitiator: 'teacher' // Mark that teacher initiated this reschedule
+        notificationType: 'match_rescheduled',
+        recipientId: selectedRequest.studentId,
+        rescheduleInitiator: 'teacher'
       });
-
+  
       toast.success('Request rescheduled successfully!');
       await loadTeachingRequests();
       return true;
@@ -216,6 +225,33 @@ export default function useTeachingRequests() {
       return false;
     } finally {
       setProcessing(false);
+    }
+  };
+  
+  // Add this function to your useTeachingRequests hook
+  const updateSession = async (sessionId, updateData) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No authentication token found');
+  
+      const response = await fetch(`/api/match/session/${sessionId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': token
+        },
+        body: JSON.stringify(updateData)
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update session');
+      }
+  
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating session:', error);
+      throw error;
     }
   };
 

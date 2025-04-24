@@ -777,7 +777,7 @@ const helpers = useMemo(() => ({
   getStatusDisplay: () => {
     let statusText, statusVariant;
     
-    if (sessionData.session.status === 'cancelled') {
+    if (sessionData.session.status === 'cancelled' || sessionData.session.status === 'canceled') {
       statusText = 'Cancelled';
       statusVariant = STATUS_VARIANTS.cancelled;
     } else if (sessionData.session.status === 'completed') {

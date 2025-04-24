@@ -21,6 +21,7 @@ router.put('/:sessionId/complete', auth, sessionController.completeSession);
 // Add this new route
 router.put('/:sessionId/confirm', auth, sessionController.confirmSession);
 router.get('/:sessionId', auth, sessionController.getSessionById);
+router.put('/:sessionId', auth, sessionController.updateSession);
 // Add this new route to get sessions by match ID
 // router.get('/match/:matchId', auth, sessionController.getSessionByMatchId);
 router.put('/:sessionId/meeting-link', auth, sessionController.updateSessionLink);

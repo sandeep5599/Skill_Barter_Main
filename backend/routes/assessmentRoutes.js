@@ -117,7 +117,57 @@ router.get('/:skillId/pending-submissions', auth, async (req, res) => {
   }
 });
 
+// Add this route ABOVE the '/:assessmentId' route
+router.get('/submissions/all', auth, async (req, res) => {
+  try {
+    // Find all submissions
+    const allSubmissions = await Submission.find({})
+      .populate('assessmentId', 'title description')
+      .populate('submittedBy', 'name email')
+      .sort({ submittedAt: -1 });
+    
+    res.status(200).json({
+      success: true,
+      submissions: allSubmissions
+    });
+  } catch (error) {
+    console.error('Error fetching all submissions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching submissions',
+      error: error.message
+    });
+  }
+});
 
+
+router.get('/:assessmentId', auth, async (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+    
+    const assessment = await Assessment.findById(assessmentId)
+      .populate('skillId', 'title category');
+    
+    if (!assessment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Assessment not found'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      assessment
+    });
+  } catch (error) {
+    console.error('Error fetching assessment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching assessment',
+      error: error.message
+    });
+  }
+});
 
 // Add this route to get a single assessment by ID
 router.get('/:assessmentId', auth, async (req, res) => {

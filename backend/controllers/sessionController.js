@@ -6,139 +6,6 @@ const Notification = require('../models/Notification');
 
 
 const sessionController = {
-  // createSession: async (req, res) => {
-  //   try {
-  //     // Check authentication
-  //     if (!req.user || !req.user.id) {
-  //       return res.status(401).json({ error: 'Unauthorized access' });
-  //     }
-   
-  //     const { 
-  //       matchId, 
-  //       selectedTimeSlot, 
-  //       title,
-  //       description,
-  //       meetingLink,
-  //       prerequisites,
-  //       notes
-  //     } = req.body;
-      
-  //     const userId = req.user.id;
-  
-  //     // Validate required fields
-  //     if (!matchId || !selectedTimeSlot || !selectedTimeSlot.startTime || !selectedTimeSlot.endTime) {
-  //       return res.status(400).json({ 
-  //         error: 'Missing required fields',
-  //         required: ['matchId', 'selectedTimeSlot (with startTime and endTime)'] 
-  //       });
-  //     }
-  
-  //     // Verify match exists and user is part of it
-  //     const match = await Match.findById(matchId).populate('skillId', 'name');
-  //     if (!match) {
-  //       return res.status(404).json({ error: 'Match not found' });
-  //     }
-  
-  //     // Check authorization
-  //     if (match.requesterId.toString() !== userId && match.teacherId.toString() !== userId) {
-  //       return res.status(403).json({ error: 'Not authorized to create a session for this match' });
-  //     }
-  
-  //     // Only teacher should be able to create sessions
-  //     if (match.teacherId.toString() !== userId) {
-  //       return res.status(403).json({ error: 'Only the teacher can create sessions' });
-  //     }
-  
-  //     // Check if there's already a current session
-  //     if (match.currentSessionId) {
-  //       // Check if the current session is completed
-  //       const currentSession = await Session.findById(match.currentSessionId);
-        
-  //       if (currentSession && currentSession.status === 'completed') {
-  //         // Move current session to previous sessions if completed
-  //         if (!match.previousSessionIds) {
-  //           match.previousSessionIds = [];
-  //         }
-          
-  //         // Add to previousSessionIds if not already there
-  //         if (!match.previousSessionIds.includes(match.currentSessionId)) {
-  //           match.previousSessionIds.push(match.currentSessionId);
-  //         }
-          
-  //         // Set previouslyMatched flag
-  //         match.previouslyMatched = true;
-          
-  //         // Clear currentSessionId to prepare for the new session
-  //         match.currentSessionId = null;
-  //       } else if (currentSession && currentSession.status !== 'completed') {
-  //         // If current session exists and is not completed, don't create a new one
-  //         return res.status(409).json({ 
-  //           error: 'There is already an active session for this match',
-  //           currentSession
-  //         });
-  //       }
-  //     }
-  
-  //     // Update match status
-  //     match.status = 'accepted';
-      
-  //     // Fetch teacher and student names
-  //     const teacher = await User.findById(match.teacherId);
-  //     const student = await User.findById(match.requesterId);
-  
-  //     if (!teacher || !student) {
-  //       return res.status(404).json({ error: 'Teacher or student not found' });
-  //     }
-  
-  //     // Create session record using match data
-  //     const session = new Session({
-  //       title: title || `${match.skillId.name} Session`,
-  //       matchId: match._id,
-  //       skillId: match.skillId._id,
-  //       teacherId: match.teacherId,
-  //       teacherName: teacher.name,
-  //       studentId: match.requesterId,
-  //       studentName: student.name,
-  //       startTime: new Date(selectedTimeSlot.startTime),
-  //       endTime: new Date(selectedTimeSlot.endTime),
-  //       meetingLink: meetingLink || null,
-  //       description: description || '',
-  //       prerequisites: prerequisites || '',
-  //       notes: notes || '',
-  //       status: 'scheduled'
-  //     });
-  
-  //     await session.save();
-      
-  //     // Update match with the new session ID
-  //     match.currentSessionId = session._id;
-      
-  //     // Save the updated match
-  //     await match.save();
-      
-  //     // Create notification for student
-  //     const notification = await Notification.create({
-  //       userId: student._id,
-  //       title: 'New Session Scheduled',
-  //       message: `${teacher.name} has scheduled a session for ${match.skillId.name}`,
-  //       type: 'session_created',
-  //       relatedId: session._id,
-  //       isRead: false
-  //     });
-  
-  //     return res.status(201).json({ 
-  //       session,
-  //       match,
-  //       message: meetingLink ? 'Session created successfully with meeting link' : 'Session created without meeting link'
-  //     });
-  //   } catch (error) {
-  //     console.error("Error creating session:", error);
-  //     return res.status(500).json({ 
-  //       error: 'Failed to create session',
-  //       message: error.message
-  //     });
-  //   }
-  // },
   createSession: async (req, res) => {
     try {
       // Check authentication
@@ -153,7 +20,8 @@ const sessionController = {
         description,
         meetingLink,
         prerequisites,
-        notes
+        notes,
+        isRescheduling  // Add a flag to indicate if this is a reschedule operation
       } = req.body;
       
       const userId = req.user.id;
@@ -173,10 +41,128 @@ const sessionController = {
       }
   
       // Check authorization
+      if (match.requesterId.toString() !== userId && match.teacherId.toString() !== userId) {
+        return res.status(403).json({ error: 'Not authorized to create a session for this match' });
+      }
+  
+      // Only teacher should be able to create sessions
       if (match.teacherId.toString() !== userId) {
         return res.status(403).json({ error: 'Only the teacher can create sessions' });
       }
   
+      // Check if there's already a current session
+      let existingSession = null;
+      if (match.currentSessionId) {
+        existingSession = await Session.findById(match.currentSessionId);
+        
+        // For rescheduling, we'll update the existing session instead of creating a new one
+        if (isRescheduling && existingSession) {
+          // Update the existing session with new time slots
+          existingSession.startTime = new Date(selectedTimeSlot.startTime);
+          existingSession.meetingLink = meetingLink || existingSession.meetingLink;
+          existingSession.endTime = new Date(selectedTimeSlot.endTime);
+          existingSession.description = description || existingSession.description;
+          existingSession.prerequisites = prerequisites || existingSession.prerequisites;
+          existingSession.notes = notes || existingSession.notes;
+          existingSession.status = 'scheduled'; // Reset status if it was cancelled
+          existingSession.updatedAt = new Date();
+          
+          await existingSession.save();
+          
+          // Update match status to indicate rescheduling
+          match.status = 'rescheduled';
+          
+          // Add the new time slot to the match's timeSlotHistory
+          if (!match.timeSlotHistory) {
+            match.timeSlotHistory = [];
+          }
+          
+          match.timeSlotHistory.push({
+            proposedBy: match.teacherId,
+            proposedAt: new Date(),
+            slots: [{
+              startTime: new Date(selectedTimeSlot.startTime),
+              endTime: new Date(selectedTimeSlot.endTime)
+            }]
+          });
+          
+          // Save the updated match
+          await match.save();
+          
+          // Create notification for student about rescheduling
+          const teacher = await User.findById(match.teacherId);
+          const student = await User.findById(match.requesterId);
+          
+          // Format date and time for notification
+          const options = { 
+            weekday: 'short', 
+            month: 'short', 
+            day: 'numeric',
+            hour: 'numeric', 
+            minute: '2-digit',
+            timeZoneName: 'short'
+          };
+          
+          const startFormatted = new Date(selectedTimeSlot.startTime).toLocaleString('en-US', options);
+          const endTimeOptions = {
+            hour: 'numeric', 
+            minute: '2-digit',
+            timeZoneName: 'short'
+          };
+          const endFormatted = new Date(selectedTimeSlot.endTime).toLocaleString('en-US', endTimeOptions);
+          
+          // Calculate duration
+          const durationMs = new Date(selectedTimeSlot.endTime) - new Date(selectedTimeSlot.startTime);
+          const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+          const durationMins = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+          const durationText = durationHours > 0 
+            ? `${durationHours}h${durationMins > 0 ? ` ${durationMins}m` : ''}`
+            : `${durationMins}m`;
+            
+          const timeInfo = `${startFormatted} to ${endFormatted} (${durationText})`;
+          
+          const notification = await Notification.create({
+            userId: student._id,
+            title: `Session Rescheduled by ${teacher.name}`,
+            message: `Your ${match.skillId.name} session has been rescheduled to ${timeInfo}`,
+            type: 'session_rescheduled',
+            relatedId: existingSession._id,
+            isRead: false
+          });
+          
+          return res.status(200).json({ 
+            session: existingSession,
+            match,
+            message: 'Session rescheduled successfully'
+          });
+        } else if (!isRescheduling && existingSession && existingSession.status !== 'completed') {
+          // If not rescheduling and current session exists and is not completed, don't create a new one
+          return res.status(409).json({ 
+            error: 'There is already an active session for this match',
+            currentSession: existingSession
+          });
+        } else if (existingSession && existingSession.status === 'completed') {
+          // Move current session to previous sessions if completed
+          if (!match.previousSessionIds) {
+            match.previousSessionIds = [];
+          }
+          
+          // Add to previousSessionIds if not already there
+          if (!match.previousSessionIds.includes(match.currentSessionId)) {
+            match.previousSessionIds.push(match.currentSessionId);
+          }
+          
+          // Set previouslyMatched flag
+          match.previouslyMatched = true;
+          
+          // Clear currentSessionId to prepare for the new session
+          match.currentSessionId = null;
+        }
+      }
+  
+      // Update match status for a new session
+      match.status = 'accepted';
+      
       // Fetch teacher and student names
       const teacher = await User.findById(match.teacherId);
       const student = await User.findById(match.requesterId);
@@ -185,65 +171,6 @@ const sessionController = {
         return res.status(404).json({ error: 'Teacher or student not found' });
       }
   
-      // Handle current session
-      if (match.currentSessionId) {
-        const currentSession = await Session.findById(match.currentSessionId);
-        
-        if (currentSession) {
-          console.log("Current session status:", currentSession.status);
-          console.log("Teacher feedback exists:", !!currentSession.teacherFeedback);
-          console.log("Student feedback exists:", !!currentSession.studentFeedback);
-          
-          // Consider a session complete if it has feedback, even if status wasn't updated
-          const isEffectivelyComplete = 
-            currentSession.status === 'completed' || 
-            currentSession.status === 'canceled' ||
-            (currentSession.teacherFeedback && currentSession.studentFeedback);
-          
-          if (isEffectivelyComplete) {
-            console.log("Session is effectively complete, moving to previous sessions");
-            
-            // Update the status to completed if it's not already
-            if (currentSession.status !== 'completed' && currentSession.status !== 'canceled') {
-              currentSession.status = 'completed';
-              await currentSession.save();
-              console.log("Updated session status to completed");
-            }
-            
-            // Ensure previousSessionIds array exists
-            if (!match.previousSessionIds) {
-              match.previousSessionIds = [];
-            }
-            
-            // Add to previous sessions if not already there
-            if (!match.previousSessionIds.includes(match.currentSessionId.toString())) {
-              match.previousSessionIds.push(match.currentSessionId);
-            }
-            
-            match.previouslyMatched = true;
-            match.currentSessionId = null; // Clear for new session
-            
-            // Save these changes right away
-            await match.save();
-            console.log("Match updated, removed current session ID");
-          } else {
-            // If session is still active, don't allow creating a new one
-            return res.status(409).json({ 
-              error: 'There is already an active session for this match. Complete or cancel it before creating a new one.',
-              currentSession
-            });
-          }
-        } else {
-          // Session ID exists but session doesn't - clear it
-          console.log("Clearing invalid session reference");
-          match.currentSessionId = null;
-          await match.save();
-        }
-      }
-  
-      // Set match status to accepted for new session
-      match.status = 'accepted';
-      
       // Create session record using match data
       const session = new Session({
         title: title || `${match.skillId.name} Session`,
@@ -267,24 +194,28 @@ const sessionController = {
       // Update match with the new session ID
       match.currentSessionId = session._id;
       
+      // Add the selected time slot to match data
+      if (!match.selectedTimeSlot) {
+        match.selectedTimeSlot = {
+          startTime: new Date(selectedTimeSlot.startTime),
+          endTime: new Date(selectedTimeSlot.endTime),
+          selectedBy: match.teacherId,
+          selectedAt: new Date()
+        };
+      }
+      
       // Save the updated match
       await match.save();
       
-      // Create notification with proper error handling
-      try {
-        await Notification.create({
-          userId: student._id,
-          title: 'New Session Scheduled',
-          message: `${teacher.name} has scheduled a session for ${match.skillId.name}`,
-          type: 'session_created',
-          relatedId: session._id,
-          isRead: false
-        });
-        console.log("Notification created successfully");
-      } catch (notificationError) {
-        console.error("Error creating notification:", notificationError);
-        // Continue execution even if notification fails
-      }
+      // Create notification for student
+      const notification = await Notification.create({
+        userId: student._id,
+        title: 'New Session Scheduled',
+        message: `${teacher.name} has scheduled a session for ${match.skillId.name}`,
+        type: 'session_created',
+        relatedId: session._id,
+        isRead: false
+      });
   
       return res.status(201).json({ 
         session,
@@ -295,6 +226,111 @@ const sessionController = {
       console.error("Error creating session:", error);
       return res.status(500).json({ 
         error: 'Failed to create session',
+        message: error.message
+      });
+    }
+  },
+  confirmSession: async (req, res) => {
+    try {
+      // Check authentication
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Unauthorized access' });
+      }
+  
+      const { sessionId } = req.params;
+      const { status, message, startTime, endTime } = req.body;
+      const userId = req.user.id;
+  
+      // Find session
+      const session = await Session.findById(sessionId);
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+  
+      // Find the associated match
+      const match = await Match.findById(session.matchId);
+      if (!match) {
+        return res.status(404).json({ error: 'Match not found' });
+      }
+  
+      // Verify that the user is either the student or teacher for this session
+      const isTeacher = session.teacherId.toString() === userId;
+      const isStudent = session.studentId.toString() === userId;
+      
+      if (!isTeacher && !isStudent) {
+        return res.status(403).json({ error: 'You are not authorized to confirm this session' });
+      }
+  
+      // Update match status
+      match.status = status || 'accepted';
+      if (message) {
+        match.message = message;
+      }
+  
+      // Update time slots in match if new times are provided
+      if (startTime && endTime) {
+        // Find if there's a matching time slot to update
+        const timeSlotIndex = match.timeSlots.findIndex(slot => 
+          new Date(slot.startTime).getTime() === new Date(session.startTime).getTime() &&
+          new Date(slot.endTime).getTime() === new Date(session.endTime).getTime()
+        );
+        
+        const newTimeSlot = {
+          startTime: new Date(startTime),
+          endTime: new Date(endTime),
+          status: 'accepted'
+        };
+        
+        if (timeSlotIndex !== -1) {
+          // Update existing time slot
+          match.timeSlots[timeSlotIndex] = newTimeSlot;
+        } else {
+          // Add new time slot
+          match.timeSlots.push(newTimeSlot);
+        }
+        
+        match.markModified('timeSlots');
+        
+        // Most importantly, update the session start and end times
+        session.startTime = new Date(startTime);
+        session.endTime = new Date(endTime);
+      }
+      
+      await match.save();
+      await session.save();
+  
+      // Determine recipient for notification (the other party)
+      const recipientId = isTeacher ? session.studentId : session.teacherId;
+      
+      // Create a notification for the other party
+      const notificationType = status === 'accepted' ? 'session_confirmed' : 'session_updated';
+      
+      // Create a more descriptive message if times were changed
+      let notificationMessage = message || 'Your session has been updated';
+      if (startTime && endTime) {
+        const formattedStart = new Date(startTime).toLocaleString();
+        notificationMessage = `Session time updated to ${formattedStart}. ${message || ''}`;
+      }
+      
+      await Notification.create({
+        userId: recipientId,
+        senderId: userId,
+        title: status === 'accepted' ? 'Session Confirmed' : 'Session Update',
+        message: notificationMessage,
+        type: notificationType,
+        relatedId: session._id,
+        isRead: false
+      });
+  
+      return res.status(200).json({
+        session,
+        match,
+        message: 'Session updated successfully'
+      });
+    } catch (error) {
+      console.error("Error confirming session:", error);
+      return res.status(500).json({ 
+        error: 'Failed to confirm session',
         message: error.message
       });
     }
@@ -632,11 +668,10 @@ const sessionController = {
       }
 
       const { sessionId } = req.params;
-      const { status, message } = req.body;
+      const { status, message, startTime, endTime } = req.body;
       const userId = req.user.id;
 
       // Find session
-      // const session = await Session.findOne({matchId : sessionId});
       const session = await Session.findById(sessionId);
       if (!session) {
         return res.status(404).json({ error: 'Session not found' });
@@ -661,11 +696,43 @@ const sessionController = {
       if (message) {
         match.message = message;
       }
+
+      // Update time slots in match if new times are provided
+      if (startTime && endTime) {
+        // Find the appropriate time slot in the match and update it
+        const timeSlotIndex = match.timeSlots.findIndex(slot => 
+          new Date(slot.startTime).getTime() === new Date(session.startTime).getTime() &&
+          new Date(slot.endTime).getTime() === new Date(session.endTime).getTime()
+        );
+        
+        if (timeSlotIndex !== -1) {
+          // Update the existing time slot
+          match.timeSlots[timeSlotIndex].startTime = new Date(startTime);
+          match.timeSlots[timeSlotIndex].endTime = new Date(endTime);
+        } else {
+          // If the original time slot can't be found, add a new one
+          match.timeSlots.push({
+            startTime: new Date(startTime),
+            endTime: new Date(endTime),
+            status: 'accepted'
+          });
+        }
+        
+        // Mark match as modified to ensure mongoose saves the changes
+        match.markModified('timeSlots');
+      }
+      
       await match.save();
 
-      // Update session fields if needed
+      // Update session fields
       if (req.body.meetingLink) {
         session.meetingLink = req.body.meetingLink;
+      }
+
+      // Update session time if new times are provided
+      if (startTime && endTime) {
+        session.startTime = new Date(startTime);
+        session.endTime = new Date(endTime);
       }
 
       // If there's a new time slot being confirmed
@@ -681,11 +748,18 @@ const sessionController = {
       // Create a notification for the other party
       const notificationType = status === 'accepted' ? 'session_confirmed' : 'session_rejected';
       
+      // Create a more descriptive message if times were changed
+      let notificationMessage = message || 'Your session has been updated';
+      if (startTime && endTime) {
+        const formattedStart = new Date(startTime).toLocaleString();
+        notificationMessage = `Session time updated to ${formattedStart}. ${message || ''}`;
+      }
+      
       await Notification.create({
         userId: recipientId,
         senderId: userId,
         title: status === 'accepted' ? 'Session Confirmed' : 'Session Update',
-        message: message || 'Your session has been updated',
+        message: notificationMessage,
         type: notificationType,
         relatedId: session._id,
         isRead: false
@@ -869,6 +943,7 @@ const sessionController = {
       });
     }
   },
+
   cancelSession: async (req, res) => {
     console.log('=== CANCEL SESSION REQUEST STARTED ===');
     console.log('Request params:', req.params);
@@ -991,7 +1066,91 @@ const sessionController = {
     } finally {
       console.log('=== CANCEL SESSION REQUEST COMPLETED ===');
     }
+  },
+
+    // Add this to your sessionController.js
+  updateSession: async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const updates = req.body;
+      const userId = req.user.id;
+
+      // Find the session
+      const session = await Session.findById(sessionId);
+      if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+      }
+
+      // Verify that the user is either the student or teacher for this session
+      const isTeacher = session.teacherId.toString() === userId;
+      const isStudent = session.studentId.toString() === userId;
+      
+      if (!isTeacher && !isStudent) {
+        return res.status(403).json({ error: 'You are not authorized to update this session' });
+      }
+
+      // Update session fields
+      if (updates.startTime) {
+        session.startTime = new Date(updates.startTime);
+      }
+      
+      if (updates.endTime) {
+        session.endTime = new Date(updates.endTime);
+      }
+      
+      if (updates.meetingLink) {
+        session.meetingLink = updates.meetingLink;
+      }
+      
+      if (updates.status) {
+        session.status = updates.status;
+      }
+
+      await session.save();
+
+      // Also update the associated match if this is a reschedule
+      if (updates.startTime && updates.endTime) {
+        const match = await Match.findById(session.matchId);
+        if (match) {
+          // Find the existing time slot or create a new one
+          const timeSlotIndex = match.timeSlots.findIndex(slot => 
+            new Date(slot.startTime).getTime() === new Date(session.startTime).getTime() &&
+            new Date(slot.endTime).getTime() === new Date(session.endTime).getTime()
+          );
+          
+          if (timeSlotIndex !== -1) {
+            match.timeSlots[timeSlotIndex] = {
+              startTime: new Date(updates.startTime),
+              endTime: new Date(updates.endTime),
+              status: 'accepted'
+            };
+          } else {
+            match.timeSlots.push({
+              startTime: new Date(updates.startTime),
+              endTime: new Date(updates.endTime),
+              status: 'accepted'
+            });
+          }
+          
+          match.markModified('timeSlots');
+          await match.save();
+        }
+      }
+
+      // Return the updated session
+      return res.status(200).json({
+        session,
+        message: 'Session updated successfully'
+      });
+    } catch (error) {
+      console.error("Error updating session:", error);
+      return res.status(500).json({ 
+        error: 'Failed to update session',
+        message: error.message
+      });
+    }
   }
+
 };
 
 

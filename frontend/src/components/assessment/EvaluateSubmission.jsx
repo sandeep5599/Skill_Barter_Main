@@ -1,17 +1,88 @@
 import React, { useState, useEffect } from 'react';
-import { FileEarmarkPdf, XCircle, Download, Calendar, CheckCircleFill, Award, ClockHistory, Star, StarFill, PersonCheck, Trophy } from 'react-bootstrap-icons';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { 
+  CheckCircle, 
+  XCircle, 
+  ArrowLeft, 
+  Save, 
+  Search, 
+  FileEarmark, 
+  Clock,
+  PersonCircle
+} from 'react-bootstrap-icons';
 import Loading from '../common/Loading';
+import ErrorComponent from '../common/Error';
 
-const FeedbackModal = ({ submissionId, onClose }) => {
+const EvaluateSubmission = ({ skillId, userId }) => {
+  const { submissionId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [submission, setSubmission] = useState(null);
+  const [pendingSubmissions, setPendingSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [isPercentage, setIsPercentage] = useState(false);
+  const [scores, setScores] = useState([0, 0, 0, 0, 0]);
+  const [feedback, setFeedback] = useState(['', '', '', '', '']);
+  const [overallFeedback, setOverallFeedback] = useState('');
+  const [filter, setFilter] = useState('');
+  const [hoveredCard, setHoveredCard] = useState(null);
 
+  // Fetch pending submissions for evaluation
   useEffect(() => {
-    const fetchSubmissionDetails = async () => {
+    const fetchPendingSubmissions = async () => {
       try {
         setLoading(true);
+        setError('');
+
+        // If we're in list view mode (no submissionId), fetch the list of pending submissions
+        if (!submissionId) {
+          const url = skillId
+            ? `/api/assessments/${skillId}/pending-submissions`
+            : '/api/assessments/pending-submissions';
+
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch submissions: ${response.status}`);
+          }
+
+          const data = await response.json();
+
+          console.log('Pending submissions:', data);
+
+          if (data.success && data.submissions) {
+            setPendingSubmissions(data.submissions);
+          } else {
+            setPendingSubmissions([]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching pending submissions:', err);
+        setError('Failed to load pending submissions. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPendingSubmissions();
+  }, [skillId, submissionId]);
+
+  // Fetch specific submission if submissionId is provided
+  useEffect(() => {
+    const fetchSubmission = async () => {
+      if (!submissionId) return;
+
+      try {
+        setLoading(true);
+        setError('');
+
         const response = await fetch(`/api/assessments/submission/${submissionId}`, {
           method: 'GET',
           headers: {
@@ -21,369 +92,540 @@ const FeedbackModal = ({ submissionId, onClose }) => {
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to fetch submission details: ${response.status}`);
+          throw new Error(`Failed to fetch submission: ${response.status}`);
         }
 
         const data = await response.json();
+
         if (data.success && data.submission) {
           setSubmission(data.submission);
-          console.log('Submission data:', data.submission);
-          
-          // Determine if the marks are stored as percentage or absolute value
-          // This is an assumption - you might need to adjust based on your backend logic
-          const totalMarks = data.submission.assessmentId?.totalMarks || 100;
-          setIsPercentage(data.submission.marks > totalMarks);
+
+          // Initialize scores and feedback if already evaluated
+          if (data.submission.evaluation) {
+            setScores(data.submission.evaluation.scores || [0, 0, 0, 0, 0]);
+            setFeedback(data.submission.evaluation.feedback || ['', '', '', '', '']);
+            setOverallFeedback(data.submission.evaluation.overallFeedback || '');
+          } else {
+            // Reset form if not evaluated
+            setScores([0, 0, 0, 0, 0]);
+            setFeedback(['', '', '', '', '']);
+            setOverallFeedback('');
+          }
         } else {
-          throw new Error('Failed to load submission details');
+          throw new Error('Submission not found');
         }
       } catch (err) {
-        console.error('Error fetching submission details:', err);
-        setError(err.message || 'An error occurred while loading submission details');
+        console.error('Error:', err);
+        setError(err.message || 'Failed to load submission');
       } finally {
         setLoading(false);
       }
     };
 
     if (submissionId) {
-      fetchSubmissionDetails();
+      fetchSubmission();
     }
   }, [submissionId]);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString(undefined, {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const handleScoreChange = (index, value) => {
+    const newValue = Math.min(10, Math.max(0, parseInt(value) || 0));
+    const newScores = [...scores];
+    newScores[index] = newValue;
+    setScores(newScores);
   };
 
-  // Get assessment title safely
-  const getAssessmentTitle = () => {
-    if (!submission || !submission.assessmentId) return 'Assessment';
-    return typeof submission.assessmentId === 'object' && submission.assessmentId !== null
-      ? submission.assessmentId.title || 'Assessment'
-      : 'Assessment';
+  const handleFeedbackChange = (index, value) => {
+    const newFeedback = [...feedback];
+    newFeedback[index] = value;
+    setFeedback(newFeedback);
   };
 
-  // Get assessment description safely
-  const getAssessmentDescription = () => {
-    if (!submission || !submission.assessmentId) return '';
-    return typeof submission.assessmentId === 'object' && submission.assessmentId !== null
-      ? submission.assessmentId.description || ''
-      : '';
+  const calculateTotalScore = () => {
+    return scores.reduce((sum, score) => sum + score, 0);
   };
 
-  // Get assessment totalMarks safely
-  const getTotalMarks = () => {
-    if (!submission || !submission.assessmentId) return 100;
-    return typeof submission.assessmentId === 'object' && submission.assessmentId !== null
-      ? submission.assessmentId.totalMarks || 100
-      : 100;
+  const calculateAverageScore = () => {
+    return calculateTotalScore() / 10;
   };
 
-  // Calculate actual marks and percentage
-  const calculateScore = () => {
-    if (submission?.marks === undefined) return { actualMarks: 'N/A', percentage: 'N/A' };
-    
-    const totalMarks = getTotalMarks();
-    
-    // If marks are stored as percentage
-    if (isPercentage) {
-      const percentage = submission.marks;
-      const actualMarks = (percentage / 100) * totalMarks;
-      return {
-        actualMarks: Math.round(actualMarks * 10) / 10, // Round to 1 decimal place
-        percentage: Math.round(percentage * 10) / 10
-      };
-    } 
-    // If marks are stored as absolute value
-    else {
-      const actualMarks = submission.marks;
-      const percentage = (actualMarks / totalMarks) * 100;
-      return {
-        actualMarks: Math.round(actualMarks * 10) / 10,
-        percentage: Math.round(percentage * 10) / 10
-      };
+  const handleSubmitEvaluation = async () => {
+    try {
+      setSaving(true);
+      setError('');
+
+      const totalScore = calculateTotalScore();
+      const averageScore = calculateAverageScore();
+
+      // Updated endpoint and HTTP method to match backend route
+      const response = await fetch(`/api/assessments/submission/${submissionId}/evaluate`, {
+        method: 'PATCH', // Changed from POST to PATCH
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'x-socket-id': localStorage.getItem('socketId') || 'no-socket',
+        },
+        body: JSON.stringify({
+          scores,
+          feedback,
+          overallFeedback,
+          totalScore,
+          averageScore
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to submit evaluation: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Navigate back to the submissions list
+        if (skillId) {
+          navigate(`/skills/${skillId}/assessments/evaluate`);
+        } else {
+          navigate('/assessments/evaluate');
+        }
+      } else {
+        throw new Error(data.message || 'Failed to submit evaluation');
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      setError(err.message || 'Failed to submit evaluation');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const getPerformanceLevel = (percentage) => {
-    if (percentage >= 90) return { level: 5, text: 'Excellent', class: 'bg-success' };
-    if (percentage >= 80) return { level: 4, text: 'Very Good', class: 'bg-success' };
-    if (percentage >= 70) return { level: 3, text: 'Good', class: 'bg-primary' };
-    if (percentage >= 60) return { level: 2, text: 'Satisfactory', class: 'bg-primary' };
-    if (percentage >= 50) return { level: 1, text: 'Acceptable', class: 'bg-warning' };
-    if (percentage >= 40) return { level: 1, text: 'Needs Improvement', class: 'bg-warning' };
-    return { level: 0, text: 'Insufficient', class: 'bg-danger' };
+  const handleSelectSubmission = (submissionId) => {
+    if (skillId) {
+      navigate(`/skills/${skillId}/assessments/evaluate/${submissionId}`);
+    } else {
+      navigate(`/assessments/evaluate/${submissionId}`);
+    }
+  };
+
+  const filteredSubmissions = pendingSubmissions.filter(sub => {
+    const searchTerm = filter.toLowerCase();
+    const learnerName = (sub.userId?.name || '').toLowerCase();
+    const assessmentTitle = (sub.assessmentId?.title || '').toLowerCase();
+
+    return learnerName.includes(searchTerm) || assessmentTitle.includes(searchTerm);
+  });
+
+  // Render the submission list view
+  const renderSubmissionsList = () => {
+    if (pendingSubmissions.length === 0) {
+      return (
+        <div className="text-center py-5">
+          <div className="mb-3">
+            <CheckCircle size={48} style={{ color: '#d1d5db' }} />
+          </div>
+          <h5 className="fw-bold">No Submissions to Evaluate</h5>
+          <p className="text-muted">There are no pending submissions waiting for your evaluation.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="card border-0 shadow-sm" style={{ 
+        borderRadius: '1rem',
+        background: 'linear-gradient(to right bottom, #ffffff, #f8f9ff)'
+      }}>
+        <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center" style={{ 
+          borderRadius: '1rem 1rem 0 0',
+          background: 'linear-gradient(135deg, #4361ee, #3f37c9)',
+          border: 'none',
+          padding: '1.25rem'
+        }}>
+          <div className="d-flex align-items-center">
+            <FileEarmark className="me-2" size={24} />
+            <h5 className="mb-0 fw-bold">Submissions Awaiting Evaluation</h5>
+          </div>
+          <div className="input-group" style={{ maxWidth: '300px' }}>
+            <span className="input-group-text bg-white" style={{ borderRadius: '2rem 0 0 2rem' }}>
+              <Search />
+            </span>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search by learner or assessment"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              style={{ borderRadius: '0 2rem 2rem 0', border: 'none' }}
+            />
+          </div>
+        </div>
+
+        <div className="card-body p-0">
+          {filteredSubmissions.length === 0 ? (
+            <div className="text-center py-4">
+              <p className="text-muted">No submissions match your search.</p>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-hover">
+                <thead className="table-light">
+                  <tr>
+                    <th>Assessment</th>
+                    <th>Learner</th>
+                    <th>Submitted</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredSubmissions.map((submission, index) => {
+                    const submittedDate = new Date(submission.submittedAt);
+                    const formattedDate = submittedDate.toLocaleDateString();
+                    const formattedTime = submittedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                    return (
+                      <tr key={submission._id} style={{
+                        transition: 'background-color 0.3s ease',
+                        backgroundColor: index % 2 === 0 ? '#f8f9ff' : '#ffffff',
+                      }}>
+                        <td>
+                          <div className="d-flex align-items-center">
+                            <div className="rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style={{ 
+                              background: 'linear-gradient(135deg, #e6f0ff, #d1e2ff)',
+                              width: '40px', 
+                              height: '40px'
+                            }}>
+                              <FileEarmark className="text-primary" />
+                            </div>
+                            <div>
+                              <p className="mb-0 fw-medium">{submission.assessmentId?.title || 'Assessment'}</p>
+                              <p className="mb-0 small text-muted">{submission.assessmentId?.skillId?.title || 'Skill'}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="d-flex align-items-center">
+                            <div className="rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style={{ 
+                              background: 'linear-gradient(135deg, #e6f0ff, #d1e2ff)',
+                              width: '40px', 
+                              height: '40px'
+                            }}>
+                              <span className="text-primary fw-bold">{(submission.submittedBy.name || 'User').charAt(0)}</span>
+                            </div>
+                            <div>
+                              <p className="mb-0 fw-medium">{submission.submittedBy.name || 'User'}</p>
+                              <p className="mb-0 small text-muted">{submission.submittedBy.email || 'Email'}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="d-flex align-items-center">
+                            <div className="rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style={{ 
+                              background: 'linear-gradient(135deg, #fff9e6, #ffe2d1)',
+                              width: '40px', 
+                              height: '40px'
+                            }}>
+                              <Clock className="text-warning" />
+                            </div>
+                            <div>
+                              <p className="mb-0">{formattedDate}</p>
+                              <p className="mb-0 small text-muted">{formattedTime}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="badge" style={{ 
+                            background: 'linear-gradient(135deg, #fbbf24, #d97706)',
+                            color: '#fff',
+                            borderRadius: '2rem',
+                            padding: '0.5rem 1rem',
+                            fontWeight: '600'
+                          }}>Pending Review</span>
+                        </td>
+                        <td>
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleSelectSubmission(submission._id)}
+                            style={{ 
+                              borderRadius: '2rem',
+                              padding: '0.5rem 1.25rem',
+                              fontWeight: '600',
+                              boxShadow: '0 5px 15px rgba(67, 97, 238, 0.3)',
+                              background: 'linear-gradient(90deg, #4361ee, #3f37c9)',
+                              border: 'none'
+                            }}
+                          >
+                            Evaluate
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Render the evaluation form for a specific submission
+  const renderEvaluationForm = () => {
+    if (!submission) {
+      return <ErrorComponent message="Submission not found" />;
+    }
+
+    return (
+      <div className="card border-0 shadow-sm" 
+        style={{ 
+          borderRadius: '1rem',
+          overflow: 'hidden',
+          background: 'linear-gradient(to right bottom, #ffffff, #f8f9ff)'
+        }}>
+        <div className="card-header bg-white p-4 border-bottom">
+          <div className="d-flex align-items-center justify-content-between">
+            <div className="d-flex align-items-center">
+              <button
+                className="btn btn-outline-primary rounded-circle me-3"
+                onClick={() => navigate(-1)}
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px solid #e0e7ff',
+                  background: 'linear-gradient(to right, #ffffff, #f5f7ff)',
+                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
+                }}
+              >
+                <ArrowLeft size={20} />
+              </button>
+              <div>
+                <h4 className="mb-0 fw-bold">Evaluate Assessment Submission</h4>
+                <p className="text-muted mb-0">
+                  {submission.assessmentId?.title || 'Assessment'}
+                </p>
+              </div>
+            </div>
+
+            <div className="d-flex align-items-center">
+              <div className="me-4">
+                <p className="small text-muted mb-0">Submitted by</p>
+                <p className="fw-medium mb-0">
+                  {submission.submittedBy.name || 'User'}
+                </p>
+              </div>
+              <div>
+                <p className="small text-muted mb-0">Submitted on</p>
+                <p className="fw-medium mb-0">
+                  {new Date(submission.submittedAt).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card-body p-0">
+          <div className="row g-0">
+            {/* Left column - PDF viewer */}
+            <div className="col-lg-7 border-end">
+              <div className="p-4">
+                <h5 className="fw-bold mb-3">Student Submission</h5>
+
+                <div className="mb-3" style={{ 
+                  borderRadius: '1rem',
+                  overflow: 'hidden',
+                  boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)'
+                }}>
+                  <iframe
+                    src={submission.answersPdfUrl}
+                    title="PDF Viewer"
+                    style={{ height: '600px', width: '100%', border: 'none' }}
+                  ></iframe>
+                </div>
+
+                <div className="d-grid mt-3">
+                  <a
+                    href={submission.answersPdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-outline-primary"
+                    style={{ 
+                      borderRadius: '2rem',
+                      padding: '0.75rem 1.5rem',
+                      fontWeight: '600',
+                      border: '2px solid #e0e7ff',
+                      background: 'linear-gradient(to right, #ffffff, #f5f7ff)'
+                    }}
+                  >
+                    Open PDF in New Tab
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Right column - Evaluation form */}
+            <div className="col-lg-5">
+              <div className="p-4">
+                <h5 className="fw-bold mb-4">Evaluation Form</h5>
+
+                <div className="card mb-4 border-0 p-3" style={{
+                  borderRadius: '1rem',
+                  background: 'linear-gradient(to right bottom, #f0f4ff, #e6f0ff)',
+                  boxShadow: '0 5px 15px rgba(79, 70, 229, 0.1)'
+                }}>
+                  <div className="d-flex justify-content-between mb-2">
+                    <span>Total Score:</span>
+                    <span className="fw-bold">{calculateTotalScore()}/50</span>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <span>Average Score (Will be added to user points):</span>
+                    <span className="fw-bold">{calculateAverageScore().toFixed(1)}/5</span>
+                  </div>
+                </div>
+
+                {/* Question scores input */}
+                <form>
+                  {[1, 2, 3, 4, 5].map((questionNum, index) => (
+                    <div 
+                      key={index} 
+                      className="card mb-3 border-0 shadow-sm"
+                      style={{
+                        borderRadius: '1rem',
+                        transition: 'all 0.3s ease',
+                        transform: hoveredCard === `question-${index}` ? 'translateY(-3px)' : 'none',
+                        boxShadow: hoveredCard === `question-${index}` ? '0 10px 20px rgba(79, 70, 229, 0.15)' : '0 5px 10px rgba(0, 0, 0, 0.03)'
+                      }}
+                      onMouseEnter={() => setHoveredCard(`question-${index}`)}
+                      onMouseLeave={() => setHoveredCard(null)}
+                    >
+                      <div className="card-header bg-white py-3 px-3 d-flex justify-content-between align-items-center" style={{
+                        borderRadius: '1rem 1rem 0 0',
+                        borderBottom: '1px solid rgba(0, 0, 0, 0.05)'
+                      }}>
+                        <h6 className="mb-0 fw-bold" style={{ color: '#4361ee' }}>Question {questionNum}</h6>
+                        <div className="input-group input-group-sm" style={{ width: '100px' }}>
+                          <input
+                            type="number"
+                            className="form-control text-center"
+                            min="0"
+                            max="10"
+                            value={scores[index]}
+                            onChange={(e) => handleScoreChange(index, e.target.value)}
+                            style={{
+                              borderTopLeftRadius: '1rem',
+                              borderBottomLeftRadius: '1rem',
+                              fontWeight: '600'
+                            }}
+                          />
+                          <span className="input-group-text" style={{
+                            borderTopRightRadius: '1rem',
+                            borderBottomRightRadius: '1rem',
+                            background: 'linear-gradient(135deg, #4361ee, #3f37c9)',
+                            color: 'white',
+                            fontWeight: '600'
+                          }}>/10</span>
+                        </div>
+                      </div>
+                      <div className="card-body p-3">
+                        <label className="form-label small text-muted">Feedback:</label>
+                        <textarea
+                          className="form-control"
+                          rows="2"
+                          placeholder="Provide feedback for this question..."
+                          value={feedback[index]}
+                          onChange={(e) => handleFeedbackChange(index, e.target.value)}
+                          style={{
+                            borderRadius: '0.75rem',
+                            border: '1px solid #e0e7ff',
+                            transition: 'all 0.3s ease'
+                          }}
+                        ></textarea>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="mb-4">
+                    <label className="form-label fw-medium">Overall Feedback:</label>
+                    <textarea
+                      className="form-control"
+                      rows="4"
+                      placeholder="Provide overall feedback for this assessment..."
+                      value={overallFeedback}
+                      onChange={(e) => setOverallFeedback(e.target.value)}
+                      style={{
+                        borderRadius: '0.75rem',
+                        border: '1px solid #e0e7ff',
+                        boxShadow: '0 5px 15px rgba(0, 0, 0, 0.03)',
+                        transition: 'all 0.3s ease'
+                      }}
+                    ></textarea>
+                  </div>
+
+                  <div className="d-grid gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-primary d-flex align-items-center justify-content-center"
+                      onClick={handleSubmitEvaluation}
+                      disabled={saving}
+                      style={{ 
+                        borderRadius: '2rem',
+                        padding: '0.75rem 1.5rem',
+                        fontWeight: '600',
+                        boxShadow: '0 8px 15px rgba(67, 97, 238, 0.3)',
+                        background: 'linear-gradient(90deg, #4361ee, #3f37c9)',
+                        border: 'none'
+                      }}
+                    >
+                      {saving ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Saving Evaluation...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="me-2" />
+                          Submit Evaluation
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary"
+                      onClick={() => navigate(-1)}
+                      style={{ 
+                        borderRadius: '2rem',
+                        padding: '0.75rem 1.5rem',
+                        fontWeight: '600',
+                        border: '2px solid #e0e7ff',
+                        background: 'linear-gradient(to right, #ffffff, #f5f7ff)'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
-    return (
-      <div className="modal-dialog modal-dialog-centered">
-        <div className="modal-content p-4 border-0 rounded-4 shadow">
-          <Loading message="Loading assessment feedback..." />
-        </div>
-      </div>
-    );
+    return <Loading message={submissionId ? "Loading submission..." : "Loading submissions..."} />;
   }
 
   if (error) {
-    return (
-      <div className="modal-dialog modal-dialog-centered">
-        <div className="modal-content p-4 border-0 rounded-4 shadow">
-          <div className="modal-header border-0">
-            <h5 className="modal-title fw-bold">Error</h5>
-            <button type="button" className="btn-close" onClick={onClose}></button>
-          </div>
-          <div className="modal-body text-center py-4">
-            <div className="bg-danger bg-opacity-10 rounded-circle mx-auto d-flex align-items-center justify-content-center mb-4" style={{width: '80px', height: '80px'}}>
-              <XCircle size={40} className="text-danger" />
-            </div>
-            <h5 className="fw-bold mb-3">Failed to Load Feedback</h5>
-            <p className="text-muted mb-0">{error}</p>
-          </div>
-          <div className="modal-footer border-0">
-            <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={onClose}>Close</button>
-          </div>
-        </div>
-      </div>
-    );
+    return <ErrorComponent message={error} />;
   }
 
-  if (!submission) {
-    return (
-      <div className="modal-dialog modal-dialog-centered">
-        <div className="modal-content p-4 border-0 rounded-4 shadow">
-          <div className="modal-header border-0">
-            <h5 className="modal-title fw-bold">Not Found</h5>
-            <button type="button" className="btn-close" onClick={onClose}></button>
-          </div>
-          <div className="modal-body text-center py-4">
-            <p className="mb-0">The submission details could not be found.</p>
-          </div>
-          <div className="modal-footer border-0">
-            <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={onClose}>Close</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const score = calculateScore();
-  const performance = getPerformanceLevel(score.percentage);
-  const totalMarks = getTotalMarks();
-
+  // If we have a submissionId, show the evaluation form, otherwise show the list
   return (
-    <div className="modal-dialog modal-dialog-centered modal-lg">
-      <div className="modal-content border-0 rounded-4 shadow overflow-hidden">
-        <div className="modal-header border-0 bg-primary bg-gradient text-white p-4">
-          <div>
-            <h5 className="modal-title fw-bold mb-1">{getAssessmentTitle()}</h5>
-            <p className="mb-0 opacity-75 small">Assessment Feedback</p>
-          </div>
-          <button type="button" className="btn-close btn-close-white" onClick={onClose}></button>
-        </div>
-        
-        <div className="modal-body p-0">
-          {/* Score Section */}
-          <div className="bg-gradient bg-light p-4">
-            <div className="row g-4 align-items-center">
-              <div className="col-md-6">
-                <div className="score-card shadow bg-white rounded-4 p-4 h-100 mx-auto" style={{maxWidth: '320px'}}>
-                  <div className="text-center mb-4">
-                    <h6 className="text-uppercase text-muted mb-3 small fw-bold">Your Score</h6>
-                    
-                    <div className="score-circle position-relative mx-auto mb-3">
-                      <div className="position-relative" style={{width: '150px', height: '150px'}}>
-                        {/* Background Circle */}
-                        <svg width="150" height="150" viewBox="0 0 120 120">
-                          <circle 
-                            cx="60" cy="60" r="54" 
-                            fill="none" 
-                            stroke="#e9ecef"
-                            strokeWidth="12"
-                          />
-                          {/* Foreground Circle - Score Indicator */}
-                          <circle 
-                            cx="60" cy="60" r="54" 
-                            fill="none" 
-                            stroke={performance.class.replace('bg-', 'var(--bs-')}
-                            strokeWidth="12"
-                            strokeDasharray={`${(score.percentage * 3.39)} ${(100 - score.percentage) * 3.39}`}
-                            strokeDashoffset="0"
-                            transform="rotate(-90 60 60)"
-                            style={{transition: 'stroke-dasharray 1s ease-in-out'}}
-                          />
-                        </svg>
-                        
-                        {/* Score Text */}
-                        <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center flex-column">
-                          <h2 className="mb-0 fw-bold">{score.actualMarks}</h2>
-                          <p className="mb-0 text-muted small">out of {totalMarks}</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-3">
-                      <span className={`badge ${performance.class} rounded-pill px-3 py-2`}>
-                        {performance.text} ({score.percentage}%)
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="rating-stars text-center">
-                    {[...Array(5)].map((_, index) => (
-                      index < performance.level ? 
-                        <StarFill key={index} className="text-warning mx-1" size={22} /> : 
-                        <Star key={index} className="text-secondary mx-1" size={22} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="col-md-6">
-                <div className="h-100">
-                  <div className="bg-white rounded-4 shadow p-4 mb-4">
-                    <div className="d-flex align-items-center mb-3">
-                      <div className="bg-primary bg-opacity-10 rounded-circle p-2 me-3">
-                        <Trophy size={22} className="text-primary" />
-                      </div>
-                      <div>
-                        <small className="text-muted d-block">Performance</small>
-                        <span className="fw-medium">{performance.text}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="progress rounded-pill mb-4" style={{height: '8px'}}>
-                      <div 
-                        className={`progress-bar ${performance.class}`} 
-                        role="progressbar" 
-                        style={{width: `${score.percentage}%`}} 
-                        aria-valuenow={score.percentage} 
-                        aria-valuemin="0" 
-                        aria-valuemax="100">
-                      </div>
-                    </div>
-                    
-                    <div className="row g-3">
-                      <div className="col-6">
-                        <div className="bg-light rounded-3 p-3 text-center">
-                          <h5 className="mb-0 fw-bold">{score.actualMarks}/{totalMarks}</h5>
-                          <small className="text-muted">Marks</small>
-                        </div>
-                      </div>
-                      <div className="col-6">
-                        <div className="bg-light rounded-3 p-3 text-center">
-                          <h5 className="mb-0 fw-bold">{score.percentage}%</h5>
-                          <small className="text-muted">Percentage</small>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white rounded-4 shadow p-4">
-                    <h6 className="fw-bold mb-3 small text-uppercase text-muted">Submission Details</h6>
-                    
-                    <div className="d-flex align-items-center mb-3">
-                      <div className="bg-primary bg-opacity-10 rounded-circle p-2 me-3">
-                        <Calendar size={18} className="text-primary" />
-                      </div>
-                      <div>
-                        <small className="text-muted d-block">Submitted On</small>
-                        <span className="small fw-medium">{formatDate(submission.submittedAt)}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="d-flex align-items-center">
-                      <div className="bg-success bg-opacity-10 rounded-circle p-2 me-3">
-                        <PersonCheck size={18} className="text-success" />
-                      </div>
-                      <div>
-                        <small className="text-muted d-block">Evaluated On</small>
-                        <span className="small fw-medium">{formatDate(submission.evaluatedAt)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Assessment Description */}
-          <div className="p-4 border-bottom">
-            <h6 className="fw-bold d-flex align-items-center text-uppercase small mb-3 text-muted">
-              <Award className="me-2 text-primary" />
-              About This Assessment
-            </h6>
-            <div className="bg-light rounded-4 p-4">
-              <p className="mb-0">{getAssessmentDescription() || 'No description available for this assessment.'}</p>
-            </div>
-          </div>
-
-          {/* Feedback Section */}
-          <div className="p-4 border-bottom">
-            <h6 className="fw-bold mb-3 text-uppercase small text-muted">Instructor Feedback</h6>
-            <div className="bg-light rounded-4 p-4">
-              {submission.feedback ? (
-                <div className="feedback-content">
-                  <div className="border-start border-4 border-primary ps-3">
-                    <p className="mb-0">{submission.feedback}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-3">
-                  <div className="bg-warning bg-opacity-10 rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3" style={{width: '60px', height: '60px'}}>
-                    <ClockHistory size={24} className="text-warning" />
-                  </div>
-                  <p className="text-muted mb-0 fst-italic">No detailed feedback was provided for this assessment.</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Submission Document */}
-          <div className="p-4">
-            <h6 className="fw-bold mb-3 text-uppercase small text-muted">Your Submission</h6>
-            {submission.answersPdfUrl ? (
-              <div className="card shadow-sm bg-white border-0 rounded-4 p-3 d-flex flex-row align-items-center justify-content-between">
-                <div className="d-flex align-items-center">
-                  <div className="bg-danger bg-opacity-10 rounded-circle p-3 me-3">
-                    <FileEarmarkPdf className="text-danger" size={24} />
-                  </div>
-                  <div>
-                    <span className="fw-medium d-block">Submission Document</span>
-                    <small className="text-muted">View or download your submitted work</small>
-                  </div>
-                </div>
-                <a 
-                  href={submission.answersPdfUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="btn btn-primary btn-sm rounded-pill px-3 d-flex align-items-center"
-                >
-                  <Download className="me-1" size={14} />
-                  View PDF
-                </a>
-              </div>
-            ) : (
-              <div className="text-center py-4 bg-light rounded-4">
-                <p className="text-muted mb-0 fst-italic">No submission document available</p>
-              </div>
-            )}
-          </div>
-        </div>
-        
-        <div className="modal-footer bg-light border-0 p-3">
-          <button type="button" className="btn btn-secondary rounded-pill px-4" onClick={onClose}>Close</button>
-        </div>
-      </div>
+    <div className="container-fluid">
+      {submissionId ? renderEvaluationForm() : renderSubmissionsList()}
     </div>
   );
 };
 
-export default FeedbackModal;
+export default EvaluateSubmission;

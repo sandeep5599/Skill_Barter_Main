@@ -3,6 +3,7 @@ import React from 'react';
 import { Button, Spinner } from 'react-bootstrap';
 
 const ActionButtons = ({ request, navigate, onAccept, onDecline, isProcessing }) => {
+  console.log('ActionButtons', request, isProcessing);
   const requestId = request._id || request.id;
   const sessionId = request.sessionId || requestId;
   
@@ -45,7 +46,7 @@ const ActionButtons = ({ request, navigate, onAccept, onDecline, isProcessing })
       return (
         <Button 
           variant="success" 
-          onClick={() => navigate(`/sessions/${sessionId}`)}
+          onClick={() => navigate(`/sessions`)}
           className="w-100"
         >
           <i className="bi bi-calendar2-check-fill me-2"></i> View Session

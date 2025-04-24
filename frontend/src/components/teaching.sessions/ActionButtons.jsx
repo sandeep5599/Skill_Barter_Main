@@ -30,7 +30,7 @@ const ActionButtons = ({
       console.error('No session ID for request:', request);
       return;
     }
-    navigate(`/sessions/${request.sessionId || requestId}`);
+    navigate(`/sessions`);
   };
 
   // Added: Handler for accepting reschedule proposals
