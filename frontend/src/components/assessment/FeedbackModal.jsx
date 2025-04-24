@@ -72,12 +72,12 @@ const FeedbackModal = ({ submissionId, onClose }) => {
   };
 
   const getPerformanceLabel = (score) => {
-    if (score >= 90) return { text: 'Excellent', class: 'bg-success' };
-    if (score >= 80) return { text: 'Very Good', class: 'bg-success' };
-    if (score >= 70) return { text: 'Good', class: 'bg-primary' };
-    if (score >= 60) return { text: 'Satisfactory', class: 'bg-primary' };
-    if (score >= 50) return { text: 'Acceptable', class: 'bg-warning' };
-    if (score >= 40) return { text: 'Needs Improvement', class: 'bg-warning' };
+    if (score >= 50) return { text: 'Excellent', class: 'bg-success' };
+    if (score >= 40) return { text: 'Very Good', class: 'bg-success' };
+    if (score >= 30) return { text: 'Good', class: 'bg-primary' };
+    if (score >= 20) return { text: 'Satisfactory', class: 'bg-primary' };
+    if (score >= 10) return { text: 'Acceptable', class: 'bg-warning' };
+    if (score >= 5) return { text: 'Needs Improvement', class: 'bg-warning' };
     return { text: 'Insufficient', class: 'bg-danger' };
   };
 
@@ -160,7 +160,7 @@ const FeedbackModal = ({ submissionId, onClose }) => {
                         color: 'white'
                       }}>
                   <div>
-                    <h3 className="mb-0 fw-bold">{submission.marks !== undefined ? `${submission.marks}%` : 'N/A'}</h3>
+                    <h3 className="mb-0 fw-bold">{submission.marks !== undefined ? `${submission.marks}` : 'N/A'}</h3>
                     <small>Score</small>
                   </div>
                 </div>

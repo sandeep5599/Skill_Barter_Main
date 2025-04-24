@@ -120,7 +120,9 @@ const ProfileManagement = () => {
         skillName: skillData.name,
         proficiencyLevel: skillData.proficiency,
         description: skillData.description,
-        type: skillType
+        type: skillType,
+        isTeaching: type === 'teach', // Add this field
+        isLearning: type === 'learn'  // Add this field
       }, token);
       
       // Update state with new skill
